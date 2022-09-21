@@ -1,16 +1,13 @@
-import ROOT
 import numpy as np
 import pylab
 import sys
-from operator import itemgetter
 import os
 import math
 from scipy.optimize import curve_fit
-from matplotlib.patches import Rectangle
 import struct
 from matplotlib import colors
 import yaml
-from natsort import natsorted, ns
+from natsort import natsorted
 import warnings
 import time
 import multiprocessing as mp
@@ -115,7 +112,7 @@ def parallel_read(file_to_read, energy_chid, mod_mapping):
     print("Size data_array - {}".format(len(data_array)))
 
     #paralellization 
-    cpu_count = mp.cpu_count() - 12 #num cores to use (leaving 12 free)
+    cpu_count = mp.cpu_count() - 4 #4 free for local tests (only 8 available)- 12 #num cores to use (leaving 12 free)
     file_size = len(data_array)
     chunk_size = file_size // cpu_count
     chunk_args = []
@@ -506,7 +503,7 @@ if __name__ == "__main__":
     plot_parameters()
     start = time.time()
     try:
-        fd = open("/home/tbpet/WorkingDir/macros/SuperModule/SM_mapping.yaml", 'r')
+        fd = open("SM_mapping.yaml", 'r')
     except:
         print("No YAML file found in this directory...")
         exit(0)
