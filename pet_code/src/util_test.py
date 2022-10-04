@@ -1,5 +1,4 @@
 import os
-from unicodedata import decimal
 
 from numpy.testing import assert_almost_equal
 

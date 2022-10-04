@@ -19,11 +19,6 @@ def TMP_OUT(tmp_path_factory):
     return tmp_path_factory.mktemp('cry_tests')
 
 
-# @pytest.fixture(scope = 'session')
-# def TMP_TXT(tmp_path_factory):
-#     fn = tmp_path_factory.mktemp("map") / "notyaml.txt"
-#     fn.write_text("I'm not a mapping file")
-#     return fn
 @pytest.fixture(scope = 'session')
 def TMP_TXT(TMP_OUT):
     fn = TMP_OUT / "notyaml.txt"
