@@ -29,18 +29,19 @@ def read_petsys(mod_mapping, sm_filter=lambda x: True, singles=False):
             with open(fn, 'rb') as fbuff:
                 b_iter = struct.iter_unpack(line_struct, fbuff.read())
                 for first_line in b_iter:
-                    sm1 = []
-                    sm2 = []
-                    last_ch = [-99, -99]
+                    sm1       = []
+                    sm2       = []
+                    ch_sm1    = set()
+                    ch_sm2    = set()
                     evt_lines = first_line[0] + first_line[5] - 2
                     for evt in [first_line] + list(islice(b_iter, evt_lines)):
-                        if evt[4] != last_ch[0]:
+                        if evt[4] not in ch_sm1:
                             sm1.append(unpack_supermodule(evt[:5], mod_mapping))
-                            last_ch[0] = evt[4]
+                            ch_sm1.add(evt[4])
                         if not singles:
-                            if evt[-1] != last_ch[1]:
+                            if evt[-1] not in ch_sm2:
                                 sm2.append(unpack_supermodule(evt[5:], mod_mapping))
-                                last_ch[1] = evt[-1]
+                                ch_sm2.add(evt[-1])
                     if sm_filter(sm1, sm2):
                         yield sm1, sm2
     return petsys_event
