@@ -8,20 +8,22 @@ from itertools import islice
 from . util import slab_position
 
 
-def read_petsys(mod_mapping, singles=False):
+def read_petsys(mod_mapping, sm_filter=lambda x: True, singles=False):
     """
     Reader for petsys output.
     mod_mapping: Lookup table for the channel id
                  to mini module numbering.
+    energy_ch  : energy channels.
     singles    : Is the file singles mode? default False.
+    sm_filter  : Function taking a tuple of smto filter the module data.
     returns
     petsys_event: Fn, loops over input file list and yields
                       event information.
     """
+    line_struct = '<BBqfiBBqfi'
+    if singles:
+        line_Struct = line_struct[:6]
     def petsys_event(file_list):
-        line_struct = '<BBqfiBBqfi'
-        if singles:
-            line_Struct = line_struct[:6]
 
         for fn in file_list:
             with open(fn, 'rb') as fbuff:
@@ -29,22 +31,18 @@ def read_petsys(mod_mapping, singles=False):
                 for first_line in b_iter:
                     sm1 = []
                     sm2 = []
+                    last_ch = [-99, -99]
                     evt_lines = first_line[0] + first_line[5] - 2
                     for evt in [first_line] + list(islice(b_iter, evt_lines)):
-                        try:
-                            if evt[5] != sm1[-1][0]:
-                                sm1.append(unpack_supermodule(evt[:5], mod_mapping))
-                        except IndexError:
-                            # First line of event.
+                        if evt[4] != last_ch[0]:
                             sm1.append(unpack_supermodule(evt[:5], mod_mapping))
+                            last_ch[0] = evt[4]
                         if not singles:
-                            try:
-                                if evt[-1] != sm2[-1][0]:
-                                    sm2.append(unpack_supermodule(evt[5:], mod_mapping))
-                            except IndexError:
-                                # First line of event.
+                            if evt[-1] != last_ch[1]:
                                 sm2.append(unpack_supermodule(evt[5:], mod_mapping))
-                    yield sm1, sm2
+                                last_ch[1] = evt[-1]
+                    if sm_filter(sm1, sm2):
+                        yield sm1, sm2
     return petsys_event
 
 
