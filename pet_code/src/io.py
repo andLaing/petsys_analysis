@@ -74,8 +74,8 @@ def read_ymlmapping(mapping_file):
         or "energy_channels" not in channel_map.keys():
         raise RuntimeError('Mapping file not correct format.')
 
-    ALLSM_time_ch    = []
-    ALLSM_energy_ch  = []
+    ALLSM_time_ch    = set()
+    ALLSM_energy_ch  = set()
     mM_mapping       = {}
     centroid_mapping = {}
     ## A lot of hardwired numbers here, maybe not stable
@@ -90,8 +90,8 @@ def read_ymlmapping(mapping_file):
         for tch, ech in zip(channel_map["time_channels"], channel_map["energy_channels"]):
             absolut_tch = tch + sm * FEM_num_ch
             absolut_ech = ech + sm * FEM_num_ch
-            ALLSM_time_ch  .append(absolut_tch)
-            ALLSM_energy_ch.append(absolut_ech)
+            ALLSM_time_ch  .add(absolut_tch)
+            ALLSM_energy_ch.add(absolut_ech)
 
             mM_num_en = mM_energyMapping[mM_num]
             mM_mapping      [absolut_tch] = mM_num
