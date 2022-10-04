@@ -20,6 +20,7 @@ dependencies:
 - pyyaml     = 6.0
 - natsort    = 7.1
 - pytest     = 6.2.5
+- pandas     = 1.3.5
 EOF
 
 if conda env list | grep ${CONDA_ENV_NAME};
