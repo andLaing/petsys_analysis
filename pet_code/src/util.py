@@ -1,3 +1,5 @@
+import numpy as np
+
 def get_no_eng_channels(mod_data, energy_chid):
     """
     Return the number of channels for energy
@@ -61,3 +63,20 @@ def slab_position(pos):
     slab_num = round((pos - 1.6) / 3.2) # Safe to have these hardwired?
     indx     = slab_num - slab_num // 8 * 8
     return indx if indx < 8 else indx - 8
+
+
+def filter_multihit(sm):
+    """
+    Identify supermodules with multipl mini-modules
+    hit.
+    """
+    n_mm = len(set(x[1] for x in sm))
+    return n_mm == 1
+
+
+def shift_to_centres(bin_low_edge):
+    """
+    Get the bin centres from a list/array
+    of lower edges (standard bin labels).
+    """
+    return bin_low_edge[:-1] + np.diff(bin_low_edge) * 0.5
