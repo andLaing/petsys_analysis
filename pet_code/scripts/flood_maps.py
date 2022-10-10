@@ -2,38 +2,22 @@ import sys
 
 import matplotlib.pyplot as plt
 import numpy  as np
-import pandas as pd
+# import pandas as pd
 
-from pet_code.src.fits  import fit_gaussian
 from pet_code.src.io    import read_petsys, read_ymlmapping
 from pet_code.src.plots import mm_energy_spectra, group_times
-from pet_code.src.util  import filter_impact, get_supermodule_eng
-from pet_code.src.util  import centroid_calculation, filter_multihit
+from pet_code.src.util  import filter_impacts_one_minimod, get_supermodule_eng
+from pet_code.src.util  import centroid_calculation
 
 
-def read_and_filter(eng_map, min_sm1, min_sm2):
-    """
-    Name should be improved and it should
-    be in another file.
-    return a function to iterate on the
-    event generator and return valid events.
-    """
-    m1_filter = filter_impact(min_sm1, eng_map)
-    m2_filter = filter_impact(min_sm2, eng_map)
-    def valid_event(sm1, sm2):
-        return filter_multihit(sm1) and filter_multihit(sm2) and m1_filter(sm1) and m2_filter(sm2)
-        # return m1_filter(sm1) and m2_filter(sm2)
-    return valid_event
-
-
-def module_centroids(event, c_calc):
-    """
-    Get all relevant centroids for each super module in the event.
-    Muy cutre ahora.
-    """
-    sm1_dict = pd.DataFrame(event[0], columns=['id', 'mm', 'tstp', 'eng']).groupby('mm').apply(lambda x: c_calc(x.values)).to_dict()
-    sm2_dict = pd.DataFrame(event[1], columns=['id', 'mm', 'tstp', 'eng']).groupby('mm').apply(lambda x: c_calc(x.values)).to_dict()
-    return sm1_dict, sm2_dict
+# def module_centroids(event, c_calc):
+#     """
+#     Get all relevant centroids for each super module in the event.
+#     Muy cutre ahora.
+#     """
+#     sm1_dict = pd.DataFrame(event[0], columns=['id', 'mm', 'tstp', 'eng']).groupby('mm').apply(lambda x: c_calc(x.values)).to_dict()
+#     sm2_dict = pd.DataFrame(event[1], columns=['id', 'mm', 'tstp', 'eng']).groupby('mm').apply(lambda x: c_calc(x.values)).to_dict()
+#     return sm1_dict, sm2_dict
 
 
 # def range_filter(val, vmin, vmax):
@@ -50,12 +34,9 @@ if __name__ == '__main__':
     file_list = sys.argv[1:]
 
     time_ch, eng_ch, mm_map, centroid_map, _ = read_ymlmapping(map_file)
-    evt_select = read_and_filter(eng_ch, 5, 4) # minima should not be hardwired
+    evt_select = filter_impacts_one_minimod(eng_ch, 5, 4) # minima should not be hardwired
     pet_reader = read_petsys(mm_map, evt_select)
-    # filtered_events = list(filter(evt_select, pet_reader(file_list)))
     filtered_events = [tpl for tpl in pet_reader(file_list)]
-    # filtered_events = pd.DataFrame((v for tpl in pet_reader(file_list) for v in np.vstack(tpl)),
-    #                                columns=["event", "sm", "ch_id", "mm", "tstp", "energy"])
     end_r = time.time()
     print("Time enlapsed reading: {} s".format(int(end_r - start)))
     print("length check: ", len(filtered_events))
