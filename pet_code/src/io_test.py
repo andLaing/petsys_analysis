@@ -25,14 +25,14 @@ def test_nonyml_raises(TMP_TXT):
         catch = read_ymlmapping(TMP_TXT)
 
 
-def test_write_event_trace(TEST_DATA_DIR, TMP_OUT, DUMMY_EVT):
+def test_write_event_trace(TEST_DATA_DIR, TMP_OUT, DUMMY_SM):
     test_yml         = os.path.join(TEST_DATA_DIR, "SM_mapping.yaml")
     *_, centroid_map = read_ymlmapping(test_yml)
 
     tmp_out = os.path.join(TMP_OUT, 'first_test.txt')
     with open(tmp_out, 'w') as out_buf:
         writer = write_event_trace(out_buf, centroid_map)
-        writer(DUMMY_EVT)
+        writer(DUMMY_SM)
 
     with open(tmp_out) as txt_test:
         all_values = txt_test.read().split('\t')
