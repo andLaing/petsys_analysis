@@ -1,16 +1,14 @@
-import ROOT
 import numpy as np
 import pylab
 import sys
-from operator import itemgetter
 import os
 import math
 from scipy.optimize import curve_fit
-from matplotlib.patches import Rectangle
-import struct
+# import struct
+from itertools import islice
 from matplotlib import colors
 import yaml
-from natsort import natsorted, ns
+from natsort import natsorted
 import warnings
 import time
 import multiprocessing as mp
@@ -115,7 +113,7 @@ def parallel_read(file_to_read, energy_chid, mod_mapping):
     print("Size data_array - {}".format(len(data_array)))
 
     #paralellization 
-    cpu_count = mp.cpu_count() - 12 #num cores to use (leaving 12 free)
+    cpu_count = mp.cpu_count() - 4 #4 free for local tests (only 8 available)- 12 #num cores to use (leaving 12 free)
     file_size = len(data_array)
     chunk_size = file_size // cpu_count
     chunk_args = []
@@ -147,143 +145,67 @@ def parallel_read(file_to_read, energy_chid, mod_mapping):
     
 def process_chunk(data_array, energy_chid, mod_mapping):
 
-    cnt = 0
-    eventSize = 36
-    num_lines = 0
-    first_line_event = True
-    event = -1
+    event = 0
     good_events = 0
     data_dict = {}
-    energy_minimum = 0.2
+    # energy_minimum = 0.2
     
     print("No te preocupes, saldrá bien :) :(o no)")
-    for line in data_array:
-        num_lines += 1
-        line_split = line
-        #print(line_split)
-        if first_line_event:
-            #if event > 200000:
-            #    break
-            #print("FIRST LINE")
-            event += 1
+    num_lines  = len(data_array)
+    line_iter  = np.nditer(data_array)
+    first_line = next(line_iter)
+    while not line_iter.finished:
+        ch1_list = []
+        ch2_list = []
+        data_dict_event_1 = {}
+        data_dict_event_2 = {}
+        nlines_evt = first_line.item()[0] + first_line.item()[5] - 2
+        event += 1
+        for evt_line in [first_line] + list(islice(line_iter, nlines_evt)):
+            evt = evt_line.item()
+            ch1_id = evt[ 4]
+            ch2_id = evt[-1]
+            if ch1_id not in ch1_list:
+                ch1_mm     = mod_mapping[ch1_id]
+                ch1_energy = evt[3]
+                try:
+                    data_dict_event_1[ch1_mm].append([float(evt[2]), ch1_energy, ch1_id])
+                except KeyError:
+                    data_dict_event_1[ch1_mm] = [0, 0, 0, [float(evt[2]), ch1_energy, ch1_id]]
+                if ch1_id in energy_chid:
+                    data_dict_event_1[ch1_mm][0] += ch1_energy
+                    data_dict_event_1[ch1_mm][1] += 1
+                data_dict_event_1[ch1_mm][2] += 1
+                ch1_list.append(ch1_id)
+            if ch2_id not in ch2_list:
+                ch2_mm     = mod_mapping[ch2_id]
+                ch2_energy = evt[8]
+                try:
+                    data_dict_event_2[ch2_mm].append([float(evt[7]), ch2_energy, ch2_id])
+                except KeyError:
+                    data_dict_event_2[ch2_mm] = [0, 0, 0, [float(evt[7]), ch2_energy, ch2_id]]
+                if ch2_id in energy_chid:
+                    data_dict_event_2[ch2_mm][0] += ch2_energy
+                    data_dict_event_2[ch2_mm][1] += 1
+                data_dict_event_2[ch2_mm][2] += 1
+                ch2_list.append(ch2_id)
+        good_data_1 = [mm_data[3:] + [mm_data[0]] + [mm] for mm, mm_data in data_dict_event_1.items() if 5 < mm_data[1] < mm_data[2]]
+        good_data_2 = [mm_data[3:] + [mm_data[0]] + [mm] for mm, mm_data in data_dict_event_2.items() if 4 < mm_data[1] < mm_data[2]]
 
-            #if event == 13:
-            #    for it in range(len(data_dict[12]["mod2"])):
-            #        print(data_dict[12]["mod2"][it])
-            #    exit(0)
+        if good_data_1 and good_data_2:
+            data_dict[event] = {"mod1": good_data_1, "mod2": good_data_2}
+            good_events += 1
 
-            lines_event = 1
-            num_ev_det1 = int(line_split[0])
-            num_ev_det2 = int(line_split[5])
-            total_lines = num_ev_det1 + num_ev_det2 - 1
-            first_line_event = False
-            ch1_list = []
-            ch2_list = []
-            mod1_list = []
-            mod2_list = []
-            mod1_energy = 0
-            mod2_energy = 0
-            mod1_numEn = 0
-            mod2_numEn = 0
-            mod1_totalCh = 0
-            mod2_totalCh = 0
-            data_dict_event_1 = {}
-            data_dict_event_2 = {}
-        ch1_id = int(line_split[4])
-        ch2_id = int(line_split[-1])
-        ch1_tstp = float(line_split[2])
-        ch2_tstp = float(line_split[7])
-        ch1_energy = float(line_split[3])
-        ch2_energy = float(line_split[8])
-        ch1_mm = mod_mapping[ch1_id]
-        ch2_mm = mod_mapping[ch2_id]
-
-        if ch1_mm not in data_dict_event_1.keys():
-            data_dict_event_1[ch1_mm] = [0,0,0]    #energy of the mm, number of energy channels, total number of channels activated
-        if ch2_mm not in data_dict_event_2.keys():
-            data_dict_event_2[ch2_mm] = [0,0,0]    #energy of the mm, number of energy channels, total number of channels activated
-        if ch1_id not in ch1_list:
-            data_dict_event_1[ch1_mm].append([ch1_tstp, ch1_energy, ch1_id])
-
-            if ch1_id in energy_chid:
-                data_dict_event_1[ch1_mm][0] += ch1_energy
-                data_dict_event_1[ch1_mm][1] += 1
-                mod1_numEn += 1
-            data_dict_event_1[ch1_mm][2] += 1
-            mod1_totalCh += 1
-            ch1_list.append(ch1_id)
-        else:
+        try:
+            first_line = next(line_iter)
+        except StopIteration:
             pass
-        if ch2_id not in ch2_list:
-            data_dict_event_2[ch2_mm].append([ch2_tstp, ch2_energy, ch2_id])
-
-            if ch2_id in energy_chid:
-                data_dict_event_2[ch2_mm][0] += ch2_energy
-                data_dict_event_2[ch2_mm][1] += 1
-                mod2_numEn += 1
-            data_dict_event_2[ch2_mm][2] += 1
-            mod2_totalCh += 1
-            ch2_list.append(ch2_id)
-        else:
-            pass
-        if lines_event == total_lines:
-            good_event_mod1 = False
-            good_event_mod2 = False
-            #print("hola")
-            #print(data_dict_event_1)
-            #print(data_dict_event_2)
-            good_data_1 = []
-            good_data_2 = []
-
-            for mm in data_dict_event_1.keys():
-                #print("mm {}".format(mm))
-                mod1_numEn = data_dict_event_1[mm][1]
-                mod1_totalCh = data_dict_event_1[mm][2]
-                #print(data_dict_event)
-                if mod1_numEn > 5 and mod1_totalCh > mod1_numEn:
-                    mod1_energy = data_dict_event_1[mm][0]
-                    mod1_list = data_dict_event_1[mm][3:]
-                    good_data_1.append([mod1_list, mod1_energy, mm])
-                    #print(mod2_list)
-                    good_event_mod1 = True
-
-            for mm in data_dict_event_2.keys():
-                #print("mm {}".format(mm))
-                mod2_numEn = data_dict_event_2[mm][1]
-                mod2_totalCh = data_dict_event_2[mm][2]
-                #print(data_dict_event)
-                if mod2_numEn > 4 and mod2_totalCh > mod2_numEn:
-                    mod2_energy = data_dict_event_2[mm][0]
-                    mod2_list = data_dict_event_2[mm][3:]
-                    good_data_2.append([mod2_list, mod2_energy, mm])
-                    #print(mod2_list)
-                    good_event_mod2 = True
-
-            if good_event_mod1 and good_event_mod2:
-                #print(good_data_1)
-                if event not in data_dict.keys():
-                    data_dict[event] = {"mod1": [], "mod2": []}
-                for mm in good_data_1:
-                    data_dict[event]["mod1"].append([mm[0] + [mm[1]] + [mm[2]]])
-                for mm in good_data_2:
-                    data_dict[event]["mod2"].append([mm[0] + [mm[1]] + [mm[2]]])
-                good_events += 1
-
-            #print("EVENT {}".format(event))
-            #print(data_dict[event])
-            #print("-----------")
-            first_line_event = True
-
-        else:
-            lines_event += 1
 
     #data_dict format: data_dict[event][module][list_of_minimodules][channel_list + total_energy + minimodule_id]
 
     print("Number of lines in the file: {}".format(num_lines))
     print("Number of events in file: {}".format(event))
     print("Number of GOOD events in file: {}".format(good_events))
-
-    
     
     return(data_dict)
 
@@ -292,9 +214,9 @@ def sum_spectrum_cut(data_dict, centroid_mapping, file_name):
     for ev in data_dict.keys():
         for det in data_dict[ev].keys():
             for mM in data_dict[ev][det]:
-                mM_num = mM[0][-1]
-                mM_energy = mM[0][-2]
-                mM_ch_list = mM[0][:-2]
+                mM_num = mM[-1]
+                mM_energy = mM[-2]
+                mM_ch_list = mM[:-2]
                 x, y = centroid_calculation(mM_ch_list, centroid_mapping)
 
                 if mM_num not in mM_dict[det].keys():
@@ -464,8 +386,10 @@ def get_maps(mapping):
     SM1_energy_ch = mapping["energy_channels"]
     FEM_num_ch = 256
     mM_SM = 16
-    ALLSM_time_ch = []
-    ALLSM_energy_ch = []
+    # ALLSM_time_ch = []
+    # ALLSM_energy_ch = []
+    ALLSM_time_ch = set()
+    ALLSM_energy_ch = set()
     mM_mapping = {}
     mM_num = 1
     slab_num = 1
@@ -477,8 +401,10 @@ def get_maps(mapping):
         for tch, ech in zip(SM1_time_ch, SM1_energy_ch):
             absolut_tch = tch + sm*FEM_num_ch
             absolut_ech = ech + sm*FEM_num_ch
-            ALLSM_time_ch.append(absolut_tch)
-            ALLSM_energy_ch.append(absolut_ech)
+            # ALLSM_time_ch.append(absolut_tch)
+            # ALLSM_energy_ch.append(absolut_ech)
+            ALLSM_time_ch.add(absolut_tch)
+            ALLSM_energy_ch.add(absolut_ech)
             mM_num_en = mM_energyMapping[mM_num]
             mM_mapping[absolut_tch] = mM_num
             mM_mapping[absolut_ech] = mM_num_en
@@ -506,7 +432,7 @@ if __name__ == "__main__":
     plot_parameters()
     start = time.time()
     try:
-        fd = open("/home/tbpet/WorkingDir/macros/SuperModule/SM_mapping.yaml", 'r')
+        fd = open("SM_mapping.yaml", 'r')
     except:
         print("No YAML file found in this directory...")
         exit(0)
