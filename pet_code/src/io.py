@@ -64,11 +64,11 @@ def read_petsys_filebyfile(file_name, mod_mapping, sm_filter=lambda x: True, sin
     return petsys_event
 
 
-def _read_petsys_file(file_name                 ,
-                      line_struct               ,
-                      mod_mapping               ,
-                      sm_filter = lambda x: True,
-                      singles   = False         ):
+def _read_petsys_file(file_name      ,
+                      line_struct    ,
+                      mod_mapping    ,
+                      sm_filter      ,
+                      singles = False):
     """
     Read all events from a single petsys
     file yielding those meeting sm_filter
