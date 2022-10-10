@@ -386,8 +386,10 @@ def get_maps(mapping):
     SM1_energy_ch = mapping["energy_channels"]
     FEM_num_ch = 256
     mM_SM = 16
-    ALLSM_time_ch = []
-    ALLSM_energy_ch = []
+    # ALLSM_time_ch = []
+    # ALLSM_energy_ch = []
+    ALLSM_time_ch = set()
+    ALLSM_energy_ch = set()
     mM_mapping = {}
     mM_num = 1
     slab_num = 1
@@ -399,8 +401,10 @@ def get_maps(mapping):
         for tch, ech in zip(SM1_time_ch, SM1_energy_ch):
             absolut_tch = tch + sm*FEM_num_ch
             absolut_ech = ech + sm*FEM_num_ch
-            ALLSM_time_ch.append(absolut_tch)
-            ALLSM_energy_ch.append(absolut_ech)
+            # ALLSM_time_ch.append(absolut_tch)
+            # ALLSM_energy_ch.append(absolut_ech)
+            ALLSM_time_ch.add(absolut_tch)
+            ALLSM_energy_ch.add(absolut_ech)
             mM_num_en = mM_energyMapping[mM_num]
             mM_mapping[absolut_tch] = mM_num
             mM_mapping[absolut_ech] = mM_num_en
