@@ -9,7 +9,7 @@ from . io import write_event_trace
 def test_read_ymlmapping(TEST_DATA_DIR):
     test_yml = os.path.join(TEST_DATA_DIR, "SM_mapping.yaml")
 
-    all_time, all_eng, mm_map, cent_map = read_ymlmapping(test_yml)
+    all_time, all_eng, mm_map, cent_map, slab_positions = read_ymlmapping(test_yml)
 
     FEM_num_ch = 256
     # Expect two super modules
@@ -27,7 +27,7 @@ def test_nonyml_raises(TMP_TXT):
 
 def test_write_event_trace(TEST_DATA_DIR, TMP_OUT, DUMMY_SM):
     test_yml         = os.path.join(TEST_DATA_DIR, "SM_mapping.yaml")
-    *_, centroid_map = read_ymlmapping(test_yml)
+    *_, centroid_map, _ = read_ymlmapping(test_yml)
 
     tmp_out = os.path.join(TMP_OUT, 'first_test.txt')
     with open(tmp_out, 'w') as out_buf:
