@@ -1,0 +1,29 @@
+# This workflow will install the necessary environment and run all the tests with pytest
+
+name: Test crystal code
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [3.8]
+        platform: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install environment
+        run: |
+          source $CONDA/etc/profile.d/conda.sh
+          source make_condaENV.sh
+      - name: Test with pytest
+        run: |
+          source $CONDA/etc/profile.d/conda.sh
+          conda activate crystal_cal
+          pytest -v
