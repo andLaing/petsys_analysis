@@ -23,6 +23,7 @@ The code has the following minimum requirements:
  |- pet_code
  |  |- scripts/
  |  |   |- flood_maps.py -- Basic script to produce floodmaps
+ |  |   |- mm_hits.py -- Text output of coincidence hits per mini module
  |  |- src/
  |  |   |- fits.py -- functions for distribution fitting
  |  |   |- io.py -- input output functions
