@@ -2,8 +2,11 @@
 
 # Make a conda environment for the convertor assuming miniconda installed
 # in home folder.
-CONDA_SH=$HOME/miniconda/etc/profile.d/conda.sh
-source $CONDA_SH
+if ! which conda >> /dev/null
+then
+    CONDA_SH=$HOME/miniconda/etc/profile.d/conda.sh
+    source $CONDA_SH
+fi
 
 CONDA_ENV_NAME=crystal_cal
 YML_FILENAME=environment-${CONDA_ENV_NAME}.yml
