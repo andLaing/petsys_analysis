@@ -137,6 +137,32 @@ def filter_impacts_one_minimod(eng_map, min_sm1, min_sm2):
     def valid_event(sm1, sm2):
         return filter_one_minimod(sm1, sm2) and m1_filter(sm1) and m2_filter(sm2)
     return valid_event
+
+
+def filter_specific_mm(sm_num, mm_num):
+    """
+    Select events in a specific mini module.
+    TODO review for full body.
+    """
+    def valid_event(sm1, sm2):
+        if sm_num == 0:
+            return mm_num in set(x[1] for x in sm1)
+        return mm_num in set(x[1] for x in sm2)
+    return valid_event
+
+
+def filter_impacts_specific_mod(sm_num, mm_num, eng_map, min_sm1, min_sm2):
+    """
+    Combines requirements of impacts, specific mm and
+    that only one module hit in both sm.
+    """
+    sel_mm = filter_specific_mm(sm_num, mm_num)
+    m1_filter = filter_impact(min_sm1, eng_map)
+    m2_filter = filter_impact(min_sm2, eng_map)
+    def valid_event(sm1, sm2):
+        return sel_mm(sm1, sm2) and filter_one_minimod(sm1, sm2)\
+                and m1_filter(sm1) and m2_filter(sm2)
+    return valid_event
 ## End filters (examples)
 
 

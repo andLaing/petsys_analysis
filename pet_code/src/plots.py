@@ -41,7 +41,12 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None):
         yfilt = None
         for j, ax in enumerate(axes.flatten()):
             ## mmini-module numbers start at 1
-            bin_edges, bin_vals = hist1d(ax, module_xye[j+1]['energy'], label=f'Det: {sm_label}\n mM: {j+1}')
+            try:
+                bin_edges, bin_vals = hist1d(ax, module_xye[j+1]['energy'], label=f'Det: {sm_label}\n mM: {j+1}')
+            except KeyError:
+                print(f'No data for super module {sm_label}, mini module {j+1}, skipping')
+                photo_peak.append(lambda x: False)
+                continue
             try:
                 bcent, gvals, pars, cov = fit_gaussian(bin_vals, bin_edges, cb=6)
                 minE, maxE = pars[1] - 2 * pars[2], pars[1] + 2 * pars[2]
@@ -61,18 +66,27 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None):
             else:
                 xfilt = np.array(module_xye[j+1]['x'])[photo_peak[-1](eng_arr)]
                 yfilt = np.array(module_xye[j+1]['y'])[photo_peak[-1](eng_arr)]
-        fig.savefig(plot_output.replace(".ldat","_EnergyModuleSMod" + str(sm_label) + ".png"))
+        ## Temporary for tests.
+        out_dir = 'test_plots/'
+        out_name = out_dir + plot_output.split('/')[-1].replace(".ldat","_EnergyModuleSMod" + str(sm_label) + ".png")
+        fig.savefig(out_name)
         plt.clf()
         plt.hist2d(xfilt, yfilt, bins = 500, range=[[0, 104], [0, 104]], cmap="Reds", cmax=250)
         plt.xlabel('X position (pixelated) [mm]')
         plt.ylabel('Y position (monolithic) [mm]')
         plt.colorbar()
         plt.tight_layout()
-        plt.savefig(plot_output.replace(".ldat","_FloodModule" + str(sm_label) + ".png"))
+        out_name = out_dir + plot_output.split('/')[-1].replace(".ldat","_FloodModule" + str(sm_label) + ".png")
+        plt.savefig(out_name)
         plt.clf()
     else:
         for j in range(1, 17):
-            bin_vals, bin_edges = np.histogram(module_xye[j]['energy'], bins=200, range=(0, 300))
+            try:
+                bin_vals, bin_edges = np.histogram(module_xye[j]['energy'], bins=200, range=(0, 300))
+            except KeyError:
+                print(f'No data for super module {sm_label}, mini module {j+1}, skipping')
+                photo_peak.append(lambda x: False)
+                continue
             try:
                 *_, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6)
                 minE, maxE = pars[1] - 2 * pars[2], pars[1] + 2 * pars[2]
