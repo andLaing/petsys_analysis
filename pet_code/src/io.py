@@ -8,7 +8,7 @@ from itertools import islice
 from . util import slab_indx, slab_x, slab_y, slab_z
 
 
-def read_petsys(mod_mapping, sm_filter=lambda x: True, singles=False):
+def read_petsys(mod_mapping, sm_filter=lambda x, y: True, singles=False):
     """
     Reader for petsys output for a list of input files.
     All files yielded in single generator.
@@ -38,7 +38,7 @@ def read_petsys(mod_mapping, sm_filter=lambda x: True, singles=False):
     return petsys_event
 
 
-def read_petsys_filebyfile(file_name, mod_mapping, sm_filter=lambda x: True, singles=False):
+def read_petsys_filebyfile(file_name, mod_mapping, sm_filter=lambda x, y: True, singles=False):
     """
     Reader for petsys output for a list of input files.
     file_name  : String
