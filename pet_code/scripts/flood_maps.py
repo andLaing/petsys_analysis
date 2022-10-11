@@ -46,7 +46,7 @@ if __name__ == '__main__':
     mod_dicts = [{}, {}]
     for evt in filtered_events:
         for i, ((x, y, _), (_, eng)) in enumerate(zip(map(c_calc, evt), map(get_supermodule_eng, evt, [eng_ch] * 2))):
-            mm = evt[0][i][1]
+            mm = evt[i][0][1]
             try:
                 mod_dicts[i][mm]['x'].append(x)
                 mod_dicts[i][mm]['y'].append(y)
