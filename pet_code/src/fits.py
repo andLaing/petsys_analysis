@@ -27,11 +27,14 @@ def fit_gaussian(data, bins, cb=8):
     last_bin  = min(max_indx + cb, len(bin_centres))
     x         = bin_centres[first_bin:last_bin]
     y         = data[first_bin:last_bin]
+    if sum(y) <= 0:
+        raise RuntimeError('No useful data available.')
 
     ## Initial values
     mu0 , wsum = np.average(x           , weights=y, returned=True)
     sig0       = np.average((x - mu0)**2, weights=y)
-    sig0      *= wsum / (wsum - 1)
+    if wsum > 1:
+        sig0 *= wsum / (wsum - 1)
 
     pars, pcov = curve_fit(gaussian, x, y, p0=[wsum, mu0, sig0])
     return bin_centres, gaussian(bin_centres, *pars), pars, pcov
