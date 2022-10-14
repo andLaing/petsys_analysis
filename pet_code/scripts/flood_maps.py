@@ -9,6 +9,7 @@ from pet_code.src.plots import mm_energy_spectra, group_times
 from pet_code.src.util  import filter_impacts_one_minimod, get_supermodule_eng
 from pet_code.src.util  import filter_impacts_specific_mod
 from pet_code.src.util  import centroid_calculation
+from pet_code.src.util  import mm_energy_centroids
 from pet_code.src.util  import time_of_flight
 
 
@@ -46,18 +47,7 @@ if __name__ == '__main__':
     ## Should we be filtering the events with multiple mini-modules in one sm?
     c_calc = centroid_calculation(centroid_map)
     # ## Must be a better way but...
-    mod_dicts = [{}, {}]
-    #col_sm = list(map(lambda x: [hit[0] // 256 for sm in x for hit in sm], filtered_events[:20]))
-    # print("Column check: ", col_sm)
-    for evt in filtered_events:
-        for i, ((x, y, _), (_, eng)) in enumerate(zip(map(c_calc, evt), map(get_supermodule_eng, evt, [eng_ch] * 2))):
-            mm = evt[i][0][1]
-            try:
-                mod_dicts[i][mm]['x'].append(x)
-                mod_dicts[i][mm]['y'].append(y)
-                mod_dicts[i][mm]['energy'].append(eng)
-            except KeyError:
-                mod_dicts[i][mm] = {'x': [x], 'y': [y], 'energy': [eng]}
+    mod_dicts = mm_energy_centroids(filtered_events, c_calc, eng_ch)
 
     # ## No file separation in case of multiple files, needs to be fixed.
     # print("Stats check: ", l1, ", ", l2)

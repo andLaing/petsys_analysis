@@ -191,3 +191,41 @@ def time_of_flight(source_pos):
         distance = np.linalg.norm(np.array(slab_pos) - source_pos)        
         return distance / c_mm_per_ps
     return flight_time
+
+
+def mm_energy_centroids(events, c_calc, eng_ch):
+    """
+    Calculate centroid and energy for
+    mini modules per event assuming
+    one mini module per SM per event.
+    """
+    mod_dicts = [{}, {}]
+    for evt in events:
+        for i, ((x, y, _), (_, eng)) in enumerate(zip(map(c_calc, evt), map(get_supermodule_eng, evt, [eng_ch] * 2))):
+            mm = evt[i][0][1]
+            try:
+                mod_dicts[i][mm]['x'].append(x)
+                mod_dicts[i][mm]['y'].append(y)
+                mod_dicts[i][mm]['energy'].append(eng)
+            except KeyError:
+                mod_dicts[i][mm] = {'x': [x], 'y': [y], 'energy': [eng]}
+    return mod_dicts
+
+
+def slab_energy_centroids(events, c_calc, time_ch):
+    """
+    Calculate centroids for mini module
+    assuming one mini module per SM and
+    save energy for the time channels.
+    """
+    slab_dicts = [{}, {}]
+    for evt in events:
+        for i, ((x, y, _), sm) in enumerate(zip(map(c_calc, evt), evt)):
+            for imp in filter(lambda x: x[0] in time_ch, sm):
+                try:
+                    slab_dicts[i][imp[0]]['x'].append(x)
+                    slab_dicts[i][imp[0]]['y'].append(y)
+                    slab_dicts[i][imp[0]]['energy'].append(imp[3])
+                except KeyError:
+                    slab_dicts[i][imp[0]] = {'x': [x], 'y': [y], 'energy': [imp[3]]}
+    return slab_dicts
