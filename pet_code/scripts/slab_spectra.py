@@ -9,9 +9,9 @@ from pet_code.src.io   import read_petsys
 from pet_code.src.io   import read_ymlmapping
 from pet_code.src.util import centroid_calculation
 from pet_code.src.util import filter_impacts_specific_mod
+from pet_code.src.util import select_energy_range
 from pet_code.src.util import slab_energy_centroids
 from pet_code.src.util import time_of_flight
-
 
 if __name__ == '__main__':
     ## Should probably use docopt or config file.
@@ -37,21 +37,20 @@ if __name__ == '__main__':
     for i, sm in enumerate(slab_dicts):
         for slab, xye in sm.items():
             ## Limit range to avoid noise floor, can this be made more robust?
-            bin_vals, bin_edges, _ = plt.hist(xye['energy'], bins=np.arange(8, 30, 0.2))
+            bin_vals, bin_edges, _ = plt.hist(xye['energy'], bins=np.arange(7, 25, 0.2))
             plt.xlabel(f'Energy (au) slab {slab}')
             try:
                 bcent, gvals, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6)
                 minE, maxE = pars[1] - 2 * pars[2], pars[1] + 2 * pars[2]
             except RuntimeError:
                 print(f'Failed fit, slab {slab}')
-                minE, maxE = 10, 20
-            photo_peak[i][slab] = lambda eng_val: (eng_val > minE) & (eng_val < maxE)
+                minE, maxE = 25, 26
+            photo_peak[i][slab] = select_energy_range(minE, maxE)
             try:
                 plt.plot(bcent, gvals, label=f'fit $\mu$ = {round(pars[1], 3)},  $\sigma$ = {round(pars[2], 3)}')
                 plt.axvspan(minE, maxE, facecolor='#00FF00' , alpha = 0.3, label='Selected range')
             except ValueError:
                 print(f'Fit fucked, slab {slab}')
-                minE, maxE = 10, 20
             plt.legend()
             # plt.show()
             plt.savefig(out_base.replace('.ldat', f'_slab{slab}Spec.png'))
@@ -69,6 +68,9 @@ if __name__ == '__main__':
             min_ch[1] = next(filter(lambda x: x[0] in time_ch, sm2))
         except StopIteration:
             continue
+        if min_ch[ref_indx][0] == 172:
+            print("Channel 172, ", min_ch[ref_indx][3])
+            print("Coinc channel: ", min_ch[coic_indx][0], ", eng = ", min_ch[coic_indx][3], ", True? ", photo_peak[coic_indx][min_ch[coic_indx][0]](min_ch[coic_indx][3]))
         if photo_peak[0][min_ch[0][0]](min_ch[0][3]) and photo_peak[1][min_ch[1][0]](min_ch[1][3]):
             ## Want to know the two channel numbers and timestamps.
             try:

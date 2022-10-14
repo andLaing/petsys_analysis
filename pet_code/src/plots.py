@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from . fits import fit_gaussian
 from . util import get_supermodule_eng
 from . util import np
+from . util import select_energy_range
 
 def plot_settings():
     plt.rcParams[ 'lines.linewidth' ] =  2
@@ -53,7 +54,7 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None):
             except RuntimeError:
                 minE, maxE = 0, 300
             eng_arr = np.array(module_xye[j+1]['energy'])
-            photo_peak.append(lambda eng_val: (eng_val > minE) & (eng_val < maxE))
+            photo_peak.append(select_energy_range(minE, maxE))
             ax.plot(bcent, gvals, label=f'fit $\mu$ = {round(pars[1], 3)},  $\sigma$ = {round(pars[2], 3)}')
             ax.set_xlabel('Energy (au)')
             ## Filters for floodmaps
@@ -92,7 +93,7 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None):
                 minE, maxE = pars[1] - 2 * pars[2], pars[1] + 2 * pars[2]
             except RuntimeError:
                 minE, maxE = 0, 300
-            photo_peak.append(lambda eng_val: (eng_val > minE) & (eng_val < maxE))
+            photo_peak.append(select_energy_range(minE, maxE))
     return photo_peak
 
 

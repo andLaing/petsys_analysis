@@ -11,7 +11,7 @@ def gaussian(x, amp, mu, sigma):
     return amp * np.exp(-0.5 * (x - mu)**2 / sigma**2) / (np.sqrt(2 * np.pi) * sigma)
 
 
-def fit_gaussian(data, bins, cb=8):
+def fit_gaussian(data, bins, cb=8, min_peak=150):
     """
     Tidy of existing function.
     Probably want to generalise so
@@ -23,6 +23,8 @@ def fit_gaussian(data, bins, cb=8):
 
     # Define limits around maximum.
     max_indx  = np.argmax(data)
+    if data[max_indx] < min_peak:
+        raise RuntimeError('Peak max below requirement.')
     first_bin = max(max_indx - cb, 0)
     last_bin  = min(max_indx + cb, len(bin_centres))
     x         = bin_centres[first_bin:last_bin]
