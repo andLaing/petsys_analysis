@@ -97,7 +97,7 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None):
     return photo_peak
 
 
-def group_times(filtered_events, peak_select, eng_ch, time_ch, ref_supermod):
+def group_times(filtered_events, peak_select, eng_ch, time_ch, ref_indx):
     """
     Group the first time signals for each slab
     in a reference super module with all slabs
@@ -111,14 +111,14 @@ def group_times(filtered_events, peak_select, eng_ch, time_ch, ref_supermod):
                     Set of all channels for energy measurement.
     time_ch       : Set
                     Set of all channels for time measurement.
-    ref_supermod  : int
+    ref_indx      : int
                     Index (0 or 1) of the reference SM.
     returns
     A dictionary of tuples (coinc id, coinc tstp, ref tstp)
     with key ref id.
     """
     reco_dt  = {}
-    coinc_sm = 0 if ref_supermod == 1 else 1
+    coinc_sm = 0 if ref_indx == 1 else 1
     min_ch   = [0, 0]
     for sm1, sm2 in filtered_events:
         mm1   = sm1[0][1]
@@ -138,11 +138,59 @@ def group_times(filtered_events, peak_select, eng_ch, time_ch, ref_supermod):
             try:
                 # Key is the reference channel/Slab, each has a
                 # list of lists with [ch_other, t_other, t_ref]
-                reco_dt[min_ch[ref_supermod][0]].append([min_ch[coinc_sm    ][0],
-                                                         min_ch[coinc_sm    ][2],
-                                                         min_ch[ref_supermod][2]])
+                reco_dt[min_ch[ref_indx][0]].append([min_ch[coinc_sm][0],
+                                                     min_ch[coinc_sm][2],
+                                                     min_ch[ref_indx][2]])
             except KeyError:
-                reco_dt[min_ch[ref_supermod][0]] = [[min_ch[coinc_sm    ][0],
-                                                     min_ch[coinc_sm    ][2],
-                                                     min_ch[ref_supermod][2]]]
+                reco_dt[min_ch[ref_indx][0]] = [[min_ch[coinc_sm][0],
+                                                 min_ch[coinc_sm][2],
+                                                 min_ch[ref_indx][2]]]
+    return reco_dt
+
+
+def group_times_slab(filtered_events, peak_select, time_ch, ref_indx):
+    """
+    Group the first time signals for each slab
+    in a reference super module with all slabs
+    in other supermodules.
+    ! Very similar to other group function
+    ! How to combine?
+    filered_events: List of tuple of coincidence lists
+                    The information for each event in structure
+                    ([[id, mm, tstp, eng], ...], [...])
+    peak_select   : List of Dicts
+                    Energy filter functions for each minimodule
+    time_ch       : Set
+                    Set of all channels for time measurement.
+    ref_indx      : int
+                    Index (0 or 1) of the reference SM.
+    returns
+    A dictionary of tuples (coinc id, coinc tstp, ref tstp)
+    with key ref id.
+    """
+    reco_dt  = {}
+    coinc_indx = 0 if ref_indx == 1 else 1
+    min_ch   = [0, 0]
+    for sm1, sm2 in filtered_events:
+        try:
+            min_ch[0] = next(filter(lambda x: x[0] in time_ch, sm1))
+        except StopIteration:
+            continue
+        try:
+            min_ch[1] = next(filter(lambda x: x[0] in time_ch, sm2))
+        except StopIteration:
+            continue
+        if peak_select[0][min_ch[0][0]](min_ch[0][3]) and\
+           peak_select[1][min_ch[1][0]](min_ch[1][3]):
+            ## Want to know the two channel numbers and timestamps.
+            try:
+                # Key is the reference channel/Slab, each has a
+                # list of lists with [ch_other, t_other, t_ref]
+                reco_dt[min_ch[ref_indx][0]].append([min_ch[coinc_indx][0],
+                                                     min_ch[coinc_indx][2],
+                                                     min_ch[ref_indx  ][2]])
+            except KeyError:
+                reco_dt[min_ch[ref_indx][0]] = [[min_ch[coinc_indx][0],
+                                                 min_ch[coinc_indx][2],
+                                                 min_ch[ref_indx  ][2]]]
     return reco_dt
