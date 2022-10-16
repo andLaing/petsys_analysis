@@ -8,6 +8,7 @@ from pet_code.src.fits  import fit_gaussian
 from pet_code.src.io    import read_petsys
 from pet_code.src.io    import read_ymlmapping
 from pet_code.src.plots import group_times_slab
+from pet_code.src.plots import slab_energy_spectra
 from pet_code.src.util  import centroid_calculation
 from pet_code.src.util  import filter_impacts_specific_mod
 from pet_code.src.util  import select_energy_range
@@ -33,29 +34,8 @@ if __name__ == '__main__':
     c_calc     = centroid_calculation(centroid_map)
     slab_dicts = slab_energy_centroids(filtered_events, c_calc, time_ch)
 
-    photo_peak = [{}, {}]
     out_base   = 'test_plots/slab_filt/' + file_list[0].split('/')[-1]
-    for i, sm in enumerate(slab_dicts):
-        for slab, xye in sm.items():
-            ## Limit range to avoid noise floor, can this be made more robust?
-            bin_vals, bin_edges, _ = plt.hist(xye['energy'], bins=np.arange(7, 25, 0.2))
-            plt.xlabel(f'Energy (au) slab {slab}')
-            try:
-                bcent, gvals, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6)
-                minE, maxE = pars[1] - 2 * pars[2], pars[1] + 2 * pars[2]
-            except RuntimeError:
-                print(f'Failed fit, slab {slab}')
-                minE, maxE = 25, 26
-            photo_peak[i][slab] = select_energy_range(minE, maxE)
-            try:
-                plt.plot(bcent, gvals, label=f'fit $\mu$ = {round(pars[1], 3)},  $\sigma$ = {round(pars[2], 3)}')
-                plt.axvspan(minE, maxE, facecolor='#00FF00' , alpha = 0.3, label='Selected range')
-            except ValueError:
-                print(f'Fit fucked, slab {slab}')
-            plt.legend()
-            # plt.show()
-            plt.savefig(out_base.replace('.ldat', f'_slab{slab}Spec.png'))
-            plt.clf()
+    photo_peak = list(map(slab_energy_spectra, slab_dicts, [out_base] * 2))
 
     reco_dt = group_times_slab(filtered_events, photo_peak, time_ch, ref_indx)
     # Source pos hardwired for tests, extract from data file?

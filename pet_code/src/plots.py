@@ -28,9 +28,15 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None):
     for each module. Optionally plot and save spectra
     and floodmaps.
 
-    module_xye : Dict
-                 Supermodule xyz lists for each mm
-                 key is mm number (1--),
+    module_xye  : Dict
+                  Supermodule xyz lists for each mm
+                  key is mm number (1--),
+    sm_label    : int
+                  A label for the plots of which SM
+                  is being processed.
+    plot_output : None or String
+                  If not None, the output base name for
+                  the plots. When None, no plots made.
     return
                  List of energy selection filters.
     """
@@ -68,8 +74,7 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None):
                 xfilt = np.array(module_xye[j+1]['x'])[photo_peak[-1](eng_arr)]
                 yfilt = np.array(module_xye[j+1]['y'])[photo_peak[-1](eng_arr)]
         ## Temporary for tests.
-        out_dir = 'test_plots/'
-        out_name = out_dir + plot_output.split('/')[-1].replace(".ldat","_EnergyModuleSMod" + str(sm_label) + ".png")
+        out_name = plot_output.split('/')[-1].replace(".ldat","_EnergyModuleSMod" + str(sm_label) + ".png")
         fig.savefig(out_name)
         plt.clf()
         plt.hist2d(xfilt, yfilt, bins = 500, range=[[0, 104], [0, 104]], cmap="Reds", cmax=250)
@@ -77,7 +82,7 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None):
         plt.ylabel('Y position (monolithic) [mm]')
         plt.colorbar()
         plt.tight_layout()
-        out_name = out_dir + plot_output.split('/')[-1].replace(".ldat","_FloodModule" + str(sm_label) + ".png")
+        out_name = plot_output.split('/')[-1].replace(".ldat","_FloodModule" + str(sm_label) + ".png")
         plt.savefig(out_name)
         plt.clf()
     else:
@@ -94,6 +99,51 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None):
             except RuntimeError:
                 minE, maxE = 0, 300
             photo_peak.append(select_energy_range(minE, maxE))
+    return photo_peak
+
+
+def slab_energy_spectra(slab_xye, plot_output=None):
+    """
+    Make energy spectra of slab time channels.
+    slab_xye : Dict
+               Keys slab channel id,
+               values x, y and eng keyed lists.
+    plot_output : String
+                  If not None, output plots to this
+                  name base.
+    returns
+        Dict of energy selection filters
+    """
+    photo_peak = {}
+    if plot_output:
+        for slab, xye in slab_xye.items():
+            ## Limit range to avoid noise floor, can this be made more robust?
+            bin_vals, bin_edges, _ = plt.hist(xye['energy'], bins=np.arange(7, 25, 0.2))
+            plt.xlabel(f'Energy (au) slab {slab}')
+            try:
+                bcent, gvals, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6)
+                minE, maxE = pars[1] - 2 * pars[2], pars[1] + 2 * pars[2]
+            except RuntimeError:
+                print(f'Failed fit, slab {slab}')
+                minE, maxE = -1, 0
+            photo_peak[slab] = select_energy_range(minE, maxE)
+            try:
+                plt.plot(bcent, gvals, label=f'fit $\mu$ = {round(pars[1], 3)},  $\sigma$ = {round(pars[2], 3)}')
+                plt.axvspan(minE, maxE, facecolor='#00FF00' , alpha = 0.3, label='Selected range')
+            except ValueError:
+                print(f'Fit without convergence, slab {slab}')
+            plt.legend()
+            plt.savefig(plot_output.replace('.ldat', f'_slab{slab}Spec.png'))
+            plt.clf()
+    else:
+        for slab, xye in slab_xye.items():
+            bin_vals, bin_edges = np.histogram(xye['energy'], bins=np.arange(7, 25, 0.2))
+            try:
+                *_, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6)
+                minE, maxE = pars[1] - 2 * pars[2], pars[1] + 2 * pars[2]
+            except RuntimeError:
+                minE, maxE = -1, 0
+            photo_peak[slab] = select_energy_range(minE, maxE)
     return photo_peak
 
 
