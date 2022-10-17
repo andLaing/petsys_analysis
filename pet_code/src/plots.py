@@ -22,7 +22,7 @@ def hist1d(axis, data, bins=200, range=(0, 300), histtype='step', label='histo')
     return pbins, weights
 
 
-def mm_energy_spectra(module_xye, sm_label, plot_output=None):
+def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150):
     """
     Generate the energy spectra and select the photopeak
     for each module. Optionally plot and save spectra
@@ -37,6 +37,8 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None):
     plot_output : None or String
                   If not None, the output base name for
                   the plots. When None, no plots made.
+    min_peak    : int
+                  Minimum entries in peak bin for fit.
     return
                  List of energy selection filters.
     """
@@ -55,7 +57,7 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None):
                 photo_peak.append(lambda x: False)
                 continue
             try:
-                bcent, gvals, pars, cov = fit_gaussian(bin_vals, bin_edges, cb=6)
+                bcent, gvals, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
                 minE, maxE = pars[1] - 2 * pars[2], pars[1] + 2 * pars[2]
             except RuntimeError:
                 minE, maxE = 0, 300
@@ -94,7 +96,7 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None):
                 photo_peak.append(lambda x: False)
                 continue
             try:
-                *_, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6)
+                *_, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
                 minE, maxE = pars[1] - 2 * pars[2], pars[1] + 2 * pars[2]
             except RuntimeError:
                 minE, maxE = 0, 300
@@ -102,7 +104,7 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None):
     return photo_peak
 
 
-def slab_energy_spectra(slab_xye, plot_output=None):
+def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150):
     """
     Make energy spectra of slab time channels.
     slab_xye : Dict
@@ -111,6 +113,8 @@ def slab_energy_spectra(slab_xye, plot_output=None):
     plot_output : String
                   If not None, output plots to this
                   name base.
+    min_peak    : int
+                  Minimum entries in peak bin for fit.
     returns
         Dict of energy selection filters
     """
@@ -121,7 +125,7 @@ def slab_energy_spectra(slab_xye, plot_output=None):
             bin_vals, bin_edges, _ = plt.hist(xye['energy'], bins=np.arange(7, 25, 0.2))
             plt.xlabel(f'Energy (au) slab {slab}')
             try:
-                bcent, gvals, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6)
+                bcent, gvals, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
                 minE, maxE = pars[1] - 2 * pars[2], pars[1] + 2 * pars[2]
             except RuntimeError:
                 print(f'Failed fit, slab {slab}')
@@ -139,7 +143,7 @@ def slab_energy_spectra(slab_xye, plot_output=None):
         for slab, xye in slab_xye.items():
             bin_vals, bin_edges = np.histogram(xye['energy'], bins=np.arange(7, 25, 0.2))
             try:
-                *_, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6)
+                *_, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
                 minE, maxE = pars[1] - 2 * pars[2], pars[1] + 2 * pars[2]
             except RuntimeError:
                 minE, maxE = -1, 0
