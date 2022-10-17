@@ -37,8 +37,8 @@ if __name__ == '__main__':
     file_list = sys.argv[1:]
 
     time_ch, eng_ch, mm_map, centroid_map, slab_map = read_ymlmapping(map_file)
-    # evt_select = filter_impacts_one_minimod(eng_ch, 5, 4) # minima should not be hardwired
-    evt_select = filter_impacts_specific_mod(1, 10, eng_ch, 5, 4)
+    evt_select = filter_impacts_one_minimod(eng_ch, 5, 4) # minima should not be hardwired
+    # evt_select = filter_impacts_specific_mod(1, 10, eng_ch, 5, 4)
     pet_reader = read_petsys(mm_map, evt_select)
     filtered_events = [tpl for tpl in pet_reader(file_list)]
     end_r = time.time()
@@ -51,35 +51,35 @@ if __name__ == '__main__':
 
     # ## No file separation in case of multiple files, needs to be fixed.
     # print("Stats check: ", l1, ", ", l2)
-    photo_peak = list(map(mm_energy_spectra, mod_dicts, [1, 2], [file_list[0]] * 2))
+    photo_peak = list(map(mm_energy_spectra, mod_dicts, [1, 2], [file_list[0]] * 2, [100] * 2))
 
     ## CTR. Reference to a slab in sm1
-    reco_dt = group_times(filtered_events, photo_peak, eng_ch, time_ch, 1)
-    ref_count = 0
-    # Source pos hardwired for tests, extract from data file?
-    flight_time = time_of_flight(np.array([38.4, 38.4, 22.5986]))
-    for ref_ch, tstps in reco_dt.items():
-        #print("length = ", len(tstps))
-        ref_count += 1
-        time_arr   = np.array(tstps)
-        dt_th      = flight_time(slab_map[ref_ch]) - np.fromiter((flight_time(slab_map[id]) for id in time_arr[:, 0]), float)
-        # print("Ref pos: ", slab_map[ref_ch], ", time: ", flight_time(slab_map[ref_ch]))
-        # print("Whit? ", dt_th)
-        tstp_diff  = np.diff(time_arr[:, 1:], axis=1).flatten()
-        plt.hist(tstp_diff, bins=300, range=[-10000, 10000], histtype='step', fill=False, label = f"Ref ch {ref_ch}")
-        plt.hist(tstp_diff - dt_th, bins=300, range=[-10000, 10000], histtype='step', fill=False, label = f"Ref ch {ref_ch} theory corr dt")
-        plt.xlabel(f'tstp ch {ref_ch} - tstp coinc (ps)')
-        plt.legend()
-        ## Temp hardwire!!
-        out_name = 'test_plots/' + file_list[0].split('/')[-1].replace('.ldat', '_timeCoincRef' + str(ref_ch) + '.png')
-        plt.savefig(out_name)
-        plt.clf()
-        # plt.hist(tstp_diff - dt_th, bins=151, range=[-5000, 5000], histtype='step', fill=False, label = f"Ref ch {ref_ch}")
-        # plt.xlabel(f'tstp ch {ref_ch} - tstp coinc  - dt (geom) (ps)')
-        # plt.savefig(out_name.replace('timeCoincRef', 'timeCoincTheoryRef'))
-        # plt.clf()
-        # plt.show()
-    print("Ref channels found: ", ref_count)
+    # reco_dt = group_times(filtered_events, photo_peak, eng_ch, time_ch, 1)
+    # ref_count = 0
+    # # Source pos hardwired for tests, extract from data file?
+    # flight_time = time_of_flight(np.array([38.4, 38.4, 22.5986]))
+    # for ref_ch, tstps in reco_dt.items():
+    #     #print("length = ", len(tstps))
+    #     ref_count += 1
+    #     time_arr   = np.array(tstps)
+    #     dt_th      = flight_time(slab_map[ref_ch]) - np.fromiter((flight_time(slab_map[id]) for id in time_arr[:, 0]), float)
+    #     # print("Ref pos: ", slab_map[ref_ch], ", time: ", flight_time(slab_map[ref_ch]))
+    #     # print("Whit? ", dt_th)
+    #     tstp_diff  = np.diff(time_arr[:, 1:], axis=1).flatten()
+    #     plt.hist(tstp_diff, bins=300, range=[-10000, 10000], histtype='step', fill=False, label = f"Ref ch {ref_ch}")
+    #     plt.hist(tstp_diff - dt_th, bins=300, range=[-10000, 10000], histtype='step', fill=False, label = f"Ref ch {ref_ch} theory corr dt")
+    #     plt.xlabel(f'tstp ch {ref_ch} - tstp coinc (ps)')
+    #     plt.legend()
+    #     ## Temp hardwire!!
+    #     out_name = 'test_plots/' + file_list[0].split('/')[-1].replace('.ldat', '_timeCoincRef' + str(ref_ch) + '.png')
+    #     plt.savefig(out_name)
+    #     plt.clf()
+    #     # plt.hist(tstp_diff - dt_th, bins=151, range=[-5000, 5000], histtype='step', fill=False, label = f"Ref ch {ref_ch}")
+    #     # plt.xlabel(f'tstp ch {ref_ch} - tstp coinc  - dt (geom) (ps)')
+    #     # plt.savefig(out_name.replace('timeCoincRef', 'timeCoincTheoryRef'))
+    #     # plt.clf()
+    #     # plt.show()
+    # print("Ref channels found: ", ref_count)
             
 
 
