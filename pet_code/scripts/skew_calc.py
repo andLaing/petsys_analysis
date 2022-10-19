@@ -40,18 +40,21 @@ from pet_code.src.util  import filter_impacts_specific_mod
 from pet_code.src.util  import slab_energy_centroids
 
 
-# def calculate_skew(file_list   ,
-#                    conf        ,
-#                    time_ch     ,
-#                    eng_ch      ,
-#                    mm_map      ,
-#                    centroid_map,
-#                    slab_map    ,
-#                    skew_dict   ):
-#     """
-#     For a set of files process the data and extract the
-#     Skew value for each reference channel.
-#     """
+# Source positions. Improve!!
+def source_position(sm_num, mm_num):
+    """
+    Hard wired source positions!
+    """
+    x = 103.6 - 25.9 * (0.5 - (mm_num - 1) // 4)
+    if sm_num == 3:
+        y = -25.9 + (3 - (mm_num - 1) % 4) * 25.9
+        z = 123.7971 - 31.8986
+        return [x, y, z]
+    y = -25.9 - (mm_num - 1) % 4 * 25.9
+    z = 31.8986
+    return [x, y, z]
+
+
 def get_references(file_name):
     """
     Extract supermodule and minimodule
@@ -61,7 +64,11 @@ def get_references(file_name):
     """
     # Get them from the filename?
     # Source pos from some saved lookup!
-    return 1, 10, [38.4, 38.4, 22.5986]
+    file_name_parts = file_name.split('/')[-1].split('_')
+    SM_lab = int(file_name_parts[1][2:])
+    SM_indx = 0 if SM_lab == 3 else 1
+    mM_num = int(file_name_parts[2][2:])
+    return SM_indx, mM_num, source_position(SM_lab, mM_num)#[38.4, 38.4, 22.5986]
 
 
 def read_and_select(file_list, config):
@@ -80,7 +87,7 @@ def read_and_select(file_list, config):
 
     sm1_minch, sm2_minch = tuple(map(int, config.get('filter', 'min_channels').split(', ')))
     c_calc = centroid_calculation(centroid_map)
-    ## Here we'd like to use multiprocess, will need rejigging
+
     all_skews = pd.Series(dtype=float)
     for fn in file_list:
         print(f'Processing file {fn}')
@@ -97,7 +104,7 @@ def read_and_select(file_list, config):
         photo_peak = list(map(slab_energy_spectra, slab_dicts))
 
         reco_dt    = group_times_slab(sel_evts, photo_peak, time_ch, sm_num)
-
+        print('Timestamps extracted, converting to pandas...')
         ## Test pandas output at this point. Should facilitate further iterations.
         deltat_df = pd.concat((pd.DataFrame(vals                     ,
                                             index   = [key]*len(vals),
@@ -107,8 +114,9 @@ def read_and_select(file_list, config):
                                for key, vals in reco_dt.items()       ))
         deltat_df.reset_index(inplace=True)
         deltat_df.rename(inplace=True, columns={'index': 'ref_ch'})
+        print('In pandas, pickling...')
         deltat_df.to_pickle(out_base.replace('.ldat', '_dtFrame.pkl'))
-
+        print('About to calculate skew')
         skew_values = deltat_df.groupby('ref_ch', group_keys=False).apply(skew_calc)
         print("SKews: ", skew_values)
         all_skews = pd.concat((all_skews, skew_values))
@@ -145,8 +153,6 @@ def get_skew(flight_time, slab_map, skew=pd.Series(dtype=float), plot_output=Non
     Get the skew value for a reference
     channel correcting for previously
     calculated skew if available.
-    ! no plots here, separate function
-    ! to do monitor plots?
     """
     # Shouldn't be hardwired!!
     hist_bins = np.linspace(-10000, 10000, 400, endpoint=False)
@@ -159,7 +165,7 @@ def get_skew(flight_time, slab_map, skew=pd.Series(dtype=float), plot_output=Non
 
         if plot_output:
             bin_vals, bin_edges, _ = plt.hist(dt_reco - dt_th + skew_corr, bins=hist_bins)
-            plt.xlabel(f'$dt_rec$ - $dt_th$ for slab {ref_ch} (ps)')
+            plt.xlabel(f'$dt_r$ - $dt_t$ for slab {ref_ch} (ps)')
         else:
             bin_vals, bin_edges = np.histogram(dt_reco - dt_th + skew_corr, bins=hist_bins)
         try:
@@ -196,10 +202,14 @@ if __name__ == '__main__':
             ## We definitely want to parallelize here.
             skew_values = read_and_select(input_files, conf)
         else:
+            print('Starting second iteration')
             skew_values = time_distributions(input_files, conf,
                                              skew_values, i   )
     ## Save the skew values.
-    skew_values.to_csv(conf.get('output', 'out_dir') + 'SomethingBasedOnCommonName_skew.txt')
+    print('Output result')
+    skew_values = skew_values.reset_index().rename(columns={'index': 'Channel_id', 0: 'Skew'})
+    skew_file   = os.path.join(conf.get('output', 'out_dir'), args['INBASE'].split('/')[-1].split('_')[0]) + 'skew.txt'
+    skew_values.to_csv(skew_file)
     # (time_ch, eng_ch,
     #  mm_map, centroid_map, slab_map) = read_ymlmapping(conf.get('mapping', 'map_file'))
 
