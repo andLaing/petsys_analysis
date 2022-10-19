@@ -27,7 +27,7 @@ import pandas as pd
 
 import matplotlib.pyplot as plt
 
-# import multiprocessing as mp
+import multiprocessing as mp
 
 from pet_code.src.fits  import fit_gaussian
 from pet_code.src.io    import read_petsys_filebyfile
@@ -104,7 +104,6 @@ def read_and_select(file_list, config):
         photo_peak = list(map(slab_energy_spectra, slab_dicts))
 
         reco_dt    = group_times_slab(sel_evts, photo_peak, time_ch, sm_num)
-        print('Timestamps extracted, converting to pandas...')
         ## Test pandas output at this point. Should facilitate further iterations.
         deltat_df = pd.concat((pd.DataFrame(vals                     ,
                                             index   = [key]*len(vals),
@@ -114,11 +113,9 @@ def read_and_select(file_list, config):
                                for key, vals in reco_dt.items()       ))
         deltat_df.reset_index(inplace=True)
         deltat_df.rename(inplace=True, columns={'index': 'ref_ch'})
-        print('In pandas, pickling...')
         deltat_df.to_pickle(out_base.replace('.ldat', '_dtFrame.pkl'))
-        print('About to calculate skew')
+ 
         skew_values = deltat_df.groupby('ref_ch', group_keys=False).apply(skew_calc)
-        print("SKews: ", skew_values)
         all_skews = pd.concat((all_skews, skew_values))
     return all_skews
 
@@ -191,24 +188,33 @@ if __name__ == '__main__':
 
     conf   = configparser.ConfigParser()
     conf.read(args['--conf'])
-    # print("conf check: ", conf['mapping'].get('map_file'))
-    # print("And the list: ", conf.get('filter', 'min_channels'))
+
+    ncpu = mp.cpu_count()
+    if ncores > ncpu:
+        print(f'Too many cores requested ({ncores}), only {ncpu} available.')
+        print('Will use half available cores.')
+        ncores = ncpu // 2
 
     input_files = glob(args['INBASE'] + '*.ldat')
     print("File Checks: ", input_files)
     for i in range(niter):
+        print(f'Start iteration {i}')
         if i == 0:
             ## Read the ldat binaries and do the first calculation.
             ## We definitely want to parallelize here.
-            skew_values = read_and_select(input_files, conf)
+            chunk_args = [(file_set, conf) for file_set in np.array_split(input_files, ncores)]
+            with mp.Pool(ncores) as p:
+                # Run chunks in parallel
+                skew_chunks = p.starmap(read_and_select, chunk_args)
+            skew_values = pd.concat(skew_chunks)
+            # skew_values = read_and_select(input_files, conf)
         else:
-            print('Starting second iteration')
             skew_values = time_distributions(input_files, conf,
                                              skew_values, i   )
     ## Save the skew values.
-    print('Output result')
+    print('Requested iterations complete, output text file.')
     skew_values = skew_values.reset_index().rename(columns={'index': 'Channel_id', 0: 'Skew'})
-    skew_file   = os.path.join(conf.get('output', 'out_dir'), args['INBASE'].split('/')[-1].split('_')[0]) + 'skew.txt'
+    skew_file   = os.path.join(conf.get('output', 'out_dir'), args['INBASE'].split('/')[-1].split('_')[0]) + '_skew.txt'
     skew_values.to_csv(skew_file)
     # (time_ch, eng_ch,
     #  mm_map, centroid_map, slab_map) = read_ymlmapping(conf.get('mapping', 'map_file'))
