@@ -49,10 +49,10 @@ def source_position(sm_num, mm_num):
     if sm_num == 3:
         y = -25.9 + (3 - (mm_num - 1) % 4) * 25.9
         z = 123.7971 - 31.8986
-        return [x, y, z]
+        return np.array([x, y, z])
     y = -25.9 - (mm_num - 1) % 4 * 25.9
     z = 31.8986
-    return [x, y, z]
+    return np.array([x, y, z])
 
 
 def get_references(file_name):
