@@ -172,8 +172,8 @@ def get_skew(flight_time, slab_map, skew=pd.Series(dtype=float), plot_output=Non
                 plt.legend()
                 plt.savefig(plot_output.replace('.ldat', f'_it{it}_timeCoincRef{ref_ch}.png'))
                 plt.clf()
-        except RuntimeError:
-            print("FUCKCKCKCKC")
+        except RuntimeError as e:
+            print(f'Ref channel {ref_ch} fit fail, message = {e}')
             return 0
         return pars[1]
     return calc_skew
