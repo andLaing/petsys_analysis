@@ -56,24 +56,43 @@ def slab_indx(pos):
     return indx if indx < 8 else indx - 8
 
 
-def slab_x(rc_num, sm_num=1):
+# def slab_x(rc_num, sm_num=1):
+#     """
+#     Get the x position of the channel
+#     given rc_num.
+#     super module 2 gives different result.
+#     TODO: generalise!
+#     """
+#     if sm_num == 2:
+#         return round(100.8 - 3.2 * rc_num, 2)
+#     return round(1.6 + 3.2 * rc_num, 2)
+def slab_x(row):
     """
     Get the x position of the channel
-    given rc_num.
-    super module 2 gives different result.
-    TODO: generalise!
+    given the mm row.
+    TODO: generalise, only valid for
+    current iteration of cal setup.
     """
-    if sm_num == 2:
-        return round(100.8 - 3.2 * rc_num, 2)
-    return round(1.6 + 3.2 * rc_num, 2)
+    return round(90.65 - 25.6 * row, 2)
 
 
-def slab_y(row):
+# def slab_y(row):
+#     """
+#     Get the y position of the channel
+#     given row number.
+#     """
+#     return round(89.6 - 25.6 * row, 2)
+def slab_y(rc_num, sm_num=1):
     """
     Get the y position of the channel
-    given row number.
+    given the slab in row number (rc_num).
+    sm_num == 2 is inverted in cal setup.
+    TODO: generalise, only valid for
+    current iteration of cal setup.
     """
-    return round(89.6 - 25.6 * row, 2)
+    if sm_num == 2:
+        return round(-100.8 + 3.2 * rc_num, 2)
+    return round(-1.6 - 3.2 * rc_num, 2)
 
 
 def slab_z(sm_num):

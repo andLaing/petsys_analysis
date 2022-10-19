@@ -146,9 +146,13 @@ def read_ymlmapping(mapping_file):
             mM_num_en = mM_energyMapping[mM_num]
             mM_mapping      [absolut_tch] = mM_num
             mM_mapping      [absolut_ech] = mM_num_en
-            centroid_mapping[absolut_tch] = (0, slab_x(rc_num))
+            # The centroid mapping 'x, y' is set for floodmap display
+            # So that the first module is in the top left. Doesn't
+            # represent true positions. Should be reviewed.
+            centroid_mapping[absolut_tch] = (0, round(1.6 + 3.2*(rc_num), 2))
             centroid_mapping[absolut_ech] = (1, round(1.6 + 3.2 * (31 - rc_num), 2))  #establish 0 reference at the botom left of the floodmap
-            slab_positions  [absolut_tch] = (slab_x(rc_num, sm), slab_y(row), slab_z(sm))
+            # slab_positions  [absolut_tch] = (slab_x(rc_num, sm), slab_y(row), slab_z(sm))
+            slab_positions  [absolut_tch] = (slab_x(row), slab_y(rc_num, sm), slab_z(sm))
 
             rc_num += 1
             if slab_num%8 == 0:
