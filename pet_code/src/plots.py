@@ -122,7 +122,7 @@ def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150):
     if plot_output:
         for slab, xye in slab_xye.items():
             ## Limit range to avoid noise floor, can this be made more robust?
-            bin_vals, bin_edges, _ = plt.hist(xye['energy'], bins=np.arange(7, 25, 0.2))
+            bin_vals, bin_edges, _ = plt.hist(xye['energy'], bins=np.arange(8, 25, 0.2))
             plt.xlabel(f'Energy (au) slab {slab}')
             try:
                 bcent, gvals, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
