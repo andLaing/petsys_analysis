@@ -45,12 +45,12 @@ def source_position(sm_num, mm_num):
     """
     Hard wired source positions!
     """
-    x = 103.6 - 25.9 * (0.5 - (mm_num - 1) // 4)
+    x = 103.6 - 25.9 * (0.5 + (mm_num - 1) // 4)
     if sm_num == 3:
-        y = -25.9 + (3 - (mm_num - 1) % 4) * 25.9
+        y = -25.9 * 0.5 + (3 - (mm_num - 1) % 4) * 25.9
         z = 123.7971 - 31.8986
         return np.array([x, y, z])
-    y = -25.9 - (mm_num - 1) % 4 * 25.9
+    y = -25.9 * 0.5 - (mm_num - 1) % 4 * 25.9
     z = 31.8986
     return np.array([x, y, z])
 
