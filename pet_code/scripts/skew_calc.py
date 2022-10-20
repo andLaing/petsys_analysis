@@ -174,6 +174,7 @@ def get_skew(flight_time, slab_map, skew=pd.Series(dtype=float), plot_output=Non
                 plt.clf()
         except RuntimeError as e:
             print(f'Ref channel {ref_ch} fit fail, message = {e}')
+            plt.clf()
             return 0
         return pars[1]
     return calc_skew
