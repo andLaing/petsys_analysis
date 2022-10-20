@@ -76,7 +76,7 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150):
                 xfilt = np.array(module_xye[j+1]['x'])[photo_peak[-1](eng_arr)]
                 yfilt = np.array(module_xye[j+1]['y'])[photo_peak[-1](eng_arr)]
         ## Temporary for tests.
-        out_name = plot_output.split('/')[-1].replace(".ldat","_EnergyModuleSMod" + str(sm_label) + ".png")
+        out_name = plot_output.replace(".ldat","_EnergyModuleSMod" + str(sm_label) + ".png")
         fig.savefig(out_name)
         plt.clf()
         plt.hist2d(xfilt, yfilt, bins = 500, range=[[0, 104], [0, 104]], cmap="Reds", cmax=250)
@@ -84,7 +84,7 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150):
         plt.ylabel('Y position (monolithic) [mm]')
         plt.colorbar()
         plt.tight_layout()
-        out_name = plot_output.split('/')[-1].replace(".ldat","_FloodModule" + str(sm_label) + ".png")
+        out_name = plot_output.replace(".ldat","_FloodModule" + str(sm_label) + ".png")
         plt.savefig(out_name)
         plt.clf()
     else:
