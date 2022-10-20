@@ -51,7 +51,8 @@ if __name__ == '__main__':
 
     # ## No file separation in case of multiple files, needs to be fixed.
     # print("Stats check: ", l1, ", ", l2)
-    photo_peak = list(map(mm_energy_spectra, mod_dicts, [1, 2], [file_list[0]] * 2, [100] * 2))
+    out_base = 'test_plots/' + file_list[0].split('/')[-1]
+    photo_peak = list(map(mm_energy_spectra, mod_dicts, [1, 2], [out_base] * 2, [100] * 2))
 
     ## CTR. Reference to a slab in sm1
     # reco_dt = group_times(filtered_events, photo_peak, eng_ch, time_ch, 1)

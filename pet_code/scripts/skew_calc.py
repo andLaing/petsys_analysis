@@ -180,8 +180,6 @@ def get_skew(flight_time, slab_map, skew=pd.Series(dtype=float), plot_output=Non
     return calc_skew
 
 
-
-
 if __name__ == '__main__':
     args   = docopt(__doc__)
     ncores = int(args['-n'  ]) # For parallelization
