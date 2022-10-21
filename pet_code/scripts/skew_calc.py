@@ -27,7 +27,8 @@ import pandas as pd
 
 import matplotlib.pyplot as plt
 
-import multiprocessing as mp
+# import multiprocessing as mp
+from multiprocessing import get_context
 
 from pet_code.src.fits  import fit_gaussian
 from pet_code.src.io    import read_petsys_filebyfile
@@ -88,7 +89,7 @@ def read_and_select(file_list, config):
 
     all_skews = pd.Series(dtype=float)
     for fn in file_list:
-        print(f'Processing file {fn}')
+        print(f'Processing file {fn}', flush=True)
         sm_num, mm_num, source_pos = get_references(fn)
         evt_filter = filter_impacts_specific_mod(sm_num, mm_num, eng_ch, sm1_minch, sm2_minch)
         evt_reader = read_petsys_filebyfile(fn, mm_map, evt_filter)
@@ -204,7 +205,8 @@ if __name__ == '__main__':
             ## Read the ldat binaries and do the first calculation.
             ## We definitely want to parallelize here.
             chunk_args = [(file_set, conf) for file_set in np.array_split(input_files, ncores)]
-            with mp.Pool(ncores) as p:
+            # with mp.Pool(ncores) as p:
+            with get_context("spawn").Pool(ncores) as p:
                 # Run chunks in parallel
                 skew_chunks = p.starmap(read_and_select, chunk_args)
             skew_values = pd.concat(skew_chunks)
