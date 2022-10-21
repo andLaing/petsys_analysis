@@ -2,7 +2,7 @@
 
 """Calculate the skew for each channel in a two super module set-up
 
-Usage: skew_calc.py (--conf CONFFILE) [-n NCORE] [--it NITER] INBASE
+Usage: skew_calc.py (--conf CONFFILE) [-n NCORE] [--it NITER] [--skip0] INBASE
 
 Arguments:
     INBASE File pattern to be matched (+ *.ldat) for input.
@@ -11,11 +11,11 @@ Required:
     --conf=CONFFILE  Configuration file for run.
 
 Options:
-    -n=NCORE   Number of cores for processing [default: 2]
-    --it=NITER Number of iterations over data [default: 3]
+    -n=NCORE    Number of cores for processing [default: 2]
+    --it=NITER  Number of iterations over data [default: 3]
+    --skip0     Skip the first (0th) iteration
 """
 
-from enum import unique
 import os
 import configparser
 
@@ -28,7 +28,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # import multiprocessing as mp
-from multiprocessing import get_context
+from multiprocessing import cpu_count, get_context
 
 from pet_code.src.fits  import fit_gaussian
 from pet_code.src.io    import read_petsys_filebyfile
@@ -139,9 +139,9 @@ def time_distributions(file_list, config, skew_values, it):
                              skew        = skew_values ,
                              plot_output = out_base    ,
                              it          = it          )
-        pkl_name  = out_base.replace('.ldat', '_dtFrame.pkl')
-        deltat_df = pd.read_pickle(pkl_name)
-        corr_skews.add(deltat_df.groupby('ref_ch', group_keys=False).apply(skew_calc), fill_value=0.0)
+        pkl_name   = out_base.replace('.ldat', '_dtFrame.pkl')
+        deltat_df  = pd.read_pickle(pkl_name)
+        corr_skews = corr_skews.add(deltat_df.groupby('ref_ch', group_keys=False).apply(skew_calc), fill_value=0.0)
     return corr_skews
 
 
@@ -182,13 +182,15 @@ def get_skew(flight_time, slab_map, skew=pd.Series(dtype=float), plot_output=Non
 
 if __name__ == '__main__':
     args   = docopt(__doc__)
-    ncores = int(args['-n'  ]) # For parallelization
-    niter  = int(args['--it'])
+    ncores = int(args['-n'     ]) # For parallelization
+    niter  = int(args['--it'   ])
+    skip0  =     args['--skip0']
 
     conf   = configparser.ConfigParser()
     conf.read(args['--conf'])
 
-    ncpu = mp.cpu_count()
+    # ncpu = mp.cpu_count()
+    ncpu = cpu_count()
     if ncores > ncpu:
         print(f'Too many cores requested ({ncores}), only {ncpu} available.')
         print('Will use half available cores.')
@@ -199,9 +201,16 @@ if __name__ == '__main__':
     if not os.path.isdir(outdir):
         os.makedirs(outdir)
     print("File Checks: ", input_files)
+    if skip0:
+        skew_file   = os.path.join(conf.get('output', 'out_dir'),
+                                   args['INBASE'].split('/')[-1].split('_')[0]) + '_skew.txt'
+        skew_values = pd.read_csv(skew_file).set_index('Channel_id').groupby('Channel_id', group_keys=False).apply(lambda x: x.Skew)
     for i in range(niter):
         print(f'Start iteration {i}')
-        if i == 0:
+        if skip0 and i == 0:
+            print('Skipping iteration 0 as requested.')
+            continue
+        elif i == 0:
             ## Read the ldat binaries and do the first calculation.
             ## We definitely want to parallelize here.
             chunk_args = [(file_set, conf) for file_set in np.array_split(input_files, ncores)]
