@@ -114,6 +114,7 @@ def read_and_select(file_list, config):
         deltat_df.reset_index(inplace=True)
         deltat_df.rename(inplace=True, columns={'index': 'ref_ch'})
         deltat_df.to_pickle(out_base.replace('.ldat', '_dtFrame.pkl'))
+        print(f'Time DataFrame output for {out_base}')
  
         skew_values = deltat_df.groupby('ref_ch', group_keys=False).apply(skew_calc)
         all_skews = pd.concat((all_skews, skew_values))
