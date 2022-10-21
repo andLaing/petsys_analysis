@@ -82,8 +82,6 @@ def read_and_select(file_list, config):
     (time_ch, eng_ch, mm_map,
      centroid_map, slab_map) = read_ymlmapping(config.get('mapping', 'map_file'))
     outdir = config.get('output', 'out_dir')
-    if not os.path.isdir(outdir):
-        os.makedirs(outdir)
 
     sm1_minch, sm2_minch = tuple(map(int, config.get('filter', 'min_channels').split(', ')))
     c_calc = centroid_calculation(centroid_map)
@@ -196,6 +194,9 @@ if __name__ == '__main__':
         ncores = ncpu // 2
 
     input_files = glob(args['INBASE'] + '*.ldat')
+    outdir = conf.get('output', 'out_dir')
+    if not os.path.isdir(outdir):
+        os.makedirs(outdir)
     print("File Checks: ", input_files)
     for i in range(niter):
         print(f'Start iteration {i}')
