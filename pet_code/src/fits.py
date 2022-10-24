@@ -43,5 +43,5 @@ def mean_around_max(data, bins, cb):
     x         = bins[first_bin:last_bin]
     y         = data[first_bin:last_bin]
     if sum(y) <= 0:
-        return None, None
-    return np.average(x, weights=y, returned=True), x, y
+        return None, None, None, None
+    return *np.average(x, weights=y, returned=True), x, y

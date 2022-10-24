@@ -119,15 +119,21 @@ def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150):
         Dict of energy selection filters
     """
     photo_peak = {}
-    bins = np.arange(8, 25, 0.2)
+    ## Limit range to avoid noise floor, can this be made more robust?
+    bins = np.arange(9, 25, 0.2)
     if plot_output:
         for slab, xye in slab_xye.items():
-            ## Limit range to avoid noise floor, can this be made more robust?
-            bin_vals, bin_edges, _ = plt.hist(xye['energy'], bins=bins)
+            #Try to exclude more noise
+            first_bin = 0 if max(xye['energy']) < 25 else 10
+            bin_vals, bin_edges, _ = plt.hist(xye['energy'], bins=bins[first_bin:])
             plt.xlabel(f'Energy (au) slab {slab}')
             try:
                 bcent, gvals, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
-                minE, maxE = pars[1] - 2 * pars[2], pars[1] + 2 * pars[2]
+                # Cutre protection
+                if pars[1] <= bins[first_bin]:
+                    minE, maxE = -1, 1
+                else:
+                    minE, maxE = pars[1] - 2 * pars[2], pars[1] + 2 * pars[2]
                 plt.plot(bcent, gvals, label=f'fit $\mu$ = {round(pars[1], 3)},  $\sigma$ = {round(pars[2], 3)}')
             except RuntimeError:
                 print(f'Failed fit, slab {slab}')
@@ -139,10 +145,15 @@ def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150):
             plt.clf()
     else:
         for slab, xye in slab_xye.items():
-            bin_vals, bin_edges = np.histogram(xye['energy'], bins=bins)
+            first_bin = 0 if max(xye['energy']) < 25 else 10
+            bin_vals, bin_edges = np.histogram(xye['energy'], bins=bins[first_bin:])
             try:
                 *_, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
-                minE, maxE = pars[1] - 2 * pars[2], pars[1] + 2 * pars[2]
+                # Cutre protection
+                if pars[1] <= bins[first_bin]:
+                    minE, maxE = -1, 0
+                else:
+                    minE, maxE = pars[1] - 2 * pars[2], pars[1] + 2 * pars[2]
             except RuntimeError:
                 minE, maxE = -1, 0
             photo_peak[slab] = select_energy_range(minE, maxE)
