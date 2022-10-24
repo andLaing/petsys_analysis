@@ -167,7 +167,7 @@ def get_skew(flight_time, slab_map, skew=pd.Series(dtype=float), plot_output=Non
         else:
             bin_vals, bin_edges = np.histogram(dt_reco - dt_th + skew_corr, bins=hist_bins)
         try:
-            bcent, gvals, pars, _ = fit_gaussian(bin_vals, bin_edges)
+            bcent, gvals, pars, _ = fit_gaussian(bin_vals, bin_edges, min_peak=100)
             if plot_output:
                 plt.plot(bcent, gvals, label=f'fit $\mu$ = {round(pars[1], 3)},  $\sigma$ = {round(pars[2], 3)}')
                 plt.legend()
