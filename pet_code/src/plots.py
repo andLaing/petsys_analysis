@@ -119,29 +119,27 @@ def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150):
         Dict of energy selection filters
     """
     photo_peak = {}
+    bins = np.arange(8, 25, 0.2)
     if plot_output:
         for slab, xye in slab_xye.items():
             ## Limit range to avoid noise floor, can this be made more robust?
-            bin_vals, bin_edges, _ = plt.hist(xye['energy'], bins=np.arange(8, 25, 0.2))
+            bin_vals, bin_edges, _ = plt.hist(xye['energy'], bins=bins)
             plt.xlabel(f'Energy (au) slab {slab}')
             try:
                 bcent, gvals, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
                 minE, maxE = pars[1] - 2 * pars[2], pars[1] + 2 * pars[2]
+                plt.plot(bcent, gvals, label=f'fit $\mu$ = {round(pars[1], 3)},  $\sigma$ = {round(pars[2], 3)}')
             except RuntimeError:
                 print(f'Failed fit, slab {slab}')
                 minE, maxE = -1, 0
             photo_peak[slab] = select_energy_range(minE, maxE)
-            try:
-                plt.plot(bcent, gvals, label=f'fit $\mu$ = {round(pars[1], 3)},  $\sigma$ = {round(pars[2], 3)}')
-                plt.axvspan(minE, maxE, facecolor='#00FF00' , alpha = 0.3, label='Selected range')
-            except ValueError:
-                print(f'Fit without convergence, slab {slab}')
+            plt.axvspan(minE, maxE, facecolor='#00FF00' , alpha = 0.3, label='Selected range')
             plt.legend()
             plt.savefig(plot_output.replace('.ldat', f'_slab{slab}Spec.png'))
             plt.clf()
     else:
         for slab, xye in slab_xye.items():
-            bin_vals, bin_edges = np.histogram(xye['energy'], bins=np.arange(7, 25, 0.2))
+            bin_vals, bin_edges = np.histogram(xye['energy'], bins=bins)
             try:
                 *_, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
                 minE, maxE = pars[1] - 2 * pars[2], pars[1] + 2 * pars[2]
