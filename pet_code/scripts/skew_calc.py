@@ -31,6 +31,7 @@ import matplotlib.pyplot as plt
 from multiprocessing import cpu_count, get_context
 
 from pet_code.src.fits  import fit_gaussian
+from pet_code.src.fits  import mean_around_max
 from pet_code.src.io    import read_petsys_filebyfile
 from pet_code.src.io    import read_ymlmapping
 from pet_code.src.plots import group_times_slab
@@ -127,18 +128,18 @@ def time_distributions(file_list, config, skew_values, it):
     dt distributions correcting for
     skew and fit for current skew.
     """
-    corr_skews = skew_values.copy()
-    outdir = config.get('output', 'out_dir')
+    corr_skews   = skew_values.copy()
+    outdir       = config.get('output', 'out_dir')
     *_, slab_map = read_ymlmapping(config.get('mapping', 'map_file'))
     for fn in file_list:
         *_, source_pos = get_references(fn)
         ## Probably want a function for the name so consistent
-        out_base  = os.path.join(outdir, fn.split('/')[-1])
-        skew_calc = get_skew(time_of_flight(source_pos),
-                             slab_map                  ,
-                             skew        = skew_values ,
-                             plot_output = out_base    ,
-                             it          = it          )
+        out_base   = os.path.join(outdir, fn.split('/')[-1])
+        skew_calc  = get_skew(time_of_flight(source_pos),
+                              slab_map                  ,
+                              skew        = skew_values ,
+                              plot_output = out_base    ,
+                              it          = it          )
         pkl_name   = out_base.replace('.ldat', '_dtFrame.pkl')
         deltat_df  = pd.read_pickle(pkl_name)
         corr_skews = corr_skews.add(deltat_df.groupby('ref_ch', group_keys=False).apply(skew_calc), fill_value=0.0)
@@ -172,10 +173,11 @@ def get_skew(flight_time, slab_map, skew=pd.Series(dtype=float), plot_output=Non
                 plt.legend()
                 plt.savefig(plot_output.replace('.ldat', f'_it{it}_timeCoincRef{ref_ch}.png'))
                 plt.clf()
-        except RuntimeError as e:
-            print(f'Ref channel {ref_ch} fit fail, message = {e}')
+        except RuntimeError:
+            print(f'Ref channel {ref_ch} fit fail')
             plt.clf()
-            return 0
+            peak_mean, *_ = mean_around_max(bin_vals, bin_edges[:-1], 6)
+            return peak_mean if peak_mean else 0
         return pars[1]
     return calc_skew
 
