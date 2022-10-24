@@ -89,6 +89,7 @@ def read_and_select(file_list, config):
     c_calc = centroid_calculation(centroid_map)
 
     all_skews = pd.Series(dtype=float)
+    relax = config.getfloat('filter', 'relax_fact')
     for fn in file_list:
         print(f'Processing file {fn}', flush=True)
         sm_num, mm_num, source_pos = get_references(fn)
@@ -117,7 +118,7 @@ def read_and_select(file_list, config):
         print(f'Time DataFrame output for {out_base}')
  
         skew_values = deltat_df.groupby('ref_ch', group_keys=False).apply(skew_calc)
-        all_skews = pd.concat((all_skews, skew_values))
+        all_skews = pd.concat((all_skews, relax * skew_values))
     return all_skews
 
 
@@ -131,6 +132,7 @@ def time_distributions(file_list, config, skew_values, it):
     corr_skews   = skew_values.copy()
     outdir       = config.get('output', 'out_dir')
     *_, slab_map = read_ymlmapping(config.get('mapping', 'map_file'))
+    relax = config.getfloat('filter', 'relax_fact')
     for fn in file_list:
         *_, source_pos = get_references(fn)
         ## Probably want a function for the name so consistent
@@ -142,7 +144,8 @@ def time_distributions(file_list, config, skew_values, it):
                               it          = it          )
         pkl_name   = out_base.replace('.ldat', '_dtFrame.pkl')
         deltat_df  = pd.read_pickle(pkl_name)
-        corr_skews = corr_skews.add(deltat_df.groupby('ref_ch', group_keys=False).apply(skew_calc), fill_value=0.0)
+        biases     = deltat_df.groupby('ref_ch', group_keys=False).apply(skew_calc)
+        corr_skews = corr_skews.add(relax * biases, fill_value=0.0)
     return corr_skews
 
 
