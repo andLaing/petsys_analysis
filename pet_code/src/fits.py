@@ -31,8 +31,11 @@ def fit_gaussian(data, bins, cb=8, min_peak=150):
     sig0 = np.average((x - mu0)**2, weights=y)
     if wsum > 1:
         sig0 *= wsum / (wsum - 1)
+    sig0 = np.sqrt(sig0)
 
-    pars, pcov = curve_fit(gaussian, x, y, p0=[wsum, mu0, sig0])
+    # Errors as sqrt of y values.
+    yerr = np.sqrt(y, out=np.abs(y).astype('float'), where=y>=0)
+    pars, pcov = curve_fit(gaussian, x, y, sigma=yerr, p0=[wsum, mu0, sig0])
     return bin_centres, gaussian(bin_centres, *pars), pars, pcov
 
 
