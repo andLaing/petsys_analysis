@@ -32,6 +32,7 @@ dependencies:
 - pandas       = 1.3.5
 - docopt       = 0.6.2
 - configparser = 5.0.2
+- cython       = 0.29.32
 EOF
 
 if conda env list | grep ${CONDA_ENV_NAME};

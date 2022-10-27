@@ -6,6 +6,7 @@ import numpy as np
 from itertools import chain, islice, repeat
 
 from . util import slab_indx, slab_x, slab_y, slab_z
+from . io_util import coinc_evt_loop
 
 
 def read_petsys(mod_mapping, sm_filter=lambda x, y: True, singles=False):
@@ -94,7 +95,7 @@ def _read_petsys_file(file_name      ,
     file yielding those meeting sm_filter
     conditions.
     """
-    evt_loop = singles_evt_loop if singles else coincidences_evt_loop
+    evt_loop = singles_evt_loop if singles else coinc_evt_loop#coincidences_evt_loop
     with open(file_name, 'rb') as fbuff:
         b_iter = struct.iter_unpack(line_struct, fbuff.read())
         for first_line in b_iter:
