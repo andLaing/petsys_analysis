@@ -3,7 +3,7 @@ import yaml
 
 import numpy as np
 
-from itertools import islice
+from itertools import chain, islice
 
 from . util import slab_indx, slab_x, slab_y, slab_z
 
@@ -74,24 +74,47 @@ def _read_petsys_file(file_name      ,
     file yielding those meeting sm_filter
     conditions.
     """
+    evt_loop = singles_evt_loop if singles else coincidences_evt_loop
     with open(file_name, 'rb') as fbuff:
         b_iter = struct.iter_unpack(line_struct, fbuff.read())
         for first_line in b_iter:
-            sm1       = []
-            sm2       = []
-            ch_sm1    = set()
-            ch_sm2    = set()
-            evt_lines = first_line[0] + first_line[5] - 2
-            for evt in [first_line] + list(islice(b_iter, evt_lines)):
-                if evt[4] not in ch_sm1:
-                    sm1.append(unpack_supermodule(evt[:5], mod_mapping))
-                    ch_sm1.add(evt[4])
-                if not singles:
-                    if evt[-1] not in ch_sm2:
-                        sm2.append(unpack_supermodule(evt[5:], mod_mapping))
-                        ch_sm2.add(evt[-1])
+            sm1, sm2 = evt_loop(first_line, b_iter, mod_mapping)
             if sm_filter(sm1, sm2):
                 yield sm1, sm2
+
+
+def singles_evt_loop(first_line, line_it, mod_mapping):
+    """
+    Loop through the lines for an event
+    of singles data.
+    Needs to be optimised/tested
+    Should be for what PETSys calls 'grouped'
+    which seems more like a PET single.
+    """
+    nlines = first_line[0]
+    return list(map(unpack_supermodule                              ,
+                    chain([first_line], islice(line_it, nlines - 1)),
+                    [mod_mapping] * nlines                          )), []
+
+
+def coincidences_evt_loop(first_line, line_it, mod_mapping):
+    """
+    Loop through the lines for an event
+    of coincidence data.
+    """
+    sm1    = []
+    sm2    = []
+    ch_sm1 = set()
+    ch_sm2 = set()
+    nlines = first_line[0] + first_line[5] - 2
+    for evt in chain([first_line], islice(line_it, nlines)):
+        if evt[4] not in ch_sm1:
+            sm1.append(unpack_supermodule(evt[:5], mod_mapping))
+            ch_sm1.add(evt[4])
+        if evt[-1] not in ch_sm2:
+            sm2.append(unpack_supermodule(evt[5:], mod_mapping))
+            ch_sm2.add(evt[-1])
+    return sm1, sm2
 
 
 def unpack_supermodule(sm_info, mod_mapping):
