@@ -233,11 +233,3 @@ if __name__ == '__main__':
     skew_values = skew_values.reset_index().rename(columns={'index': 'Channel_id', 0: 'Skew'})
     skew_file   = os.path.join(conf.get('output', 'out_dir'), args['INBASE'].split('/')[-1].split('_')[0]) + '_skew.txt'
     skew_values.to_csv(skew_file)
-    # (time_ch, eng_ch,
-    #  mm_map, centroid_map, slab_map) = read_ymlmapping(conf.get('mapping', 'map_file'))
-
-    # map_file  = 'pet_code/test_data/SM_mapping.yaml' # shouldn't be hardwired
-
-    # file_list = sys.argv[1:]
-
-    # time_ch, eng_ch, mm_map, centroid_map, slab_map = read_ymlmapping(map_file)
