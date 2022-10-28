@@ -64,6 +64,26 @@ def read_petsys_filebyfile(file_name, mod_mapping, sm_filter=lambda x, y: True, 
     return petsys_event
 
 
+def read_petsys_singles(file_name, mod_mapping):
+    """
+    Read a petsys singles mode file which
+    contains only channel by channel time
+    and energy info with no impact (singles)
+    nor coincidence grouping.
+    file_name  : String
+                 ldat file name with petsys singles
+    mod_mapping: Lookup table for the channel id
+                 to mini module numbering.
+    returns a generator for line info [id, mm, tstp, eng]
+    """
+    line_struct = '<qfi'
+    def petsys_event():
+        with open(file_name, 'rb') as fbuff:
+            for line in struct.iter_unpack(line_struct, fbuff.read()):
+                yield line[2], mod_mapping[line[2]], line[0], line[1]
+    return petsys_event
+
+
 def _read_petsys_file(file_name      ,
                       line_struct    ,
                       mod_mapping    ,
