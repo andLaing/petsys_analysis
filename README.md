@@ -14,6 +14,8 @@ The code has the following minimum requirements:
  - natsort 7.1
  - pytest 6.2.5
  - pandas 1.3.5
+ - docopt 0.6.2
+ - configparser 5.0.2
 
  A script for environment set-up using `miniconda` is provided: `make_condaENV.sh` which currently assumes that miniconda is already installed in the `$HOME` folder.
 
@@ -24,6 +26,8 @@ The code has the following minimum requirements:
  |  |- scripts/
  |  |   |- flood_maps.py -- Basic script to produce floodmaps
  |  |   |- mm_hits.py -- Text output of coincidence hits per mini module
+ |  |   |- skew_calc.py -- Estimate skew iterating over reference channel data.
+ |  |   |- slab_spectra.py -- Make energy and time difference spectra for slabs.
  |  |- src/
  |  |   |- fits.py -- functions for distribution fitting
  |  |   |- io.py -- input output functions
