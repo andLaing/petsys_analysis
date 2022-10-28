@@ -180,6 +180,9 @@ def group_times(filtered_events, peak_select, eng_ch, time_ch, ref_indx):
     A dictionary of tuples (coinc id, coinc tstp, ref tstp)
     with key ref id.
     """
+    if ref_indx not in (0, 1):
+        # For calibration setup.
+        raise ValueError('Currently only accepts 0 and 1 as ref_indx')
     reco_dt  = {}
     coinc_sm = 0 if ref_indx == 1 else 1
     min_ch   = [0, 0]
