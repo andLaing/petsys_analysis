@@ -99,7 +99,7 @@ def read_and_select(file_list, config):
         skew_calc  = get_skew(time_of_flight(source_pos), slab_map, plot_output=out_base)
 
         sel_evts   = [evt for evt in evt_reader()]
-        print('Events read. Proceeding...')
+        print('Events read. Proceeding...', flush=True)
         slab_dicts = slab_energy_centroids(sel_evts, c_calc, time_ch)
 
         photo_peak = list(map(slab_energy_spectra, slab_dicts))
@@ -115,7 +115,7 @@ def read_and_select(file_list, config):
         deltat_df.reset_index(inplace=True)
         deltat_df.rename(inplace=True, columns={'index': 'ref_ch'})
         deltat_df.to_pickle(out_base.replace('.ldat', '_dtFrame.pkl'))
-        print(f'Time DataFrame output for {out_base}')
+        print(f'Time DataFrame output for {out_base}', flush=True)
  
         skew_values = deltat_df.groupby('ref_ch', group_keys=False).apply(skew_calc)
         all_skews = pd.concat((all_skews, relax * skew_values))
