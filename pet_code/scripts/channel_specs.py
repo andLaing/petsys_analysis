@@ -18,6 +18,7 @@ Options:
 from docopt import docopt
 
 import matplotlib.pyplot as plt
+import numpy             as np
 
 from pet_code.src.io import read_petsys_singles
 from pet_code.src.io import read_ymlmapping
