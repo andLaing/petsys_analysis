@@ -6,8 +6,10 @@ import numpy  as np
 
 from pet_code.src.io    import read_petsys, read_ymlmapping
 from pet_code.src.plots import mm_energy_spectra, group_times
+from pet_code.src.util  import filter_event_by_impacts
 from pet_code.src.util  import filter_impacts_one_minimod, get_supermodule_eng
 from pet_code.src.util  import filter_impacts_specific_mod
+from pet_code.src.util  import select_module
 from pet_code.src.util  import centroid_calculation
 from pet_code.src.util  import mm_energy_centroids
 from pet_code.src.util  import time_of_flight
@@ -33,11 +35,12 @@ import time
 if __name__ == '__main__':
     ## Should probably use docopt or config file.
     start = time.time()
-    map_file  = 'pet_code/test_data/SM_mapping.yaml' # shouldn't be hardwired
+    map_file  = 'pet_code/test_data/SM_mapping_corrected.yaml' # shouldn't be hardwired
     file_list = sys.argv[1:]
 
     time_ch, eng_ch, mm_map, centroid_map, slab_map = read_ymlmapping(map_file)
-    evt_select = filter_impacts_one_minimod(eng_ch, 5, 4) # minima should not be hardwired
+    evt_select = filter_event_by_impacts(eng_ch, 4, 4)
+    # evt_select = filter_impacts_one_minimod(eng_ch, 4, 4) # minima should not be hardwired
     # evt_select = filter_impacts_specific_mod(1, 10, eng_ch, 5, 4)
     pet_reader = read_petsys(mm_map, evt_select)
     filtered_events = [tpl for tpl in pet_reader(file_list)]
@@ -47,11 +50,16 @@ if __name__ == '__main__':
     ## Should we be filtering the events with multiple mini-modules in one sm?
     c_calc = centroid_calculation(centroid_map)
     # ## Must be a better way but...
-    mod_dicts = mm_energy_centroids(filtered_events, c_calc, eng_ch)
+    def wrap_mmsel(eng_ch):
+        def sel(sm):
+            return select_module(sm, eng_ch)
+        return sel
+    # mod_dicts = mm_energy_centroids(filtered_events, c_calc, eng_ch)
+    mod_dicts = mm_energy_centroids(filtered_events, c_calc, eng_ch, mod_sel=wrap_mmsel(eng_ch))
 
     # ## No file separation in case of multiple files, needs to be fixed.
     # print("Stats check: ", l1, ", ", l2)
-    out_base = 'test_plots/' + file_list[0].split('/')[-1]
+    out_base = 'test_floods/' + file_list[0].split('/')[-1]
     photo_peak = list(map(mm_energy_spectra, mod_dicts, [1, 2], [out_base] * 2, [100] * 2))
 
     ## CTR. Reference to a slab in sm1

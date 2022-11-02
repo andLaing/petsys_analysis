@@ -195,6 +195,21 @@ def filter_impacts_specific_mod(sm_num, mm_num, eng_map, min_sm1, min_sm2):
 ## End filters (examples)
 
 
+def select_module(sm_info, eng_ch):
+    """
+    Select the mini module with
+    highest energy in a SM.
+    """
+    sm  = np.asarray(sm_info)
+    mms = np.unique(sm[:, 1])
+    if mms.shape[0] == 1:
+        return sm_info
+    e_chan = np.fromiter(map(lambda x: x[0] in eng_ch, sm), bool)
+    sums = np.fromiter((sm[(sm[:, 1] == mm) & e_chan, 3].sum() for mm in mms), float)
+    max_mm = mms[np.argmax(sums)]
+    return sm[sm[:, 1] == max_mm, :].tolist()
+
+
 def shift_to_centres(bin_low_edge):
     """
     Get the bin centres from a list/array
@@ -222,7 +237,7 @@ def time_of_flight(source_pos):
     return flight_time
 
 
-def mm_energy_centroids(events, c_calc, eng_ch):
+def mm_energy_centroids(events, c_calc, eng_ch, mod_sel=lambda sm: sm):
     """
     Calculate centroid and energy for
     mini modules per event assuming
@@ -230,7 +245,8 @@ def mm_energy_centroids(events, c_calc, eng_ch):
     """
     mod_dicts = [{}, {}]
     for evt in events:
-        for i, ((x, y, _), (_, eng)) in enumerate(zip(map(c_calc, evt), map(get_supermodule_eng, evt, [eng_ch] * 2))):
+        sel_evt = tuple(map(mod_sel, evt))
+        for i, ((x, y, _), (_, eng)) in enumerate(zip(map(c_calc, sel_evt), map(get_supermodule_eng, sel_evt, [eng_ch] * 2))):
             mm = evt[i][0][1]
             try:
                 mod_dicts[i][mm]['x'].append(x)
@@ -239,6 +255,28 @@ def mm_energy_centroids(events, c_calc, eng_ch):
             except KeyError:
                 mod_dicts[i][mm] = {'x': [x], 'y': [y], 'energy': [eng]}
     return mod_dicts
+
+
+def all_mm_energy_centroids(events, c_calc, eng_ch):
+    """
+    HAck for now to work with multiple mm per sm.
+    """
+    mod_dicts = [{}, {}]
+    for evt in events:
+        arr_evt = list(map(np.asarray, evt))
+        for i, sm in enumerate(arr_evt):
+            for mm in np.unique(sm[:, 1]):
+                mm_sel    = sm[sm[:, 1] == mm, :]
+                x, y  , _ = c_calc(mm_sel)
+                _, eng    = get_supermodule_eng(mm_sel, eng_ch)
+                try:
+                    mod_dicts[i][mm]['x'].append(x)
+                    mod_dicts[i][mm]['y'].append(y)
+                    mod_dicts[i][mm]['energy'].append(eng)
+                except KeyError:
+                    mod_dicts[i][mm] = {'x': [x], 'y': [y], 'energy': [eng]}
+    return mod_dicts
+            
 
 
 def slab_energy_centroids(events, c_calc, time_ch):
