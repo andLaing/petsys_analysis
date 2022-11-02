@@ -1,3 +1,4 @@
+import os
 import sys
 
 from pet_code.src.io   import read_petsys_filebyfile, read_ymlmapping
@@ -40,7 +41,11 @@ if __name__ == '__main__':
     mm_check = 0
     all_evt  = 0
     for fn in file_list:
-        out_file = fn.replace('.ldat', '_NN.txt')
+        in_parts = fn.split('/')
+        if in_parts[0] == '':
+            in_parts[0] = '/'
+        out_file = os.path.join(*in_parts[:-1], 'all_impacts', in_parts[-1].replace('.ldat', '_NN.txt'))
+
         # Need to protect from overwrite? Will add output folder when using docopt/config or both
         with open(out_file, 'w') as tout:
             sort_writer = sort_and_write_mm(write_event_trace(tout, centroid_map), control_sm)

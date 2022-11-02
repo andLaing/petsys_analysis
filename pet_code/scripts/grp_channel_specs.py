@@ -23,6 +23,7 @@ import numpy             as np
 from pet_code.src.io   import read_petsys_filebyfile
 from pet_code.src.io   import read_ymlmapping
 from pet_code.src.util import filter_impact, filter_multihit
+from pet_code.src.util import select_module
 
 
 def channel_energies(eng_ch, time_ch):
@@ -49,6 +50,17 @@ def channel_energies(eng_ch, time_ch):
                     specs[mm][max_vals[0]] = [max_vals[3]]
                 except KeyError:
                     specs[mm] = {max_vals[0]: [max_vals[3]]}
+    def add_max_mm(channels):
+        max_mm = select_module(channels[0])
+        mm_id  = max_mm[0][1]
+        for impact in max_mm:
+            try:
+                specs[mm_id][impact[0]].append(impact[3])
+            except KeyError:
+                try:
+                    specs[mm_id][impact[0]] = [impact[3]]
+                except KeyError:
+                    specs[mm_id] = {impact[0]: [impact[3]]}
     def add_engtime_max(channels):
         """
         Only use the max of the energy channels and that of time ch
