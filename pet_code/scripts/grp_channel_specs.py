@@ -15,7 +15,8 @@ Options:
     --out=OUTFILE  Name base for output image files [default: slabSpec]
 """
 
-from docopt import docopt
+from docopt      import docopt
+from collections import Counter
 
 import matplotlib.pyplot as plt
 import numpy             as np
@@ -24,6 +25,52 @@ from pet_code.src.io   import read_petsys_filebyfile
 from pet_code.src.io   import read_ymlmapping
 from pet_code.src.util import filter_impact, filter_multihit
 from pet_code.src.util import select_module
+
+
+class ChannelCal:
+    def __init__(self, time_ch, mm_indx) -> None:
+        self.slab_energies = {}
+        self.eng_accum     = {}
+        self.saved_evt     = []
+        self.time_id       = time_ch
+        self.mm_indx       = mm_indx
+
+    def add_evt(self, supermods):
+        mms = {ch[1] for ch in supermods[0]}
+        # try:
+        #     t_ch = next(filter(lambda ch: ch[0] in self.time_id, supermods[0]))
+        # except StopIteration:
+        #     return len(mms)
+        n_ch = -1
+        for n_ch, ch in enumerate(filter(lambda x: x[0] in self.time_id, supermods[0])):
+            try:
+                self.slab_energies[ch[0]].append(ch[3])
+            except KeyError:
+                self.slab_energies[ch[0]] = [ch[3]]
+        if n_ch >= 0:
+            self.saved_evt.append(supermods[0])
+        return len(mms)
+        # for ch in supermods[0]:
+        #     if ch[0] in time_ch:
+        #         mms.add(ch[1])
+        #         try:
+        #             self.slab_energies[ch[0]].append(ch[3])
+        #         except KeyError:
+        #             self.slab_energies[ch[0]] = [ch[3]]
+        #     else:
+        #         mms.add(ch[1])
+        #         sm = ch[0] // 256
+        #         i  = np.argwhere(self.mm_indx == ch[0] % 256)[0][1]
+        #         try:
+        #             self.eng_accum[sm][ch[1]][i] += ch[3]
+        #         except KeyError:
+        #             try:
+        #                 self.eng_accum[sm][ch[1]]    = np.zeros(8)
+        #                 self.eng_accum[sm][ch[1]][i] = ch[3]
+        #             except KeyError:
+        #                 self.eng_accum[sm] = {ch[1]: np.zeros(8)}
+        #                 self.eng_accum[sm][ch[1]][i] = ch[3]
+        # return len(mms)
 
 
 def channel_energies(eng_ch, time_ch):
@@ -122,25 +169,34 @@ if __name__ == '__main__':
 
     time_ch, eng_ch, mm_map, _, _ = read_ymlmapping(map_file)
     # add_val, spec_loop, mm_loop   = channel_energies()
-    add_val, spec_loop, mm_loop   = channel_energies(eng_ch, time_ch)
+    # add_val, spec_loop, mm_loop   = channel_energies(eng_ch, time_ch)
     # filt = filter_minch(4, eng_ch)
     # filt = filter_oneMM()
+    plotter = ChannelCal(time_ch, mm_index)
+    # Maybe a bit dangerous memory wise, review
     for fn in infiles:
         # reader = read_petsys_filebyfile(fn, mm_map, sm_filter=filt, singles=True)
-        reader = read_petsys_filebyfile(fn, mm_map, singles=True)
-        _      = tuple(map(add_val, reader()))
-    for id, engs in spec_loop():
+        reader  = read_petsys_filebyfile(fn, mm_map, singles=True)
+        # _      = tuple(map(add_val, reader()))
+        num_mms = tuple(map(plotter.add_evt, reader()))
+    print("First pass complete, mm multiplicities: ", Counter(num_mms))
+    for id, engs in plotter.slab_energies.items():
         plt.hist(engs, bins=np.arange(0, 30, 0.2))
-        ch_type = 'time' if id in time_ch else 'energy'
-        plt.xlabel(f'Energy {ch_type} channel {id}')
+        plt.xlabel(f'Energy time channel {id}')
         plt.savefig(out_file  + f'{id}.png')
         plt.clf()
-    # The following isn't really what we're after.
-    if mm_spec:
-        for mm, engs in mm_loop():
-            all_engs = np.concatenate([e for _, e in filter(lambda k: k[0] in eng_ch, engs.items())])
-            plt.hist(all_engs, np.arange(0, 30, 0.2))
-            plt.xlabel(f'Energy spec all channels mm{mm}')
-            plt.savefig(out_file + f'mm{mm}.png')
-            plt.clf()
+    # for id, engs in spec_loop():
+    #     plt.hist(engs, bins=np.arange(0, 30, 0.2))
+    #     ch_type = 'time' if id in time_ch else 'energy'
+    #     plt.xlabel(f'Energy {ch_type} channel {id}')
+    #     plt.savefig(out_file  + f'{id}.png')
+    #     plt.clf()
+    # # The following isn't really what we're after.
+    # if mm_spec:
+    #     for mm, engs in mm_loop():
+    #         all_engs = np.concatenate([e for _, e in filter(lambda k: k[0] in eng_ch, engs.items())])
+    #         plt.hist(all_engs, np.arange(0, 30, 0.2))
+    #         plt.xlabel(f'Energy spec all channels mm{mm}')
+    #         plt.savefig(out_file + f'mm{mm}.png')
+    #         plt.clf()
 
