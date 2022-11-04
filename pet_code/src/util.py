@@ -207,7 +207,8 @@ def select_module(sm_info, eng_ch):
     e_chan = np.fromiter(map(lambda x: x[0] in eng_ch, sm), bool)
     sums = np.fromiter((sm[(sm[:, 1] == mm) & e_chan, 3].sum() for mm in mms), float)
     max_mm = mms[np.argmax(sums)]
-    return sm[sm[:, 1] == max_mm, :].tolist()
+    #return sm[sm[:, 1] == max_mm, :].tolist()
+    return list(filter(lambda x: x[1] == max_mm, sm_info))
 
 
 def shift_to_centres(bin_low_edge):
