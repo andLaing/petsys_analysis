@@ -1,5 +1,7 @@
 import numpy as np
 
+from itertools import repeat
+
 from scipy.constants import c as c_vac
 
 def get_no_eng_channels(mod_data, energy_chid):
@@ -247,7 +249,7 @@ def mm_energy_centroids(events, c_calc, eng_ch, mod_sel=lambda sm: sm):
     mod_dicts = [{}, {}]
     for evt in events:
         sel_evt = tuple(map(mod_sel, evt))
-        for i, ((x, y, _), (_, eng)) in enumerate(zip(map(c_calc, sel_evt), map(get_supermodule_eng, sel_evt, [eng_ch] * 2))):
+        for i, ((x, y, _), (_, eng)) in enumerate(zip(map(c_calc, sel_evt), map(get_supermodule_eng, sel_evt, repeat(eng_ch)))):
             mm = evt[i][0][1]
             try:
                 mod_dicts[i][mm]['x'].append(x)

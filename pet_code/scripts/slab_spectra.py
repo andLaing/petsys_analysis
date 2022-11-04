@@ -1,6 +1,8 @@
 import sys
 import time
 
+from itertools import repeat
+
 import matplotlib.pyplot as plt
 import numpy  as np
 
@@ -35,7 +37,7 @@ if __name__ == '__main__':
     slab_dicts = slab_energy_centroids(filtered_events, c_calc, time_ch)
 
     out_base   = 'test_plots/slab_filt/' + file_list[0].split('/')[-1]
-    photo_peak = list(map(slab_energy_spectra, slab_dicts, [out_base] * 2))
+    photo_peak = list(map(slab_energy_spectra, slab_dicts, repeat(out_base)))
 
     reco_dt = group_times_slab(filtered_events, photo_peak, time_ch, ref_indx)
     # Source pos hardwired for tests, extract from data file?

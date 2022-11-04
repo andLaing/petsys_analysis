@@ -3,7 +3,7 @@ import yaml
 
 import numpy as np
 
-from itertools import chain, islice
+from itertools import chain, islice, repeat
 
 from . util import slab_indx, slab_x, slab_y, slab_z
 
@@ -114,7 +114,7 @@ def singles_evt_loop(first_line, line_it, mod_mapping):
     nlines = first_line[0]
     return list(map(unpack_supermodule                              ,
                     chain([first_line], islice(line_it, nlines - 1)),
-                    [mod_mapping] * nlines                          )), []
+                    repeat(mod_mapping)                             )), []
 
 
 def coincidences_evt_loop(first_line, line_it, mod_mapping):
