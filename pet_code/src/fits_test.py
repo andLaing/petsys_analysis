@@ -23,7 +23,7 @@ def test_mean_around_max():
     bin_vals, bin_edges = np.histogram(np.random.normal(mu, 2, 10000),
                                        bins=np.arange(-50, 50, 0.2))
     edges = bin_edges[:-1]
-    mean_val, wsum, x, y = mean_around_max(bin_vals, edges, 6)
+    mean_val, wsum, x, y, _ = mean_around_max(bin_vals, edges, 6)
 
     max_indx = np.argmax(bin_vals)
     np.testing.assert_allclose(x, edges   [max_indx-6:max_indx+6])
