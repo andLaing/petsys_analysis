@@ -22,7 +22,7 @@ def hist1d(axis, data, bins=200, range=(0, 300), histtype='step', label='histo')
     return pbins, weights
 
 
-def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150):
+def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150, brange=(0, 300)):
     """
     Generate the energy spectra and select the photopeak
     for each module. Optionally plot and save spectra
@@ -51,7 +51,7 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150):
         for j, ax in enumerate(axes.flatten()):
             ## mmini-module numbers start at 1
             try:
-                bin_edges, bin_vals = hist1d(ax, module_xye[j+1]['energy'], label=f'Det: {sm_label}\n mM: {j+1}')
+                bin_edges, bin_vals = hist1d(ax, module_xye[j+1]['energy'], range=brange, label=f'Det: {sm_label}\n mM: {j+1}')
             except KeyError:
                 print(f'No data for super module {sm_label}, mini module {j+1}, skipping')
                 photo_peak.append(lambda x: False)
@@ -90,7 +90,7 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150):
     else:
         for j in range(1, 17):
             try:
-                bin_vals, bin_edges = np.histogram(module_xye[j]['energy'], bins=200, range=(0, 300))
+                bin_vals, bin_edges = np.histogram(module_xye[j]['energy'], bins=200, range=brange)
             except KeyError:
                 print(f'No data for super module {sm_label}, mini module {j+1}, skipping')
                 photo_peak.append(lambda x: False)
@@ -104,7 +104,7 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150):
     return photo_peak
 
 
-def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150):
+def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150, bins=np.arange(9, 25, 0.2)):
     """
     Make energy spectra of slab time channels.
     slab_xye : Dict
@@ -120,7 +120,7 @@ def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150):
     """
     photo_peak = {}
     ## Limit range to avoid noise floor, can this be made more robust?
-    bins = np.arange(9, 25, 0.2)
+    # bins = np.arange(9, 25, 0.2)
     if plot_output:
         for slab, xye in slab_xye.items():
             #Try to exclude more noise
