@@ -1,4 +1,5 @@
-import numpy as np
+import numpy  as np
+import pandas as pd
 
 from itertools import repeat
 
@@ -299,3 +300,33 @@ def slab_energy_centroids(events, c_calc, time_ch):
                 except KeyError:
                     slab_dicts[i][imp[0]] = {'x': [x], 'y': [y], 'energy': [imp[3]]}
     return slab_dicts
+
+
+def calibrate_energies(time_ch, eng_ch, time_cal, eng_cal):
+    """
+    Equalize the energy for the channels
+    given the peak positions in a file (for now)
+    for time channels and energy channels.
+    """
+    if time_cal:
+        tcal_df = pd.read_csv(time_cal, sep='\t ')# Need to fix file format to remove space
+        # time calibrated relative to 511 keV peak
+        tcal    = tcal_df.set_index('ID')['MU'].apply(lambda x: 511 / x)
+    else:
+        tcal    = pd.Series(1, index=time_ch)
+    if eng_cal:
+        ecal_df = pd.read_csv(eng_cal, sep='\t ')# Need to fix file format to remove space
+        # Energy channels calibrated relative to mean. Maybe unstable between calibrations, review.
+        mu_mean = np.mean(ecal_df.MU)
+        ecal    = ecal_df.set_index('ID')['MU'].apply(lambda x: mu_mean / x)
+    else:
+        ecal    = pd.Series(1, index=eng_ch)
+    cal = tcal.append(ecal)
+    def apply_calibration(event):
+        for sm in event:
+            for imp in sm:
+                imp[3] *= cal.get(imp[0], 0.0)#Effectively mask channels without calibration
+        return event
+    return apply_calibration
+
+
