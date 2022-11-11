@@ -20,11 +20,12 @@ from itertools import repeat
 from pet_code.src.io    import read_petsys_filebyfile
 from pet_code.src.io    import read_ymlmapping
 from pet_code.src.plots import mm_energy_spectra
+from pet_code.src.util  import calibrate_energies
+from pet_code.src.util  import centroid_calculation
 from pet_code.src.util  import filter_event_by_impacts
 from pet_code.src.util  import filter_impacts_one_minimod
-from pet_code.src.util  import select_module
-from pet_code.src.util  import centroid_calculation
 from pet_code.src.util  import mm_energy_centroids
+from pet_code.src.util  import select_module
 
 
 import time
@@ -49,9 +50,15 @@ if __name__ == '__main__':
     else:
         print('No valid filter found, fallback to 4, 4 minimum energy channels')
         evt_select = filter_event_by_impacts(eng_ch, 4, 4)
-    
+
+    time_cal = conf.get('calibration',   'time_channels', fallback='')
+    eng_cal  = conf.get('calibration', 'energy_channels', fallback='')
+    if time_cal or eng_cal:
+        cal_func = calibrate_energies(time_ch, eng_ch, time_cal, eng_cal)
+    else:
+        cal_func = lambda x: x
     pet_reader      = read_petsys_filebyfile(infile, mm_map, evt_select)
-    filtered_events = [tpl for tpl in pet_reader()]
+    filtered_events = [cal_func(tpl) for tpl in pet_reader()]
     end_r           = time.time()
     print("Time enlapsed reading: {} s".format(int(end_r - start)))
     print("length check: ", len(filtered_events))
