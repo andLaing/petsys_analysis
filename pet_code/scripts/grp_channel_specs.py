@@ -53,11 +53,16 @@ class ChannelCal:
             self.eng_sum[t_ch[0]].append(sum(e_chans))
         except KeyError:
             self.eng_sum[t_ch[0]] = [sum(e_chans)]
-        try:
-            max_eng = sel_mod[np.argmax(e_chans)]
-            self.eng_max[max_eng[0]].append(max_eng[3])
-        except KeyError:
-            self.eng_max[max_eng[0]] = [max_eng[3]]
+        # try:
+        #     max_eng = sel_mod[np.argmax(e_chans)]
+        #     self.eng_max[max_eng[0]].append(max_eng[3])
+        # except KeyError:
+        #     self.eng_max[max_eng[0]] = [max_eng[3]]
+        for imp in filter(lambda x: x[0] in self.eng_id, sel_mod):
+            try:
+                self.eng_max[imp[0]].append(imp[3])
+            except KeyError:
+                self.eng_max[imp[0]] = [imp[3]]
         return len(mms)
 
 
