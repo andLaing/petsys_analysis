@@ -6,17 +6,18 @@ import numpy             as np
 
 from pet_code.src.io   import read_petsys_filebyfile
 from pet_code.src.io   import read_ymlmapping
-from pet_code.src.util import filter_event_by_impacts
+from pet_code.src.util import filter_impact
 from pet_code.src.util import shift_to_centres
 
 
 def channel_engs():
     specs = {}
     def add_evt_info(sm):
-        try:
-            specs[sm[0]].append(sm[3])
-        except KeyError:
-            specs[sm[0]] = [sm[3]]
+        for imp in sm:
+            try:
+                specs[imp[0]].append(imp[3])
+            except KeyError:
+                specs[imp[0]] = [imp[3]]
     def gen_spacs():
         for id, spec in specs.items():
             yield id, spec
@@ -28,6 +29,13 @@ def channel_engs():
     return add_evt_info, gen_spacs, get_spec
 
 
+def filter_minch(min_ch, eng_ch):
+    filt = filter_impact(min_ch, eng_ch)
+    def valid_event(sm, _):
+        return filt(sm)
+    return valid_event
+
+
 if __name__ == '__main__':
     s_file  = sys.argv[1]
     ns_file = sys.argv[2]
@@ -37,7 +45,7 @@ if __name__ == '__main__':
     #
 
     eng_ch    = {}
-    evt_filt  = filter_event_by_impacts(eng_ch, 4, 4)
+    evt_filt  = filter_minch(4, eng_ch)
     reader_s  = read_petsys_filebyfile( s_file, mm_map, sm_filter=evt_filt, singles=True)
     reader_ns = read_petsys_filebyfile(ns_file, mm_map, sm_filter=evt_filt, singles=True)
 
@@ -53,15 +61,17 @@ if __name__ == '__main__':
         os.makedirs(out_dir)
     out_base = s_file.split('/')[-1]
     for id, s_spec in spec_read_s():
-        bin_vals, bin_edges, _ = plt.hist(s_spec, bins=bins, label='Source spectrum')
+        bin_vals, bin_edges = np.histogram(s_spec, bins=bins)
+        # bin_vals, bin_edges, _ = plt.hist(s_spec, bins=bins, label='Source spectrum')
         ns_spec = spec_get(id)
-        if ns_spec:
-            ns_vals, *_ = plt.hist(ns_spec, bins=bins, label='No source spectrum')
+        if ns_spec is not None:
+            ns_vals, _ = np.histogram(ns_spec, bins=bins)
+            # ns_vals, *_ = plt.hist(ns_spec, bins=bins, label='No source spectrum')
             spec_diff = bin_vals - ns_vals
             specD_err = np.sqrt(bin_vals + ns_vals)
             plt.errorbar(shift_to_centres(bin_edges), spec_diff, yerr=specD_err, label='Difference')
-        plt.xlabel('Charge (au)')
-        plt.ylabel('au')
-        plt.legend()
-        plt.savefig(os.path.join(out_dir, out_base.replace('.ldat', f'_EspecCh{id}.png')))
+            plt.xlabel('Charge (au)')
+            plt.ylabel('au')
+            plt.legend()
+            plt.savefig(os.path.join(out_dir, out_base.replace('.ldat', f'_EspecCh{id}.png')))
 
