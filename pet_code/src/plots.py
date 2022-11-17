@@ -123,6 +123,8 @@ def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150, bins=np.arange
         Dict of energy selection filters
     """
     photo_peak = {}
+    ## temp
+    mus = []
     ## Limit range to avoid noise floor, can this be made more robust?
     # bins = np.arange(9, 25, 0.2)
     if plot_output:
@@ -139,6 +141,7 @@ def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150, bins=np.arange
                 else:
                     minE, maxE = pars[1] - 2 * pars[2], pars[1] + 2 * pars[2]
                 plt.plot(bcent, gvals, label=f'fit $\mu$ = {round(pars[1], 3)},  $\sigma$ = {round(pars[2], 3)}')
+                mus.append(pars[1])
             except RuntimeError:
                 print(f'Failed fit, slab {slab}')
                 minE, maxE = -1, 0
@@ -161,6 +164,7 @@ def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150, bins=np.arange
             except RuntimeError:
                 minE, maxE = -1, 0
             photo_peak[slab] = select_energy_range(minE, maxE)
+    print("Check spread: mean = ", np.mean(mus), ", std = ", np.std(mus, ddof=1), ", ratio = ", np.std(mus, ddof=1) / np.mean(mus))
     return photo_peak
 
 
