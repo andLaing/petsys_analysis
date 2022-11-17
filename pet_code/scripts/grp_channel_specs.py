@@ -53,16 +53,16 @@ class ChannelCal:
             self.eng_sum[t_ch[0]].append(sum(e_chans))
         except KeyError:
             self.eng_sum[t_ch[0]] = [sum(e_chans)]
-        # try:
-        #     max_eng = sel_mod[np.argmax(e_chans)]
-        #     self.eng_max[max_eng[0]].append(max_eng[3])
-        # except KeyError:
-        #     self.eng_max[max_eng[0]] = [max_eng[3]]
-        for imp in filter(lambda x: x[0] in self.eng_id, sel_mod):
-            try:
-                self.eng_max[imp[0]].append(imp[3])
-            except KeyError:
-                self.eng_max[imp[0]] = [imp[3]]
+        try:
+            max_eng = sel_mod[np.argmax(e_chans)]
+            self.eng_max[max_eng[0]].append(max_eng[3])
+        except KeyError:
+            self.eng_max[max_eng[0]] = [max_eng[3]]
+        # for imp in filter(lambda x: x[0] in self.eng_id, sel_mod):
+        #     try:
+        #         self.eng_max[imp[0]].append(imp[3])
+        #     except KeyError:
+        #         self.eng_max[imp[0]] = [imp[3]]
         return len(mms)
 
 
@@ -151,14 +151,14 @@ if __name__ == '__main__':
         for tid, engs in plotS.eng_sum.items():
             if tid < sm_chmin or tid >= sm_chmin + 256: continue
             mm = mm_map[tid]
-            axes[(mm - 1) // 4, (mm - 1) % 4].hist(engs, bins=esum_bins, histtype='step', label=f'tch max id {tid}')
+            axes[(mm - 1) // 4, (mm - 1) % 4].hist(engs, bins=esum_bins, histtype='step', label=f'tmax id {tid}')
         for i, ax in enumerate(axes.flatten()):
             ax.set_xlabel(f'MM{i+1} Energy sum (au)')
             ax.set_ylabel('Frequency per bin (au)')
             ax.legend()
             fig.savefig(out_file + f'MMEngs_sm{(sm_chmin//256) + 1}.png')
     plt.clf()
-    spec_bins = np.arange(7, 30, 0.2)
+    spec_bins = np.arange(7, 40, 0.4)
     with open(out_file + 'engAvDiff.txt', 'w') as par_out:
         par_out.write('ID\t MU\t MU_ERR\n')
         for id, engs in plotS.eng_max.items():
