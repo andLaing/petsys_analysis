@@ -22,7 +22,7 @@ def hist1d(axis, data, bins=200, range=(0, 300), histtype='step', label='histo')
     return pbins, weights
 
 
-def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150, brange=(0, 300)):
+def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150, brange=(0, 300), nsigma=2):
     """
     Generate the energy spectra and select the photopeak
     for each module. Optionally plot and save spectra
@@ -39,6 +39,10 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150, bran
                   the plots. When None, no plots made.
     min_peak    : int
                   Minimum entries in peak bin for fit.
+    brange      : tuple
+                  Lower and upper bounds for energy histograms.
+    nsigma      : int
+                  Number of sigmas in peak selection.
     return
                  List of energy selection filters.
     """
@@ -58,7 +62,7 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150, bran
                 continue
             try:
                 bcent, gvals, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
-                minE, maxE = pars[1] - 2 * pars[2], pars[1] + 2 * pars[2]
+                minE, maxE = pars[1] - nsigma * pars[2], pars[1] + nsigma * pars[2]
             except RuntimeError:
                 minE, maxE = 0, 300
             eng_arr = np.array(module_xye[j+1]['energy'])
@@ -97,7 +101,7 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150, bran
                 continue
             try:
                 *_, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
-                minE, maxE = pars[1] - 2 * pars[2], pars[1] + 2 * pars[2]
+                minE, maxE = pars[1] - nsigma * pars[2], pars[1] + nsigma * pars[2]
             except RuntimeError:
                 minE, maxE = 0, 300
             photo_peak.append(select_energy_range(minE, maxE))
