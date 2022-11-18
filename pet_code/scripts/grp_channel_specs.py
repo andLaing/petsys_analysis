@@ -21,6 +21,8 @@ from collections import Counter
 import matplotlib.pyplot as plt
 import numpy             as np
 
+from scipy.signal import find_peaks
+
 from pet_code.src.fits import fit_gaussian
 from pet_code.src.io   import read_petsys_filebyfile
 from pet_code.src.io   import read_ymlmapping
@@ -158,7 +160,8 @@ if __name__ == '__main__':
             ax.legend()
             fig.savefig(out_file + f'MMEngs_sm{(sm_chmin//256) + 1}.png')
     plt.clf()
-    spec_bins = np.arange(7, 40, 0.4)
+    bin_wid = 0.4
+    spec_bins = np.arange(7, 40, bin_wid)
     with open(out_file + 'engAvDiff.txt', 'w') as par_out:
         par_out.write('ID\t MU\t MU_ERR\n')
         for id, engs in plotS.eng_max.items():
@@ -168,8 +171,18 @@ if __name__ == '__main__':
             hdiff     = vals - valsNS
             hdiff_err = np.sqrt(vals + valsNS)
             plt.errorbar(bin_cent, hdiff, yerr=hdiff_err, label='Difference')
-            max_bin   = np.argmax(hdiff)
-            mask      = (hdiff > 0.3 * hdiff.max()) & (bin_cent > bin_cent[max_bin] - 3) & (bin_cent < bin_cent[max_bin] + 3)
+            peaks, _      = find_peaks(hdiff, height=100, distance=5)
+            plt.plot(bin_cent[peaks], hdiff[peaks], 'rv', markersize=15, label="Peak finder")
+            # max_bin   = np.argmax(hdiff)
+            # mask      = (hdiff > 0.3 * hdiff.max()) & (bin_cent > bin_cent[max_bin] - 3) & (bin_cent < bin_cent[max_bin] + 3)
+            if peaks.shape[0] > 1:
+                peak   = np.argmax(hdiff[peaks])
+                p_indx = peaks[peak]
+            elif peaks.shape[0] == 0:
+                p_indx = np.argmax(hdiff)
+            else:
+                p_indx = peaks[0]
+            mask          = (bin_cent > bin_cent[p_indx] - 5 * bin_wid) & (bin_cent < bin_cent[p_indx] + 5 * bin_wid)
             av_diff, wsum = np.average(bin_cent[mask], weights=hdiff[mask], returned=True)
             av_err        = average_error(bin_cent[mask], hdiff[mask], hdiff_err[mask], wsum)
             plt.axvspan(av_diff - av_err, av_diff + av_err, facecolor='#00FF00' , alpha = 0.3, label='Average diff')
