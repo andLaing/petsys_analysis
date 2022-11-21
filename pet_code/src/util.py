@@ -137,27 +137,31 @@ def filter_multihit(sm):
     return n_mm == 1
 
 
-def filter_event_by_impacts(eng_map, min_sm1, min_sm2):
+def filter_event_by_impacts(eng_map, min_sm1, min_sm2, singles=False):
     """
     Event filter based on the minimum energy channel
     hist for each of the two super modules in coincidence.
     """
     m1_filter = filter_impact(min_sm1, eng_map)
-    m2_filter = filter_impact(min_sm2, eng_map)
+    m2_filter = lambda x: True
+    if not singles:
+        m2_filter = filter_impact(min_sm2, eng_map)
     def valid_event(sm1, sm2):
         return m1_filter(sm1) and m2_filter(sm2)
     return valid_event
 
 
-def filter_one_minimod(sm1, sm2):
+def filter_one_minimod(sm1, sm2, singles=False):
     """
     Select events with only one
     minimodule hit in each super module.
     """
+    if singles:
+        return filter_multihit(sm1)
     return filter_multihit(sm1) and filter_multihit(sm2)
 
 
-def filter_impacts_one_minimod(eng_map, min_sm1, min_sm2):
+def filter_impacts_one_minimod(eng_map, min_sm1, min_sm2, singles=False):
     """
     Event filter based on the minimum energy channel
     hist for each of the two super modules in coincidence
@@ -165,9 +169,11 @@ def filter_impacts_one_minimod(eng_map, min_sm1, min_sm2):
     per super module.
     """
     m1_filter = filter_impact(min_sm1, eng_map)
-    m2_filter = filter_impact(min_sm2, eng_map)
+    m2_filter = lambda x: True
+    if not singles:
+        m2_filter = filter_impact(min_sm2, eng_map)
     def valid_event(sm1, sm2):
-        return filter_one_minimod(sm1, sm2) and m1_filter(sm1) and m2_filter(sm2)
+        return filter_one_minimod(sm1, sm2, singles) and m1_filter(sm1) and m2_filter(sm2)
     return valid_event
 
 
