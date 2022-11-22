@@ -2,18 +2,20 @@
 
 """Generate energy spectra for all channels that appear in a petsys group mode file
 
-Usage: channel_specs.py [--mm] [--out OUTFILE] (--map MFILE) INPUT ...
+Usage: channel_specs.py [--out OUTFILE] (--conf CFILE) INPUT ...
 
 Arguments:
     INPUT  Input file name or list of names
 
 Required:
-    --map=MFILE  Name of the module mapping yml file
+    --conf=CFILE  Name of the module mapping yml file
 
 Options:
-    --mm   Output mini-module level energy channel sum spectra?
-    --out=OUTFILE  Name base for output image files [default: slabSpec]
+    --out=OUTFILE  Name base for output image files.
 """
+
+import os
+import configparser
 
 from docopt      import docopt
 from collections import Counter
@@ -26,7 +28,7 @@ from scipy.signal import find_peaks
 from pet_code.src.fits import fit_gaussian
 from pet_code.src.io   import read_petsys_filebyfile
 from pet_code.src.io   import read_ymlmapping
-from pet_code.src.util import filter_impact, filter_multihit
+from pet_code.src.util import filter_event_by_impacts
 from pet_code.src.util import select_module
 from pet_code.src.util import shift_to_centres
 
@@ -60,25 +62,7 @@ class ChannelCal:
             self.eng_max[max_eng[0]].append(max_eng[3])
         except KeyError:
             self.eng_max[max_eng[0]] = [max_eng[3]]
-        # for imp in filter(lambda x: x[0] in self.eng_id, sel_mod):
-        #     try:
-        #         self.eng_max[imp[0]].append(imp[3])
-        #     except KeyError:
-        #         self.eng_max[imp[0]] = [imp[3]]
         return len(mms)
-
-
-def filter_minch(min_ch, eng_ch):
-    filt = filter_impact(min_ch, eng_ch)
-    def valid_event(sm, _):
-        return filt(sm)
-    return valid_event
-
-
-def filter_oneMM():
-    def valid_event(sm, _):
-        return filter_multihit(sm)
-    return valid_event
 
 
 def average_error(x, y, yerr, ysum):
@@ -88,15 +72,36 @@ def average_error(x, y, yerr, ysum):
     return np.sqrt(x_cont + y_cont)
 
 
+def fail_plot(bin_e, s_vals, ns_vals, bin_errs):
+    plt.plot(bin_e[:-1], s_vals , label='Source')
+    plt.plot(bin_e[:-1], ns_vals, label='No Source')
+    plt.errorbar(bin_e[:-1], s_vals - ns_vals, yerr=bin_errs, label='difference')
+    plt.legend()
+    plt.xlabel(f'Energy time channel {id}')
+    plt.ylabel('au')
+    plt.savefig(out_file + f'FailFit_ch{id}.png')
+    plt.clf()
+
+
 if __name__ == '__main__':
     args     = docopt(__doc__)
-    mm_spec  = args['--mm']
-    map_file = args['--map']
-    out_file = args['--out']
-    infiles  = args['INPUT']
+    conf     = configparser.ConfigParser()
+    conf.read(args['--conf'])
+    out_file = args['--out' ]
+    infiles  = args['INPUT' ]
 
+    if out_file is None:
+        out_file = conf.get('output', 'out_file', fallback='slabSpec')
+    out_dir  = os.path.join(*out_file.split('/')[:-1])
+    if not os.path.isdir(out_dir):
+        os.makedirs(out_dir)
+
+    map_file = conf.get('mapping', 'map_file')
     time_ch, eng_ch, mm_map, _, _ = read_ymlmapping(map_file)
-    filt   = filter_minch(4, eng_ch)
+
+    min_chan = tuple(map(int, conf.get('filter', 'min_channels').split(',')))
+    filt     = filter_event_by_impacts(eng_ch, *min_chan, singles=True)
+
     plotS  = ChannelCal(time_ch, eng_ch)
     plotNS = ChannelCal(time_ch, eng_ch)
     # Maybe a bit dangerous memory wise, review
@@ -109,13 +114,17 @@ if __name__ == '__main__':
             num_mmsS = tuple(map(plotS .add_evt, reader()))
     print("First pass complete, mm multiplicities with    Source: ", Counter(num_mmsS))
     print("First pass complete, mm multiplicities without Source: ", Counter(num_mmsN))
-    spec_bins = np.arange(5, 30, 0.2)
+
+    esum_bins = np.arange(*tuple(map(float, conf.get('output', 'esum_binning', fallback='0,300,1.5').split(','))))
+    tbins     = np.arange(*tuple(map(float, conf.get('output',     'tbinning', fallback='5,30,0.2') .split(','))))
+    ebins     = np.arange(*tuple(map(float, conf.get('output',     'ebinning', fallback='7,40,0.4') .split(','))))
+    min_peak  = conf.getint('filter', 'min_stats', fallback=300)
     with open(out_file + 'timefitVals.txt', 'w') as par_out:
         par_out.write('ID\t MU\t MU_ERR\t SIG\t SIG_ERR\n')
         for id, engs in plotS.slab_energies.items():
-            s_vals , bin_e = np.histogram(engs, bins=spec_bins)
+            s_vals , bin_e = np.histogram(engs, bins=tbins)
             try:
-                ns_vals, _ = np.histogram(plotNS.slab_energies[id], bins=spec_bins)
+                ns_vals, _ = np.histogram(plotNS.slab_energies[id], bins=tbins)
             except KeyError:
                 plt.plot(bin_e[:-1], s_vals , label='Source')
                 plt.legend()
@@ -126,19 +135,29 @@ if __name__ == '__main__':
                 continue
             bin_errs       = np.sqrt(s_vals + ns_vals)
             try:
-                bcent, g_vals, fit_pars, cov = fit_gaussian(s_vals - ns_vals, bin_e, yerr=bin_errs, min_peak=300)
+                bcent, g_vals, fit_pars, cov = fit_gaussian(s_vals - ns_vals, bin_e, yerr=bin_errs, min_peak=min_peak)
+                if fit_pars[1] <= bin_e[0]:
+                    raise RuntimeError
             except RuntimeError:
                 print(f'Failed fit for channel {id}')
-                plt.plot(bin_e[:-1], s_vals , label='Source')
-                plt.plot(bin_e[:-1], ns_vals, label='No Source')
-                plt.errorbar(bin_e[:-1], s_vals - ns_vals, yerr=bin_errs, label='difference')
-                plt.legend()
-                plt.xlabel(f'Energy time channel {id}')
-                plt.ylabel('au')
-                plt.savefig(out_file + f'FailFit_ch{id}.png')
-                plt.clf()
-                continue
-            par_out.write(f'{id}\t {fit_pars[1]}\t {cov[1, 1]}\t {fit_pars[2]}\t {cov[2, 2]}\n')
+                plt.errorbar(bin_e[:-1], s_vals - ns_vals, yerr=bin_errs)
+                plt.show()
+                min_x = input('Do you want to try a refit? [n]/min_pos')
+                if min_x:
+                    bin_wid = np.diff(bin_e[:2])[0]
+                    indx    = int(float(min_x) / bin_wid - bin_e[0])
+                    data    = s_vals[indx:] - ns_vals[indx:]
+                    try:
+                        bcent, g_vals, fit_pars, cov = fit_gaussian(data, bin_e[indx:], yerr=bin_errs, min_peak=int(min_peak * 0.7))
+                    except RuntimeError:
+                        fail_plot(bin_e, s_vals, ns_vals, bin_errs)
+                        continue
+                else:
+                    fail_plot(bin_e, s_vals, ns_vals, bin_errs)
+                    continue
+            mu_err  = np.sqrt(cov[1, 1])
+            sig_err = np.sqrt(cov[2, 2])
+            par_out.write(f'{id}\t {round(fit_pars[1], 3)}\t {round(mu_err, 3)}\t {round(fit_pars[2], 3)}\t {round(sig_err, 3)}\n')
             plt.errorbar(bcent, s_vals - ns_vals, yerr=bin_errs, label='distribution')
             plt.plot(bcent, g_vals, label=f'Gaussian fit $\mu = {round(fit_pars[1], 2)}, \sigma = {round(fit_pars[2], 2)}$')
             plt.legend()
@@ -146,27 +165,34 @@ if __name__ == '__main__':
             plt.ylabel('source spec - no source spec (au)')
             plt.savefig(out_file + f'BackRest_ch{id}.png')
             plt.clf()
-    sm_add = (0, 512)
-    esum_bins = np.arange(0, 300, 1.5)
-    for sm_chmin in sm_add:
-        fig, axes = plt.subplots(nrows=4, ncols=4, figsize=(15, 15))
-        for tid, engs in plotS.eng_sum.items():
-            if tid < sm_chmin or tid >= sm_chmin + 256: continue
-            mm = mm_map[tid]
-            axes[(mm - 1) // 4, (mm - 1) % 4].hist(engs, bins=esum_bins, histtype='step', label=f'tmax id {tid}')
-        for i, ax in enumerate(axes.flatten()):
-            ax.set_xlabel(f'MM{i+1} Energy sum (au)')
+    mm_figs = [plt.subplots(nrows=4, ncols=4, figsize=(15, 15)),
+               plt.subplots(nrows=4, ncols=4, figsize=(15, 15))]
+    for tid, engs in plotS.eng_sum.items():
+        sm_indx = 0 if tid < 256 else 1#Temp?
+        mm      = mm_map[tid]
+        r       = (mm - 1) // 4
+        c       = (mm - 1) %  4
+        mm_figs[sm_indx][1][r, c].hist(engs, bins=esum_bins, histtype='step', label=f'tmax id {tid}')
+    for i, (fig, axes) in enumerate(mm_figs):
+        for j, ax in enumerate(axes.flatten()):
+            ax.set_xlabel(f'MM{j+1} Energy sum (au)')
             ax.set_ylabel('Frequency per bin (au)')
             ax.legend()
-            fig.savefig(out_file + f'MMEngs_sm{(sm_chmin//256) + 1}.png')
+        sm_no = 1 if i == 0 else 3
+        fig.savefig(out_file + f'MMEngs_sm{sm_no}.png')
     plt.clf()
-    bin_wid = 0.4
-    spec_bins = np.arange(7, 40, bin_wid)
+    bin_wid = np.diff(ebins[:2])[0]
     with open(out_file + 'engAvDiff.txt', 'w') as par_out:
         par_out.write('ID\t MU\t MU_ERR\n')
         for id, engs in plotS.eng_max.items():
-            vals  , edges, _ = plt.hist(engs              , bins=spec_bins, histtype='step', label='Source')
-            valsNS, *_       = plt.hist(plotNS.eng_max[id], bins=spec_bins, histtype='step', label='No Source')
+            ## This is a hack to get results, need to work out a way to avoid these fails
+            if id == 591 or id == 612:
+                vals  , edges, _ = plt.hist(engs              , bins=np.arange(8, 25, 0.2), histtype='step', label='Source')
+                valsNS, *_       = plt.hist(plotNS.eng_max[id], bins=np.arange(8, 25, 0.2), histtype='step', label='No Source')
+            else:
+                vals  , edges, _ = plt.hist(engs              , bins=ebins, histtype='step', label='Source')
+                valsNS, *_       = plt.hist(plotNS.eng_max[id], bins=ebins, histtype='step', label='No Source')
+            ##
             bin_cent  = shift_to_centres(edges)
             hdiff     = vals - valsNS
             hdiff_err = np.sqrt(vals + valsNS)
