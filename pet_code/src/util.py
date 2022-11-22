@@ -220,6 +220,19 @@ def select_module(sm_info, eng_ch):
     return list(filter(lambda x: x[1] == max_mm, sm_info))
 
 
+def select_max_energy(superm, channels=None):
+    """
+    Select the channel with highest deposit.
+    superm   : List
+               List of impacts with [id, mm, time, eng]
+    channels : set
+               The channels to be compared.
+    """
+    if channels is None:
+        return max(superm, key=lambda x: x[3])
+    return max(filter(lambda x: x[0] in channels, superm), key=lambda y: y[3])
+
+
 def shift_to_centres(bin_low_edge):
     """
     Get the bin centres from a list/array

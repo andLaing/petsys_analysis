@@ -4,6 +4,7 @@ from . fits import fit_gaussian
 from . util import get_supermodule_eng
 from . util import np
 from . util import select_energy_range
+from . util import select_max_energy
 
 def plot_settings():
     plt.rcParams[ 'lines.linewidth' ] =  2
@@ -201,12 +202,12 @@ def group_times(filtered_events, peak_select, eng_ch, time_ch, ref_indx):
         _, e2 = get_supermodule_eng(sm2, eng_ch)
         if peak_select[0][mm1-1](e1) and peak_select[1][mm2-1](e2):
             try:
-                min_ch[0] = next(filter(lambda x: x[0] in time_ch, sm1))
-            except StopIteration:
+                min_ch[0] = select_max_energy(sm1, time_ch)
+            except ValueError:
                 continue
             try:
-                min_ch[1] = next(filter(lambda x: x[0] in time_ch, sm2))
-            except StopIteration:
+                min_ch[1] = select_max_energy(sm2, time_ch)
+            except ValueError:
                 continue
             ## Want to know the two channel numbers and timestamps.
             try:
