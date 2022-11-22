@@ -10,7 +10,7 @@ def gaussian(x, amp, mu, sigma):
     return amp * np.exp(-0.5 * (x - mu)**2 / sigma**2) / (np.sqrt(2 * np.pi) * sigma)
 
 
-def fit_gaussian(data, bins, cb=8, min_peak=150):
+def fit_gaussian(data, bins, cb=8, min_peak=150, yerr=None):
     """
     Tidy of existing function.
     Probably want to generalise so
@@ -23,7 +23,8 @@ def fit_gaussian(data, bins, cb=8, min_peak=150):
     # Define limits around maximum.
     if data[np.argmax(data)] < min_peak:
         raise RuntimeError('Peak max below requirement.')
-    mu0, wsum, x, y = mean_around_max(data, bin_centres, cb)
+
+    mu0, wsum, x, y, err = mean_around_max(data, bin_centres, cb, yerr)
     if mu0 is None:
         raise RuntimeError('No useful data available.')
 
@@ -33,13 +34,11 @@ def fit_gaussian(data, bins, cb=8, min_peak=150):
         sig0 *= wsum / (wsum - 1)
     sig0 = np.sqrt(sig0)
 
-    # Errors as sqrt of y values.
-    yerr = np.sqrt(y, out=np.abs(y).astype('float'), where=y>=0)
-    pars, pcov = curve_fit(gaussian, x, y, sigma=yerr, p0=[wsum, mu0, sig0])
+    pars, pcov = curve_fit(gaussian, x, y, sigma=err, p0=[wsum, mu0, sig0])
     return bin_centres, gaussian(bin_centres, *pars), pars, pcov
 
 
-def mean_around_max(data, bins, cb):
+def mean_around_max(data, bins, cb, yerr=None):
     max_indx  = np.argmax(data)
     first_bin = max(max_indx - cb, 0)
     last_bin  = min(max_indx + cb, len(bins))
@@ -47,4 +46,8 @@ def mean_around_max(data, bins, cb):
     y         = data[first_bin:last_bin]
     if sum(y) <= 0:
         return None, None, None, None
-    return *np.average(x, weights=y, returned=True), x, y
+    if yerr is not None:
+        yerr = yerr[first_bin:last_bin]
+    else:
+        yerr = np.sqrt(y, out=np.abs(y).astype('float'), where=y>=0)
+    return *np.average(x, weights=y, returned=True), x, y, yerr

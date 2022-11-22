@@ -5,6 +5,7 @@ import pytest
 from . io import np
 from . io import read_petsys
 from . io import read_petsys_filebyfile
+from . io import read_petsys_singles
 from . io import read_ymlmapping
 from . io import write_event_trace
 
@@ -101,7 +102,27 @@ def test_read_petsys_mod1(TEST_DATA_DIR, module_mapping):
     np.testing.assert_allclose(all_evts[0][0], exp_evt1[0], rtol=1e-4)
     np.testing.assert_allclose(all_evts[0][1], exp_evt1[1], rtol=1e-4)
 
-# Should test in singles mode too one have a file.
+# Should test in singles mode too once have a file.
+
+
+def test_read_petsys_singles(TEST_DATA_DIR, module_mapping):
+    infile = os.path.join(TEST_DATA_DIR, 'petsys_singles_test.ldat')
+
+    reader  = read_petsys_singles(infile, module_mapping)
+    all_evt = [evt for evt in reader()]
+
+    exp_ch = {525, 715, 717}
+    exp_mm = {  5,  12}
+    exp_time = [1362217424808, 1362218229299, 1362220436675, 1362224227872,
+                1362226796788, 1362227121327, 1362227446194, 1362227770411,
+                1362227831904, 1362228095094, 1362228156608, 1362229026723,
+                1362229431824, 1362229756805, 1362230628867, 1362231234462,
+                1362231630985, 1362232428710, 1362233168959, 1362234228854]
+    assert len(all_evt) == 20
+    assert all(evt[0] in exp_ch for evt in all_evt)
+    assert all(evt[1] in exp_mm for evt in all_evt)
+    assert all(evt[2] == t for evt, t in zip(all_evt, exp_time))
+
 
 def test_read_petsys_filebyfile(TEST_DATA_DIR, module_mapping):
     infile = os.path.join(TEST_DATA_DIR,

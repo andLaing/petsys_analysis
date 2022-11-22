@@ -22,7 +22,7 @@ def hist1d(axis, data, bins=200, range=(0, 300), histtype='step', label='histo')
     return pbins, weights
 
 
-def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150):
+def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150, brange=(0, 300), nsigma=2):
     """
     Generate the energy spectra and select the photopeak
     for each module. Optionally plot and save spectra
@@ -39,6 +39,10 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150):
                   the plots. When None, no plots made.
     min_peak    : int
                   Minimum entries in peak bin for fit.
+    brange      : tuple
+                  Lower and upper bounds for energy histograms.
+    nsigma      : int
+                  Number of sigmas in peak selection.
     return
                  List of energy selection filters.
     """
@@ -51,14 +55,14 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150):
         for j, ax in enumerate(axes.flatten()):
             ## mmini-module numbers start at 1
             try:
-                bin_edges, bin_vals = hist1d(ax, module_xye[j+1]['energy'], label=f'Det: {sm_label}\n mM: {j+1}')
+                bin_edges, bin_vals = hist1d(ax, module_xye[j+1]['energy'], range=brange, label=f'Det: {sm_label}\n mM: {j+1}')
             except KeyError:
                 print(f'No data for super module {sm_label}, mini module {j+1}, skipping')
                 photo_peak.append(lambda x: False)
                 continue
             try:
                 bcent, gvals, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
-                minE, maxE = pars[1] - 2 * pars[2], pars[1] + 2 * pars[2]
+                minE, maxE = pars[1] - nsigma * pars[2], pars[1] + nsigma * pars[2]
             except RuntimeError:
                 minE, maxE = 0, 300
             eng_arr = np.array(module_xye[j+1]['energy'])
@@ -90,21 +94,21 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150):
     else:
         for j in range(1, 17):
             try:
-                bin_vals, bin_edges = np.histogram(module_xye[j]['energy'], bins=200, range=(0, 300))
+                bin_vals, bin_edges = np.histogram(module_xye[j]['energy'], bins=200, range=brange)
             except KeyError:
                 print(f'No data for super module {sm_label}, mini module {j+1}, skipping')
                 photo_peak.append(lambda x: False)
                 continue
             try:
                 *_, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
-                minE, maxE = pars[1] - 2 * pars[2], pars[1] + 2 * pars[2]
+                minE, maxE = pars[1] - nsigma * pars[2], pars[1] + nsigma * pars[2]
             except RuntimeError:
                 minE, maxE = 0, 300
             photo_peak.append(select_energy_range(minE, maxE))
     return photo_peak
 
 
-def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150):
+def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150, bins=np.arange(9, 25, 0.2)):
     """
     Make energy spectra of slab time channels.
     slab_xye : Dict
@@ -119,8 +123,10 @@ def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150):
         Dict of energy selection filters
     """
     photo_peak = {}
+    ## temp
+    mus = []
     ## Limit range to avoid noise floor, can this be made more robust?
-    bins = np.arange(9, 25, 0.2)
+    # bins = np.arange(9, 25, 0.2)
     if plot_output:
         for slab, xye in slab_xye.items():
             #Try to exclude more noise
@@ -135,6 +141,7 @@ def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150):
                 else:
                     minE, maxE = pars[1] - 2 * pars[2], pars[1] + 2 * pars[2]
                 plt.plot(bcent, gvals, label=f'fit $\mu$ = {round(pars[1], 3)},  $\sigma$ = {round(pars[2], 3)}')
+                mus.append(pars[1])
             except RuntimeError:
                 print(f'Failed fit, slab {slab}')
                 minE, maxE = -1, 0
@@ -157,6 +164,7 @@ def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150):
             except RuntimeError:
                 minE, maxE = -1, 0
             photo_peak[slab] = select_energy_range(minE, maxE)
+    print("Check spread: mean = ", np.mean(mus), ", std = ", np.std(mus, ddof=1), ", ratio = ", np.std(mus, ddof=1) / np.mean(mus))
     return photo_peak
 
 
