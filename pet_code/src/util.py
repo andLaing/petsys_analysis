@@ -327,6 +327,10 @@ def calibrate_energies(time_ch, eng_ch, time_cal, eng_cal):
     given the peak positions in a file (for now)
     for time channels and energy channels.
     """
+    if not time_cal and not eng_cal:
+        # No calibration.
+        return lambda x: x
+
     if time_cal:
         tcal_df = pd.read_csv(time_cal, sep='\t ')# Need to fix file format to remove space
         # time calibrated relative to 511 keV peak
