@@ -36,6 +36,7 @@ from pet_code.src.io    import read_petsys_filebyfile
 from pet_code.src.io    import read_ymlmapping
 from pet_code.src.plots import group_times_slab
 from pet_code.src.plots import slab_energy_spectra
+from pet_code.src.util  import calibrate_energies
 from pet_code.src.util  import centroid_calculation
 from pet_code.src.util  import time_of_flight
 from pet_code.src.util  import filter_impacts_specific_mod
@@ -43,18 +44,23 @@ from pet_code.src.util  import slab_energy_centroids
 
 
 # Source positions. Improve!!
-def source_position(sm_num, mm_num):
+# def source_position(sm_num, mm_num):
+#     """
+#     Hard wired source positions!
+#     """
+#     x = 103.6 - 25.9 * (0.5 + (mm_num - 1) // 4)
+#     if sm_num == 3:
+#         y = -25.9 * 0.5 + (3 - (mm_num - 1) % 4) * 25.9
+#         z = 123.7971 - 31.8986
+#         return np.array([x, y, z])
+#     y = -25.9 * 0.5 - (mm_num - 1) % 4 * 25.9
+#     z = 31.8986
+#     return np.array([x, y, z])
+def source_position(sm_num, pos_num):
     """
     Hard wired source positions!
     """
-    x = 103.6 - 25.9 * (0.5 + (mm_num - 1) // 4)
-    if sm_num == 3:
-        y = -25.9 * 0.5 + (3 - (mm_num - 1) % 4) * 25.9
-        z = 123.7971 - 31.8986
-        return np.array([x, y, z])
-    y = -25.9 * 0.5 - (mm_num - 1) % 4 * 25.9
-    z = 31.8986
-    return np.array([x, y, z])
+    return
 
 
 def get_references(file_name):
@@ -67,10 +73,14 @@ def get_references(file_name):
     # Get them from the filename?
     # Source pos from some saved lookup!
     file_name_parts = file_name.split('/')[-1].split('_')
-    SM_lab = int(file_name_parts[1][2:])
-    SM_indx = 0 if SM_lab == 3 else 1
-    mM_num = int(file_name_parts[2][2:])
-    return SM_indx, mM_num, source_position(SM_lab, mM_num)#[38.4, 38.4, 22.5986]
+    # SM_lab = int(file_name_parts[1][2:])
+    SM_lab          = int(file_name_parts[1][ 8:9])
+    SM_indx         = 0 if SM_lab == 3 else 1
+    # mM_num = int(file_name_parts[2][2:])
+    source_posNo    = int(file_name_parts[1][11: ])
+    mM_num, s_pos   = source_position(SM_lab, source_posNo)
+    # return SM_indx, mM_num, source_position(SM_lab, mM_num)#[38.4, 38.4, 22.5986]
+    return SM_indx, mM_num, s_pos
 
 
 def read_and_select(file_list, config):
@@ -83,13 +93,17 @@ def read_and_select(file_list, config):
     """
     (time_ch, eng_ch, mm_map,
      centroid_map, slab_map) = read_ymlmapping(config.get('mapping', 'map_file'))
-    outdir = config.get('output', 'out_dir')
+    outdir                   = config.get('output', 'out_dir')
 
     sm1_minch, sm2_minch = tuple(map(int, config.get('filter', 'min_channels').split(', ')))
-    c_calc = centroid_calculation(centroid_map)
+    relax                = config.getfloat('filter', 'relax_fact')
+    c_calc               = centroid_calculation(centroid_map)
+
+    time_cal = conf.get('calibration',   'time_channels', fallback='')
+    eng_cal  = conf.get('calibration', 'energy_channels', fallback='')
+    cal_func = calibrate_energies(time_ch, eng_ch, time_cal, eng_cal)
 
     all_skews = pd.Series(dtype=float)
-    relax = config.getfloat('filter', 'relax_fact')
     for fn in file_list:
         print(f'Processing file {fn}', flush=True)
         sm_num, mm_num, source_pos = get_references(fn)
@@ -98,7 +112,7 @@ def read_and_select(file_list, config):
         out_base   = os.path.join(outdir, fn.split('/')[-1])
         skew_calc  = get_skew(time_of_flight(source_pos), slab_map, plot_output=out_base)
 
-        sel_evts   = [evt for evt in evt_reader()]
+        sel_evts   = list(map(cal_func, evt_reader()))#[evt for evt in evt_reader()]
         print('Events read. Proceeding...', flush=True)
         slab_dicts = slab_energy_centroids(sel_evts, c_calc, time_ch)
 
