@@ -229,6 +229,26 @@ def select_module(sm_info, eng_ch):
     return list(filter(lambda x: x[1] == max_mm, sm_info))
 
 
+def get_electronics_nums(channel_id):
+    """
+    Calculates the electronics numbers:
+    portID, slaveID, chipID, channelID
+    """
+    portID    =   channel_id                   // 131072
+    slaveID   =  (channel_id % 131072)         //   4096
+    chipID    = ((channel_id % 131072) % 4096) //     64
+    channelID =   channel_id                   %      64
+    return portID, slaveID, chipID, channelID
+
+
+def get_absolute_id(portID, slaveID, chipID, channelID):
+    """
+    Calculates absolute channel id from
+    electronics numbers.
+    """
+    return 131072 * portID + 4096 * slaveID + 64 * chipID + channelID
+
+
 def select_max_energy(superm, channels=None):
     """
     Select the channel with highest deposit.
