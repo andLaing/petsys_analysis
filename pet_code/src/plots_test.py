@@ -9,6 +9,7 @@ from . util  import np
 
 from . plots import hist1d
 from . plots import group_times
+from . plots import group_times_list
 from . plots import group_times_slab
 from . plots import mm_energy_spectra
 from . plots import slab_energy_spectra
@@ -130,3 +131,23 @@ def test_group_times_slab(TEST_DATA_DIR, DUMMY_EVT):
     assert len(times[0]) == 3
     assert times[0][0] in sm0_ch
     assert times[0][2] - times[0][1] == -15
+
+
+def test_group_times_list(TEST_DATA_DIR, DUMMY_EVT):
+    test_yml    = os.path.join(TEST_DATA_DIR, "SM_mapping.yaml")
+    time_ch, *_ = read_ymlmapping(test_yml)
+
+    # Dummy peak filters.
+    peak_sel = [{682: lambda x: (x >  5) & (x <  7),
+                 640: lambda x: (x >  5) & (x <  7)},
+                { 64: lambda x: (x > 12) & (x < 14),
+                  65: lambda x: (x > 12) & (x < 14)}]
+
+    reco_dt = group_times_list([DUMMY_EVT], peak_sel, time_ch, 1)
+
+    assert len(reco_dt) == 1
+    times0 = reco_dt[0]
+    assert len( times0) == 4
+    assert times0[0] ==  64
+    assert times0[1] == 682
+    assert times0[3] - times0[2] == -15

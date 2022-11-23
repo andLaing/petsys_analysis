@@ -34,7 +34,7 @@ from pet_code.src.fits  import fit_gaussian
 from pet_code.src.fits  import mean_around_max
 from pet_code.src.io    import read_petsys_filebyfile
 from pet_code.src.io    import read_ymlmapping
-from pet_code.src.plots import group_times_slab
+from pet_code.src.plots import group_times_list
 from pet_code.src.plots import slab_energy_spectra
 from pet_code.src.util  import calibrate_energies
 from pet_code.src.util  import centroid_calculation
@@ -118,21 +118,24 @@ def read_and_select(file_list, config):
 
         photo_peak = list(map(slab_energy_spectra, slab_dicts))
 
-        reco_dt    = group_times_slab(sel_evts, photo_peak, time_ch, sm_num)
-        ## Test pandas output at this point. Should facilitate further iterations.
-        deltat_df = pd.concat((pd.DataFrame(vals                     ,
-                                            index   = [key]*len(vals),
-                                            columns = ['coinc_ch'  ,
-                                                       'coinc_tstp',
-                                                       'ref_tstp'  ] )
-                               for key, vals in reco_dt.items()       ))
-        deltat_df.reset_index(inplace=True)
-        deltat_df.rename(inplace=True, columns={'index': 'ref_ch'})
+        # reco_dt    = group_times_slab(sel_evts, photo_peak, time_ch, sm_num)
+        # ## Test pandas output at this point. Should facilitate further iterations.
+        # deltat_df = pd.concat((pd.DataFrame(vals                     ,
+        #                                     index   = [key]*len(vals),
+        #                                     columns = ['coinc_ch'  ,
+        #                                                'coinc_tstp',
+        #                                                'ref_tstp'  ] )
+        #                        for key, vals in reco_dt.items()       ))
+        # deltat_df.reset_index(inplace=True)
+        # deltat_df.rename(inplace=True, columns={'index': 'ref_ch'})
+        # deltat_df.to_pickle(out_base.replace('.ldat', '_dtFrame.pkl'))
+        deltat_df = pd.DataFrame(group_times_list(sel_evts, photo_peak, time_ch, sm_num),
+                                 columns=['ref_ch', 'coinc_ch', 'coinc_tstp', 'ref_tstp'])
         deltat_df.to_pickle(out_base.replace('.ldat', '_dtFrame.pkl'))
         print(f'Time DataFrame output for {out_base}', flush=True)
  
         skew_values = deltat_df.groupby('ref_ch', group_keys=False).apply(skew_calc)
-        all_skews = pd.concat((all_skews, relax * skew_values))
+        all_skews   = pd.concat((all_skews, relax * skew_values))
     return all_skews
 
 
@@ -146,7 +149,7 @@ def time_distributions(file_list, config, skew_values, it):
     corr_skews   = skew_values.copy()
     outdir       = config.get('output', 'out_dir')
     *_, slab_map = read_ymlmapping(config.get('mapping', 'map_file'))
-    relax = config.getfloat('filter', 'relax_fact')
+    relax        = config.getfloat('filter', 'relax_fact')
     for fn in file_list:
         *_, source_pos = get_references(fn)
         ## Probably want a function for the name so consistent

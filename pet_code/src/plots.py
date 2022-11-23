@@ -248,12 +248,12 @@ def group_times_slab(filtered_events, peak_select, time_ch, ref_indx):
     min_ch   = [0, 0]
     for sm1, sm2 in filtered_events:
         try:
-            min_ch[0] = next(filter(lambda x: x[0] in time_ch, sm1))
-        except StopIteration:
+            min_ch[0] = select_max_energy(sm1, time_ch)
+        except ValueError:
             continue
         try:
-            min_ch[1] = next(filter(lambda x: x[0] in time_ch, sm2))
-        except StopIteration:
+            min_ch[1] = select_max_energy(sm2, time_ch)
+        except ValueError:
             continue
         if peak_select[0][min_ch[0][0]](min_ch[0][3]) and\
            peak_select[1][min_ch[1][0]](min_ch[1][3]):
@@ -269,3 +269,18 @@ def group_times_slab(filtered_events, peak_select, time_ch, ref_indx):
                                                  min_ch[coinc_indx][2],
                                                  min_ch[ref_indx  ][2]]]
     return reco_dt
+
+
+def group_times_list(filtered_events, peaks, time_ch, ref_indx):
+    coinc_indx = 0 if ref_indx == 1 else 1
+    def get_times(evt):
+        try:
+            chns = list(map(select_max_energy, evt, [time_ch] * 2))
+        except ValueError:
+            return
+        if peaks[0][chns[0][0]](chns[0][3]) and peaks[1][chns[1][0]](chns[1][3]):
+            return [chns[  ref_indx][0], chns[coinc_indx][0],
+                    chns[coinc_indx][2], chns[  ref_indx][2]]
+
+    return list(filter(lambda x: x, map(get_times, filtered_events)))
+
