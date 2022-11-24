@@ -60,7 +60,14 @@ def source_position(sm_num, pos_num):
     """
     Hard wired source positions!
     """
-    return
+    y = -25.9 * (0.5 + (pos_num - 1) // 4)
+    if sm_num == 3:
+        x = 103.6 - 25.9 * (0.5 + (pos_num - 1) % 4)
+        z = 123.7971 - 31.8986
+        return np.array([x, y, z])
+    x =  25.9 * (0.5 + (pos_num - 1) %  4)
+    z =  33.8986
+    return np.array([x, y, z])
 
 
 def get_references(file_name):
