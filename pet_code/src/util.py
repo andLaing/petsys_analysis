@@ -76,15 +76,18 @@ def slab_x(row):
     TODO: generalise, only valid for
     current iteration of cal setup.
     """
-    return round(90.65 - 25.6 * row, 2)
+    # return round(90.65 - 25.6 * row, 2)
+    return round(25.9 * (0.5 + row % 4), 2)
 
 
 # def slab_y(row):
 #     """
 #     Get the y position of the channel
 #     given row number.
+#     TODO: generalise, only valid for
+#     current iteration of cal setup.
 #     """
-#     return round(89.6 - 25.6 * row, 2)
+#     return round(103.6 - 25.9 * (0.5 + row), 2)
 def slab_y(rc_num, sm_num=1):
     """
     Get the y position of the channel
@@ -93,9 +96,15 @@ def slab_y(rc_num, sm_num=1):
     TODO: generalise, only valid for
     current iteration of cal setup.
     """
+    # if sm_num == 2:
+    #     return round(-100.8 + 3.2 * rc_num, 2)
+    # return round(-1.6 - 3.2 * rc_num, 2)
+    # Is this correction correct?
+    # Correct for extra spacing between MMs
+    mm_wrap = round(0.3 * (rc_num // 8), 2)
     if sm_num == 2:
-        return round(-100.8 + 3.2 * rc_num, 2)
-    return round(-1.6 - 3.2 * rc_num, 2)
+        return round(-1.75 - mm_wrap - 3.2 * rc_num, 2)
+    return round(-103.6 + 1.75 + mm_wrap + 3.2 * rc_num, 2)
 
 
 def slab_z(sm_num):
