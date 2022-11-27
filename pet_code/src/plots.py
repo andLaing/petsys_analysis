@@ -129,7 +129,7 @@ def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150, bins=np.arange
     if plot_output:
         for slab, xye in slab_xye.items():
             #Try to exclude more noise
-            first_bin = 0 if max(xye['energy']) < 25 else 10
+            first_bin = 0 if max(xye['energy']) < bins[-1] else int(3 / np.diff(bins[:2])[0])
             bin_vals, bin_edges, _ = plt.hist(xye['energy'], bins=bins[first_bin:])
             plt.xlabel(f'Energy (au) slab {slab}')
             try:
@@ -150,7 +150,7 @@ def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150, bins=np.arange
             plt.clf()
     else:
         for slab, xye in slab_xye.items():
-            first_bin = 0 if max(xye['energy']) < 25 else 10
+            first_bin = 0 if max(xye['energy']) < bins[-1] else int(3 / np.diff(bins[:2])[0])
             bin_vals, bin_edges = np.histogram(xye['energy'], bins=bins[first_bin:])
             try:
                 *_, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
