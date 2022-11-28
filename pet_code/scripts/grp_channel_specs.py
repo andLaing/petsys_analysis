@@ -133,24 +133,27 @@ if __name__ == '__main__':
                 plt.savefig(out_file + f'NoSourceZero_ch{id}.png')
                 plt.clf()
                 continue
-            bin_errs       = np.sqrt(s_vals + ns_vals)
+            bin_errs  = np.sqrt(s_vals + ns_vals)
+            diff_data = s_vals - ns_vals
             try:
-                bcent, g_vals, fit_pars, cov = fit_gaussian(s_vals - ns_vals, bin_e, yerr=bin_errs, min_peak=min_peak)
-                if fit_pars[1] <= bin_e[0]:
+                bcent, g_vals, fit_pars, cov = fit_gaussian(diff_data, bin_e, yerr=bin_errs, min_peak=min_peak)
+                ## hack
+                if fit_pars[1] <= bin_e[3]:
                     raise RuntimeError
             except RuntimeError:
                 print(f'Failed fit for channel {id}')
-                plt.errorbar(bin_e[:-1], s_vals - ns_vals, yerr=bin_errs)
+                plt.errorbar(bin_e[:-1], diff_data, yerr=bin_errs)
                 plt.show()
                 min_x = input('Do you want to try a refit? [n]/min_pos')
                 if min_x:
-                    bin_wid = np.diff(bin_e[:2])[0]
-                    indx    = int(float(min_x) / bin_wid - bin_e[0])
-                    data    = s_vals[indx:] - ns_vals[indx:]
+                    bin_wid   = np.diff(bin_e[:2])[0]
+                    indx      = int(float(min_x) / bin_wid - bin_e[0])
+                    diff_data = s_vals[indx:] - ns_vals[indx:]
+                    bin_errs = np.sqrt(s_vals[indx:] + ns_vals[indx:])
                     try:
-                        bcent, g_vals, fit_pars, cov = fit_gaussian(data, bin_e[indx:], yerr=bin_errs, min_peak=int(min_peak * 0.7))
+                        bcent, g_vals, fit_pars, cov = fit_gaussian(diff_data, bin_e[indx:], yerr=bin_errs, min_peak=int(min_peak * 0.7))
                     except RuntimeError:
-                        fail_plot(bin_e, s_vals, ns_vals, bin_errs)
+                        fail_plot(bin_e, s_vals, ns_vals, np.sqrt(s_vals + ns_vals))
                         continue
                 else:
                     fail_plot(bin_e, s_vals, ns_vals, bin_errs)
@@ -158,7 +161,7 @@ if __name__ == '__main__':
             mu_err  = np.sqrt(cov[1, 1])
             sig_err = np.sqrt(cov[2, 2])
             par_out.write(f'{id}\t {round(fit_pars[1], 3)}\t {round(mu_err, 3)}\t {round(fit_pars[2], 3)}\t {round(sig_err, 3)}\n')
-            plt.errorbar(bcent, s_vals - ns_vals, yerr=bin_errs, label='distribution')
+            plt.errorbar(bcent, diff_data, yerr=bin_errs, label='distribution')
             plt.plot(bcent, g_vals, label=f'Gaussian fit $\mu = {round(fit_pars[1], 2)}, \sigma = {round(fit_pars[2], 2)}$')
             plt.legend()
             plt.xlabel(f'Energy time channel {id}')
