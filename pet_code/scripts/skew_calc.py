@@ -130,7 +130,7 @@ def read_and_select(file_list, config):
         evt_filter = filter_impacts_specific_mod(sm_num, mm_num, eng_ch, sm1_minch, sm2_minch)
         evt_reader = read_petsys_filebyfile(fn, mm_map, evt_filter)
         out_base   = os.path.join(outdir, fn.split('/')[-1])
-        skew_calc  = get_skew(time_of_flight(source_pos), slab_map)
+        skew_calc  = get_skew(time_of_flight(source_pos), slab_map, plot_output=out_base)
 
         sel_evts   = list(map(cal_func, evt_reader()))
         print(f'Events read {len(sel_evts)}. Proceeding...', flush=True)
