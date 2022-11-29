@@ -53,47 +53,48 @@ def sm_slab_specs(sm):
     roi_mm_dict    = {}
     mm_compression = {}
     for mm in sm:        
-            #if mm == 11: 
-            x_array          = np.array(sm[mm]["x"])
-            y_array          = np.array(sm[mm]["y"])
-            e_array          = np.array(sm[mm]["energy"])
+            if mm == 10: 
+                x_array          = np.array(sm[mm]["x"])
+                y_array          = np.array(sm[mm]["y"])
+                e_array          = np.array(sm[mm]["energy"])
 
-            average_y        = np.average(sm[mm]["y"])
-            cut_y_center_mm  = select_array_range(average_y - 2, average_y + 2)(y_array)
+                average_y        = np.average(sm[mm]["y"])
+                cut_y_center_mm  = select_array_range(average_y - 2, average_y + 2)(y_array)
 
-            profile_x        = x_array[cut_y_center_mm]
-        
-            n, bins_x, _     = plt.hist(profile_x, bins = 300, range = [0, 108])
-            peaks_x, _       = find_peaks(n, height = max(n)/3, distance = 4)
-            #plt.show()
-            plt.clf()
-            roi_mm_dict[mm]  = []
-            slab_params[mm]  = {}
-            for slab, p in enumerate(peaks_x):
-                cut_x_slab   = select_array_range(bins_x[p-1], bins_x[p+1])(x_array) 
-                profile_y    = y_array[cut_x_slab]          
-                n, bins_y, _ = plt.hist(profile_y, bins = 200, range = [0, 108])
+                profile_x        = x_array[cut_y_center_mm]
+            
+                n, bins_x, _     = plt.hist(profile_x, bins = 250, range = [0, 108])
+                peaks_x, _       = find_peaks(n, height = max(n)/2, distance = 4, prominence=1)                
                 plt.clf()
-                peaks_y, _   = find_peaks(n, height = max(n)/3, distance = 5)
+                roi_mm_dict[mm]  = []
+                slab_params[mm]  = {}
+                for slab, p in enumerate(peaks_x):
+                    cut_x_slab   = select_array_range(bins_x[p-1], bins_x[p+1])(x_array) 
+                    profile_y    = y_array[cut_x_slab]          
+                    n, bins_y, _ = plt.hist(profile_y, bins = 200, range = [0, 108])
+                    
+                    peaks_y, _   = find_peaks(n, height = max(n)/3, distance = 5)
+                    #plt.plot(bins_y[peaks_y], n[peaks_y], 'rv', markersize=15, label="Peak finder")
+                    #plt.show()
+                    plt.clf()
+                    roi_mm_dict[mm].append([bins_x[p-1], bins_x[p+1], bins_y[peaks_y[0] - 4], bins_y[peaks_y[-1] + 4]])
 
-                roi_mm_dict[mm].append([bins_x[p-1], bins_x[p+1], bins_y[peaks_y[0] - 4], bins_y[peaks_y[-1] + 4]])
+                    cut_y_slab   = select_array_range(bins_y[peaks_y[0] - 4], bins_y[peaks_y[-1] + 4])(y_array)
 
-                cut_y_slab   = select_array_range(bins_y[peaks_y[0] - 4], bins_y[peaks_y[-1] + 4])(y_array)
-
-                cut_roi_slab = np.logical_and(cut_x_slab, cut_y_slab)
-                e_slab = e_array[cut_roi_slab]
-                n, bins, _   = plt.hist(e_slab, bins = 150, range = [0, 150])
-                try:
-                    bcent, gvals, pars, _ = fit_gaussian(n, bins, cb=6, min_peak=max(n)/2)
-                    FWHM_e                = round(pars[2]*math.sqrt( 8 * math.log( 2 ) ) , 3)
-                    ER                    = round(pars[2]*math.sqrt( 8 * math.log( 2 ) ) / pars[1]*100, 2)
-                    mu_e                  = round(pars[1], 3)
-                    slab_params[mm][slab] = [round(bins_y[peaks_y[0]], 2), round(bins_y[peaks_y[-1]], 2), mu_e, ER]
-                    if mm not in mm_compression.keys():
-                        mm_compression[mm] = (round(bins_x[peaks_x[0]],2 ), round(bins_x[peaks_x[-1]], 2))
-                except RuntimeError:
-                    print("Error fitting slab energy ...")
-                plt.clf()
+                    cut_roi_slab = np.logical_and(cut_x_slab, cut_y_slab)
+                    e_slab = e_array[cut_roi_slab]
+                    n, bins, _   = plt.hist(e_slab, bins = 150, range = [0, 150])
+                    try:
+                        bcent, gvals, pars, _ = fit_gaussian(n, bins, cb=6, min_peak=max(n)/2)
+                        FWHM_e                = round(pars[2]*math.sqrt( 8 * math.log( 2 ) ) , 3)
+                        ER                    = round(pars[2]*math.sqrt( 8 * math.log( 2 ) ) / pars[1]*100, 2)
+                        mu_e                  = round(pars[1], 3)
+                        slab_params[mm][slab] = [round(bins_y[peaks_y[0]], 2), round(bins_y[peaks_y[-1]], 2), mu_e, ER]
+                        if mm not in mm_compression.keys():
+                            mm_compression[mm] = (round(bins_x[peaks_x[0]],2 ), round(bins_x[peaks_x[-1]], 2))
+                    except RuntimeError:
+                        print("Error fitting slab energy ...")
+                    plt.clf()
 
     return slab_params, roi_mm_dict, mm_compression
 
@@ -248,7 +249,7 @@ if __name__ == '__main__':
             os.makedirs(out_dir)
 
         out_base            = os.path.join(out_dir, f_in.split(os.sep)[-1])
-        CTR_meas            = CTR_spec(filtered_events, mod_dicts, eng_ch, out_base)
+        #CTR_meas            = CTR_spec(filtered_events, mod_dicts, eng_ch, out_base)
 
         roi_mm_dict_list    = [{}, {}]   #ROI per slab of each SM - key (mm): value ([Rxmin, Rxmax, Rymin, Rymax]) 
         slab_params_list    = [{}, {}]   #Slab parameters for each SM - key (mm): key(slab) : value ([ymin, ymax, mu, ER])
@@ -259,7 +260,7 @@ if __name__ == '__main__':
             
         photo_peak          = list(map(mm_energy_spectra, mod_dicts, [1, 2], repeat(out_base), repeat(100), repeat((0, 300)), repeat(nsigma), roi_mm_dict_list))
 
-        perf_to_file(slab_params_list, mm_compression_list, CTR_meas, out_base)
+        #perf_to_file(slab_params_list, mm_compression_list, CTR_meas, out_base)
         end_r               = time.time()
         print("Time enlapsed processing: {} s".format(int(end_r - start)))
 
