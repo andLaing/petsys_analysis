@@ -182,10 +182,13 @@ def perf_to_file(slab_dict, compress_dict, ctr_meas, file_name):
         perf_out.write('SM_ID\tmM_ID\tslab_ID\tmin_y\tmax_y\tmu_e\tER\tmin_x\tmax_x\tCTR\n')
         for n_sm, sm in enumerate(slab_dict):
             for mm in sorted(sm):
-                for sl in sm[mm]:                
+                slabs = min(len(sm[mm]), 8)
+                for n_sl, sl in enumerate(sm[mm]):                
                     perf_out.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(n_sm, mm, sl,
                     sm[mm][sl][0], sm[mm][sl][1], sm[mm][sl][2], sm[mm][sl][3], compress_dict[n_sm][mm][0], 
                     compress_dict[n_sm][mm][1], ctr_meas))
+                    if n_sl == slabs - 1:
+                        break
 
 
 if __name__ == '__main__':
