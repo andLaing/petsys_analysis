@@ -103,14 +103,19 @@ def CTR_spec(events_sm, mod_sm, eng_ch, ctr_name):
     mm_en       = [{key: value["energy"] for (key, value) in sm.items()} for sm in mod_sm]
     for n_sm, sm in enumerate(mm_en):
         for mm in sm:
-            n, bins, _            = plt.hist(sm[mm], bins = 150, range = [0, 150])
-            bcent, gvals, pars, _ = fit_gaussian(n, bins, cb=6, min_peak=max(n)/2)            
-            mu_e                  = round(pars[1], 3)
-            #plt.plot(bcent, gvals, label=f'fit $\mu$ = {mu_e},  $ER$ = {ER}')
-            #plt.legend(loc = 0)
-            #plt.show()
-            plt.clf()
-            mm_en_limit[n_sm][mm] = (pars[1] - 2*pars[2], pars[1] + 2*pars[2])
+            n, bins, _            = plt.hist(sm[mm], bins = 200, range = [0, 300])
+            try:
+                bcent, gvals, pars, _ = fit_gaussian(n, bins, cb=6, min_peak=max(n)/2)            
+                mu_e                  = round(pars[1], 3)
+                #plt.plot(bcent, gvals, label=f'fit $\mu$ = {mu_e},  $ER$ = {ER}')
+                #plt.legend(loc = 0)
+                #plt.show()
+                plt.clf()
+                mm_en_limit[n_sm][mm] = (pars[1] - 2*pars[2], pars[1] + 2*pars[2])
+            except RuntimeError:
+                print("Error fitting minimodule energy ...")
+                plt.show()
+                continue
 
     dt_dict = {}
     for sm in events_sm:
