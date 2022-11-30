@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from . fits import fit_gaussian
 from . util import get_supermodule_eng
 from . util import np
+from . util import pd
 from . util import select_energy_range
 from . util import select_max_energy
 
@@ -279,4 +280,21 @@ def group_times_list(filtered_events, peaks, time_ch, ref_indx):
                     chns[coinc_indx][2], chns[  ref_indx][2]]
 
     return list(filter(lambda x: x, map(get_times, filtered_events)))
+
+
+# Need to review all of this. Clearly repetition.
+# Should be a general energy selection for all? Lookup?
+def ctr(time_ch, peaks, skew=pd.Series(dtype=float)):
+    """
+    CTR
+    """
+    def CTR(evt):
+        try:
+            chns = [select_max_energy(sm, time_ch) for sm in evt]
+        except ValueError:
+            return
+        if peaks[0][chns[0][0]](chns[0][3]) and peaks[1][chns[1][0]](chns[1][3]):
+            return chns[0][2] - chns[1][2] + skew.get(chns[1][0], 0.0) - skew.get(chns[0][0], 0.0)
+        return
+    return CTR
 
