@@ -89,18 +89,20 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150, bran
         out_name = plot_output.replace(".ldat","_EnergyModuleSMod" + str(sm_label) + ".png")
         fig.savefig(out_name)
         plt.clf()
-        plt.hist2d(xfilt, yfilt, bins = 500, range=[[0, 104], [0, 104]], cmap="Reds", cmax=250)        
+        plt.hist2d(xfilt, yfilt, bins = 500, range=[[0, 104], [0, 104]], cmap="Greys", cmax=250)        
         plt.xlabel('X position (pixelated) [mm]')
         plt.ylabel('Y position (monolithic) [mm]')
         plt.colorbar()
+        plt.tight_layout()
+        out_name_wo_ROI = plot_output.replace(".ldat","_FloodModule" + str(sm_label) + ".png")
+        plt.savefig(out_name_wo_ROI)
         if bool(ROI):
             currentAxis = plt.gca()
             for mm in ROI:
                 for slab in ROI[mm]:                
                     currentAxis.add_patch(Rectangle((slab[0], slab[2]), slab[1] - slab[0], slab[3] - slab[2], fill=None, alpha=1, edgecolor='blue', linewidth=2))
-        plt.tight_layout()
-        out_name = plot_output.replace(".ldat","_FloodModule" + str(sm_label) + ".png")
-        plt.savefig(out_name)
+            out_name_w_ROI = plot_output.replace(".ldat","_FloodModuleROI" + str(sm_label) + ".png")
+            plt.savefig(out_name_w_ROI)
         plt.clf()
     else:
         for j in range(1, 17):
