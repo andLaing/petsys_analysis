@@ -193,6 +193,10 @@ def perf_to_file(slab_dict, compress_dict, ctr_meas, file_name):
                     compress_dict[n_sm][mm][1], ctr_meas))
                     if n_sl == slabs - 1:
                         break
+                if slabs < 8:
+                    for zero_slabs in range(slabs, 8):
+                        perf_out.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(n_sm, mm, zero_slabs,
+                        0, 0, 0, 0, 0, 0, 0))
 
 
 if __name__ == '__main__':
