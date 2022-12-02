@@ -139,9 +139,10 @@ def CTR_spec(events_sm, mod_sm, eng_ch, ctr_name):
             t_sm1      = alltch_sm1[0][2] 
             dt         = t_sm0 - t_sm1
             pair_ch    = str(tch_sm0) + "-" + str(tch_sm1)
-            if pair_ch not in dt_dict.keys():
+            try:
+                dt_dict[pair_ch].append(dt)
+            except KeyError:
                 dt_dict[pair_ch] = []
-            dt_dict[pair_ch].append(dt)
 
     
     CTR_skew_corr = []
@@ -221,11 +222,21 @@ if __name__ == '__main__':
     eng_cal    = conf.get('calibration', 'energy_channels', fallback='')
     if time_cal or eng_cal:
         cal_func = calibrate_energies(time_ch, eng_ch, time_cal, eng_cal)
+        out_cal = "Cal"
     else:
         cal_func = lambda x: x
+        out_cal = "WoCal"
     end_r      = time.time()
     print("Time enlapsed configuring: {} s".format(int(end_r - start)))
     for f_in in infiles:
+        out_dir             = conf.get('output', 'out_dir')
+        if not os.path.isdir(out_dir):
+            os.makedirs(out_dir)
+        f_in_name = f_in.split(os.sep)[-1]
+        f_in_name_split = f_in_name.split(".")
+        f_in_cal_name = [".".join(f_in_name_split[0:-1]) + out_cal, f_in_name_split[-1]]        
+        out_base        = os.path.join(out_dir, ".".join(f_in_cal_name))
+        
         start           = time.time()
         print("Reading file: {}...".format(f_in))
         pet_reader      = read_petsys_filebyfile(f_in, mm_map, evt_select)
@@ -246,11 +257,7 @@ if __name__ == '__main__':
         else:
             msel = lambda x: x
         mod_dicts           = mm_energy_centroids(filtered_events, c_calc, eng_ch, mod_sel=msel)
-        out_dir             = conf.get('output', 'out_dir')
-        if not os.path.isdir(out_dir):
-            os.makedirs(out_dir)
-
-        out_base            = os.path.join(out_dir, f_in.split(os.sep)[-1])
+                
         CTR_meas            = CTR_spec(filtered_events, mod_dicts, eng_ch, out_base)
 
         roi_mm_dict_list    = [{}, {}]   #ROI per slab of each SM - key (mm): value ([Rxmin, Rxmax, Rymin, Rymax]) 

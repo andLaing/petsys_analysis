@@ -100,7 +100,7 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150, bran
             currentAxis = plt.gca()
             for mm in ROI:
                 for slab in ROI[mm]:                
-                    currentAxis.add_patch(Rectangle((slab[0], slab[2]), slab[1] - slab[0], slab[3] - slab[2], fill=None, alpha=1, edgecolor='blue', linewidth=2))
+                    currentAxis.add_patch(Rectangle((slab[0], slab[2]), slab[1] - slab[0], slab[3] - slab[2], fill=None, alpha=1, edgecolor='green', linewidth=1))
             out_name_w_ROI = plot_output.replace(".ldat","_FloodModuleROI" + str(sm_label) + ".png")
             plt.savefig(out_name_w_ROI)
         plt.clf()
