@@ -234,12 +234,19 @@ if __name__ == '__main__':
     print("Time enlapsed configuring: {} s".format(int(end_r - start)))
     for f_in in infiles:
         out_dir             = conf.get('output', 'out_dir')
+        png_dir = out_dir + "/pngs"
+        txt_dir = out_dir + "/txts"
         if not os.path.isdir(out_dir):
-            os.makedirs(out_dir)
+            os.makedirs(out_dir)                    
+            os.makedirs(png_dir)
+            os.makedirs(txt_dir)
+        
         f_in_name = f_in.split(os.sep)[-1]
         f_in_name_split = f_in_name.split(".")
-        f_in_cal_name = [".".join(f_in_name_split[0:-1]) + out_cal, f_in_name_split[-1]]        
-        out_base        = os.path.join(out_dir, ".".join(f_in_cal_name))
+        f_in_cal_name = [".".join(f_in_name_split[0:-1]) + out_cal, f_in_name_split[-1]]  
+        out_base        = os.path.join(out_dir, ".".join(f_in_cal_name))      
+        out_base_png    = os.path.join(png_dir, ".".join(f_in_cal_name))
+        out_base_txt    = os.path.join(txt_dir, ".".join(f_in_cal_name))
         
         start           = time.time()
         print("Reading file: {}...".format(f_in))
@@ -262,7 +269,7 @@ if __name__ == '__main__':
             msel = lambda x: x
         mod_dicts           = mm_energy_centroids(filtered_events, c_calc, eng_ch, mod_sel=msel)
                 
-        CTR_meas            = CTR_spec(filtered_events, mod_dicts, eng_ch, out_base)
+        CTR_meas            = CTR_spec(filtered_events, mod_dicts, eng_ch, out_base_png)
 
         roi_mm_dict_list    = [{}, {}]   #ROI per slab of each SM - key (mm): value ([Rxmin, Rxmax, Rymin, Rymax]) 
         slab_params_list    = [{}, {}]   #Slab parameters for each SM - key (mm): key(slab) : value ([ymin, ymax, mu, ER])
@@ -271,9 +278,9 @@ if __name__ == '__main__':
         for n_sm, sm in enumerate(mod_dicts):        
             slab_params_list[n_sm], roi_mm_dict_list[n_sm], mm_compression_list[n_sm] = sm_slab_specs(sm)
             
-        photo_peak          = list(map(mm_energy_spectra, mod_dicts, [1, 2], repeat(out_base), repeat(100), repeat((0, 300)), repeat(nsigma), roi_mm_dict_list))
+        photo_peak          = list(map(mm_energy_spectra, mod_dicts, [1, 2], repeat(out_base_png), repeat(100), repeat((0, 300)), repeat(nsigma), roi_mm_dict_list))
 
-        perf_to_file(slab_params_list, mm_compression_list, CTR_meas, out_base)
+        perf_to_file(slab_params_list, mm_compression_list, CTR_meas, out_base_txt)
         end_r               = time.time()
         print("Time enlapsed processing: {} s".format(int(end_r - start)))
 
