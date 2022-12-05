@@ -245,7 +245,7 @@ def total_en_sm_comp(read_gen_cal, read_gen_no_cal, cal, en_comp_name):
         label="SM {} En. equalized".format(n_sm + 1))
         bcent, gvals, pars, _ = fit_gaussian(n, bins, cb=6, min_peak=max(n)/2)
         ER                    = round(pars[2]*math.sqrt( 8 * math.log( 2 ) ) / pars[1]*100, 2)
-        out_name              = en_comp_name.replace(".ldat","_EnSMComp.png")
+        out_name              = en_comp_name.replace(".ldat","_EnSM{}Comp.png".format(n_sm + 1))
         plt.plot(bcent, gvals, label=f'fit ER = {ER} %')
         plt.hist(en_no_cal[n_sm], bins=200, range=[0,300], histtype="step", 
         label="SM {} En. not equalized".format(n_sm + 1))
