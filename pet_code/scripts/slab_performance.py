@@ -219,30 +219,38 @@ def perf_to_file(slab_dict, compress_dict, ctr_meas, file_name):
                         0, 0, 0, 0, 0, 0, 0))
 
 
-def total_en_sm_comp(read_gen_cal, read_gen_no_cal, cal):
-    no_cal = lambda x: x
-    events_cal = [cal(tpl) for tpl in read_gen_cal()]
-    events_no_cal = [no_cal(tpl) for tpl in read_gen_no_cal()]
+def total_en_sm_comp(read_gen_cal, read_gen_no_cal, cal, en_comp_name):
+    no_cal           = lambda x: x
+    events_cal       = [cal(tpl) for tpl in read_gen_cal()]
+    events_no_cal    = [no_cal(tpl) for tpl in read_gen_no_cal()]
 
     mod_dicts_cal    = mm_energy_centroids(events_cal, c_calc, 
     eng_ch, mod_sel=msel)
-    mod_dicts_no_cal    = mm_energy_centroids(events_no_cal, c_calc, 
+
+    mod_dicts_no_cal = mm_energy_centroids(events_no_cal, c_calc, 
     eng_ch, mod_sel=msel)
 
-    en_cal = [[], []]
-    en_no_cal = [[], []]
+    en_cal           = [[], []]
+    en_no_cal        = [[], []]
+
     for n_sm, sm in enumerate(mod_dicts_cal):
         for mm in sm:
             en_cal[n_sm].extend(sm[mm]["energy"])    
     for n_sm, sm in enumerate(mod_dicts_no_cal):
         for mm in sm:
             en_no_cal[n_sm].extend(sm[mm]["energy"])
+
     for n_sm in range(2):
-        plt.hist(en_cal[n_sm], bins = 200, range=[0,300], histtype="step", 
-        label = "SM {} En. equalized".format(n_sm + 1))
-        plt.hist(en_no_cal[n_sm], bins = 200, range=[0,300], histtype="step", 
-        label = "SM {} En. not equalized".format(n_sm + 1))
-        plt.legend(loc = 0)
+        n, bins, _            = plt.hist(en_cal[n_sm], bins=200, range=[0,300], histtype="step", 
+        label="SM {} En. equalized".format(n_sm + 1))
+        bcent, gvals, pars, _ = fit_gaussian(n, bins, cb=6, min_peak=max(n)/2)
+        ER                    = round(pars[2]*math.sqrt( 8 * math.log( 2 ) ) / pars[1]*100, 2)
+        out_name              = en_comp_name.replace(".ldat","_EnSMComp.png")
+        plt.plot(bcent, gvals, label=f'fit ER = {ER} %')
+        plt.hist(en_no_cal[n_sm], bins=200, range=[0,300], histtype="step", 
+        label="SM {} En. not equalized".format(n_sm + 1))
+        plt.legend(loc=0)
+        plt.savefig(out_name)
         plt.show()
         
 
@@ -319,7 +327,7 @@ if __name__ == '__main__':
             msel = lambda x: x
         mod_dicts           = mm_energy_centroids(filtered_events, c_calc, eng_ch, mod_sel=msel)
         
-        total_en_sm_comp(pet_reader, pet_reader_no_cal, cal_func)
+        total_en_sm_comp(pet_reader, pet_reader_no_cal, cal_func, out_base_png)
         exit(0)
                        
         CTR_meas            = CTR_spec(filtered_events, mod_dicts, eng_ch, out_base_png)
