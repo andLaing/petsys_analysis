@@ -219,6 +219,33 @@ def perf_to_file(slab_dict, compress_dict, ctr_meas, file_name):
                         0, 0, 0, 0, 0, 0, 0))
 
 
+def total_en_sm_comp(read_gen_cal, read_gen_no_cal, cal):
+    no_cal = lambda x: x
+    events_cal = [cal(tpl) for tpl in read_gen_cal()]
+    events_no_cal = [no_cal(tpl) for tpl in read_gen_no_cal()]
+
+    mod_dicts_cal    = mm_energy_centroids(events_cal, c_calc, 
+    eng_ch, mod_sel=msel)
+    mod_dicts_no_cal    = mm_energy_centroids(events_no_cal, c_calc, 
+    eng_ch, mod_sel=msel)
+
+    en_cal = [[], []]
+    en_no_cal = [[], []]
+    for n_sm, sm in enumerate(mod_dicts_cal):
+        for mm in sm:
+            en_cal[n_sm].extend(sm[mm]["energy"])    
+    for n_sm, sm in enumerate(mod_dicts_no_cal):
+        for mm in sm:
+            en_no_cal[n_sm].extend(sm[mm]["energy"])
+    for n_sm in range(2):
+        plt.hist(en_cal[n_sm], bins = 200, range=[0,300], histtype="step", 
+        label = "SM {} En. equalized".format(n_sm + 1))
+        plt.hist(en_no_cal[n_sm], bins = 200, range=[0,300], histtype="step", 
+        label = "SM {} En. not equalized".format(n_sm + 1))
+        plt.legend(loc = 0)
+        plt.show()
+        
+
 if __name__ == '__main__':
     args      = docopt(__doc__)
     conf      = configparser.ConfigParser()
@@ -271,7 +298,10 @@ if __name__ == '__main__':
         start           = time.time()
         print("Reading file: {}...".format(f_in))
         pet_reader      = read_petsys_filebyfile(f_in, mm_map, evt_select)
+        pet_reader_no_cal = read_petsys_filebyfile(f_in, mm_map, evt_select)
+        
         filtered_events = [cal_func(tpl) for tpl in pet_reader()]
+        
         end_r           = time.time()
         print("Time enlapsed reading: {} s".format(int(end_r - start)))
         print("length check: ", len(filtered_events))
@@ -288,7 +318,10 @@ if __name__ == '__main__':
         else:
             msel = lambda x: x
         mod_dicts           = mm_energy_centroids(filtered_events, c_calc, eng_ch, mod_sel=msel)
-                
+        
+        total_en_sm_comp(pet_reader, pet_reader_no_cal, cal_func)
+        exit(0)
+                       
         CTR_meas            = CTR_spec(filtered_events, mod_dicts, eng_ch, out_base_png)
 
         roi_mm_dict_list    = [{}, {}]   #ROI per slab of each SM - key (mm): value ([Rxmin, Rxmax, Rymin, Rymax]) 
