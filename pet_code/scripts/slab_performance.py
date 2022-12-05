@@ -37,17 +37,19 @@ from pet_code.src.util  import get_supermodule_eng
 from pet_code.src.fits  import fit_gaussian
 
 
-
 import time
 
 
 def sm_slab_specs(sm):
-    """Input: 
+    """Takes the sm event by event information and retrieve slab performance: compresion,
+    energy resolution (ER) and centroid of the energy distribution per miniModule.
+    Input: 
     sm: supermodule in dictionary form.
     Returns: 
     slab_params: dictionary with specs per slab: [compresion in monolithic (ymin, ymax), compresion
     in pixelated (xmin, xmax), mu, ER].
-    roi_mm_dict: dictionary with the ROI per slab to be plotted in the floodmap."""
+    roi_mm_dict: dictionary with the ROI per slab to be plotted in the floodmap.
+    """
 
     slab_params    = {}
     roi_mm_dict    = {}
@@ -102,11 +104,20 @@ def sm_slab_specs(sm):
 
 
 def CTR_spec(events_sm, mod_sm, eng_ch, ctr_name):
+    """Calculates the CTR SM vs SM with raw skew correction to 0 of all slabs.
+    Input:
+    events_sm: dictionary of all events from both SM.
+    mod_sm:    dictionary per sm with centroid and energy per miniModule.
+    eng_ch:    set with all energy channels. 
+    ctr_name:  name output. 
+    Returns:
+    FWHM_t: CTR of the event file, SM vs SM.
+    """
     mm_en_limit = [{}, {}]
     mm_en       = [{key: value["energy"] for (key, value) in sm.items()} for sm in mod_sm]
     for n_sm, sm in enumerate(mm_en):
         for mm in sm:
-            n, bins, _            = plt.hist(sm[mm], bins = 200, range = [0, 300])
+            n, bins, _ = plt.hist(sm[mm], bins = 200, range = [0, 300])
             try:
                 bcent, gvals, pars, _ = fit_gaussian(n, bins, cb=6, min_peak=max(n)/2)            
                 mu_e                  = round(pars[1], 3)
@@ -167,20 +178,29 @@ def CTR_spec(events_sm, mod_sm, eng_ch, ctr_name):
             CTR_skew_corr.extend(np.array(dt_dict[pair]) - 0)
             continue
 
-    n, bins, _                   = plt.hist(CTR_skew_corr, bins = 250, range = [-5000, 5000])            
-    bcent, gvals, pars, _        = fit_gaussian(n, bins, cb=6, min_peak=max(n)/2)
-    FWHM_t = round(pars[2]*math.sqrt( 8 * math.log( 2 ) ) , 3)
-    mu_t = round(pars[1], 3)
+    n, bins, _            = plt.hist(CTR_skew_corr, bins = 250, range = [-5000, 5000])            
+    bcent, gvals, pars, _ = fit_gaussian(n, bins, cb=6, min_peak=max(n)/2)
+    FWHM_t                = round(pars[2]*math.sqrt( 8 * math.log( 2 ) ) , 3)
+    mu_t                  = round(pars[1], 3)
+    out_name              = ctr_name.replace(".ldat","_FullCTR.png")
     plt.plot(bcent, gvals, label=f'fit $\mu$ = {mu_t},  $Full CTR$ = {FWHM_t}')
     plt.legend(loc = 0)
-    print("Length full CTR: {} - {} ps".format(len(CTR_skew_corr), FWHM_t))
-    out_name                     = ctr_name.replace(".ldat","_FullCTR.png")
+    print("Length full CTR: {} - {} ps".format(len(CTR_skew_corr), FWHM_t))    
     plt.savefig(out_name)
     plt.clf()
     return FWHM_t
 
 
 def perf_to_file(slab_dict, compress_dict, ctr_meas, file_name):
+    """Output slab performance to txt file to be plotted. 
+    Inputs:
+    slab_dict:     dictionary with slab characteristics. 
+    compress_dict: dictionary with compression parameters per miniModule.
+    ctr_meas:      CTR value for this file.
+    file_name:     output file name for the txt datafile
+    Returns:
+    no return
+    """
     out_name = file_name.replace(".ldat","_performance.txt")
     with open(out_name, 'w') as perf_out:
         perf_out.write('SM_ID\tmM_ID\tslab_ID\tmin_y\tmax_y\tmu_e\tER\tmin_x\tmax_x\tCTR\n')
@@ -226,14 +246,14 @@ if __name__ == '__main__':
     eng_cal    = conf.get('calibration', 'energy_channels', fallback='')
     if time_cal or eng_cal:
         cal_func = calibrate_energies(time_ch, eng_ch, time_cal, eng_cal)
-        out_cal = "Cal"
+        out_cal  = "Cal"
     else:
         cal_func = lambda x: x
-        out_cal = "WoCal"
+        out_cal  = "WoCal"
     end_r      = time.time()
     print("Time enlapsed configuring: {} s".format(int(end_r - start)))
     for f_in in infiles:
-        out_dir             = conf.get('output', 'out_dir')
+        out_dir = conf.get('output', 'out_dir')
         png_dir = out_dir + "/pngs"
         txt_dir = out_dir + "/txts"
         if not os.path.isdir(out_dir):
@@ -241,9 +261,9 @@ if __name__ == '__main__':
             os.makedirs(png_dir)
             os.makedirs(txt_dir)
         
-        f_in_name = f_in.split(os.sep)[-1]
+        f_in_name       = f_in.split(os.sep)[-1]
         f_in_name_split = f_in_name.split(".")
-        f_in_cal_name = [".".join(f_in_name_split[0:-1]) + out_cal, f_in_name_split[-1]]  
+        f_in_cal_name   = [".".join(f_in_name_split[0:-1]) + out_cal, f_in_name_split[-1]]  
         out_base        = os.path.join(out_dir, ".".join(f_in_cal_name))      
         out_base_png    = os.path.join(png_dir, ".".join(f_in_cal_name))
         out_base_txt    = os.path.join(txt_dir, ".".join(f_in_cal_name))
