@@ -26,9 +26,11 @@ if __name__ == '__main__':
     eng_T2default  = config.getint('threshold', 'energyT2')
 
     ## Maybe not the best.
-    time_EOffset   = config.getint('offset',   'timeE', fallback=0)
-    time_TOffset   = config.getint('offset',  'timeT1', fallback=0)
-    eng_EOffset    = config.getint('offset', 'energyE', fallback=0)
+    time_EOffset   = config.getint('offset',    'timeE', fallback=0)
+    time_TOffset   = config.getint('offset',   'timeT1', fallback=0)
+    time_T2Offset  = config.getint('offset',   'timeT2', fallback=0)
+    eng_EOffset    = config.getint('offset',  'energyE', fallback=0)
+    eng_TOffset    = config.getint('offset', 'energyT2', fallback=0)
     ##
 
     map_file     = 'pet_code/test_data/SM_mapping_corrected.yaml'
@@ -50,6 +52,12 @@ if __name__ == '__main__':
     plt.hist(timeCh, bins=time_TThresh)
     plt.xlabel('Time channel 511 keV peak position, T1 thresh binning (au)')
     plt.show()
+    T2bin_wid     = round(time_mu / (time_T2default + 0.5), 2)
+    T2bin_lim     = T2bin_wid * np.ceil((max(timeCh) + 1) / T2bin_wid) + T2bin_wid
+    time_T2Thresh = np.arange(0, T2bin_lim, T2bin_wid)
+    plt.hist(timeCh, bins=time_T2Thresh)
+    plt.xlabel('Time channel 511 keV peak position, T2 thresh binning (au)')
+    plt.show()
 
     ## Energy channels
     engCh  = pd.read_csv(eng_name, sep='\t ').set_index('ID')['MU']
@@ -62,6 +70,13 @@ if __name__ == '__main__':
     plt.hist(engCh, bins=eng_EThresh)
     plt.xlabel('Energy channel 511 keV peak position, E thresh binning (au)')
     plt.show()
+    ETbin_wid   = round(eng_mu / (eng_T2default + 0.5), 2)
+    ETbin_lim   = ETbin_wid * np.ceil((max(engCh) + 1) / ETbin_wid) + ETbin_wid
+    eng_TThresh = np.arange(0, ETbin_lim, ETbin_wid)
+    plt.hist(engCh, bins=eng_TThresh)
+    plt.xlabel('Energy channel 511 keV peak position, T2 thresh binning (au)')
+    plt.show()
+
 
     print('Thresh check: ', time_mu, ", EThresh = ", np.searchsorted(time_EThresh, time_mu), ", T1 = ", np.searchsorted(time_TThresh, time_mu))
 
@@ -77,10 +92,12 @@ if __name__ == '__main__':
                 peak_pos = timeCh.get(id)
                 if peak_pos:
                     vth_t1 = max(0, np.searchsorted(time_TThresh, peak_pos) - 1 + time_TOffset)
+                    vth_t2 = max(0, np.searchsorted(time_T2Thresh, peak_pos) - 1 + time_T2Offset)
                     vth_e  = max(0, np.searchsorted(time_EThresh, peak_pos) - 1 + time_EOffset)
             elif id in  eng_ch:
                 vth_t1, vth_t2, vth_e = eng_T1default, eng_T2default, eng_Edefault
                 peak_pos = engCh.get(id)
                 if peak_pos:
+                    vth_t2 = max(0, np.searchsorted(eng_TThresh, peak_pos) - 1 + eng_TOffset)
                     vth_e  = max(0, np.searchsorted(eng_EThresh, peak_pos) - 1 + eng_EOffset)
             thresh_out.write(f'{portID}\t{slaveID}\t{chipID}\t{channelID}\t{vth_t1}\t{vth_t2}\t{vth_e}\n')
