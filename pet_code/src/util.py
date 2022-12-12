@@ -210,6 +210,20 @@ def filter_impacts_specific_mod(sm_num, mm_num, eng_map, min_sm1, min_sm2):
         return sel_mm(sm1, sm2) and filter_one_minimod(sm1, sm2)\
                 and m1_filter(sm1) and m2_filter(sm2)
     return valid_event
+
+
+def filter_impacts_mmgroup(mm_sm1, mm_sm2, eng_map, min_sm1, min_sm2):
+    """
+    Only use events with mini-modules within
+    specific groups.
+    """
+    sm1_filter = filter_impact(min_sm1, eng_map)
+    sm2_filter = filter_impact(min_sm2, eng_map)
+    def valid_event(sm1, sm2):
+        sm1_grp = (mm in mm_sm1 for _, mm, *_ in sm1)
+        sm2_grp = (mm in mm_sm2 for _, mm, *_ in sm2)
+        return all(sm1_grp) and all(sm2_grp) and sm1_filter(sm1) and sm2_filter
+    return valid_event
 ## End filters (examples)
 
 
