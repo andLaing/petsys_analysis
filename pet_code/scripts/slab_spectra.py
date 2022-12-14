@@ -62,7 +62,7 @@ if __name__ == '__main__':
     cal_func = calibrate_energies(time_ch, eng_ch, time_cal, eng_cal)
 
     pet_reader = read_petsys_filebyfile(mm_map, evt_select)
-    filtered_events = [cal_func(tpl) for tpl in pet_reader(infile)]
+    filtered_events = list(map(cal_func, pet_reader(infile)))
     ## Should we be filtering the events with multiple mini-modules in one sm?
     c_calc     = centroid_calculation(centroid_map)
     slab_dicts = slab_energy_centroids(filtered_events, c_calc, time_ch)

@@ -60,7 +60,7 @@ if __name__ == '__main__':
     cal_func = calibrate_energies(time_ch, eng_ch, time_cal, eng_cal)
 
     pet_reader      = read_petsys_filebyfile(mm_map, evt_select)
-    filtered_events = [cal_func(tpl) for tpl in pet_reader(infile)]
+    filtered_events = list(map(cal_func, pet_reader(infile)))
     end_r           = time.time()
     print("Time enlapsed reading: {} s".format(int(end_r - start)))
     print("length check: ", len(filtered_events))
