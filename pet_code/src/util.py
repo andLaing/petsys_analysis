@@ -404,19 +404,21 @@ def calibrate_energies(time_ch, eng_ch, time_cal, eng_cal):
         return lambda x: x
 
     if time_cal:
-        tcal_df = pd.read_csv(time_cal, sep='\t ')# Need to fix file format to remove space
+        # Need to fix file format to remove space
         # time calibrated relative to 511 keV peak
-        tcal    = tcal_df.set_index('ID')['MU'].apply(lambda x: 511 / x)
+        tcal    = pd.read_csv(time_cal, sep='\t ').set_index('ID')['MU'].apply(lambda x: 511 / x)
     else:
         tcal    = pd.Series(1, index=time_ch)
     if eng_cal:
-        ecal_df = pd.read_csv(eng_cal, sep='\t ')# Need to fix file format to remove space
+        # Need to fix file format to remove space
         # Energy channels calibrated relative to mean. Maybe unstable between calibrations, review.
-        mu_mean = np.mean(ecal_df.MU)
-        ecal    = ecal_df.set_index('ID')['MU'].apply(lambda x: mu_mean / x)
+        ecal    = pd.read_csv(eng_cal, sep='\t ').set_index('ID')['MU']
+        mu_mean = np.mean(ecal)
+        ecal    = ecal.apply(lambda x: mu_mean / x)
     else:
         ecal    = pd.Series(1, index=eng_ch)
-    cal = tcal.append(ecal)
+
+    cal = tcal.append(ecal).to_dict()
     def apply_calibration(event):
         for sm in event:
             for imp in sm:
