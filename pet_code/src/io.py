@@ -5,7 +5,7 @@ import numpy as np
 
 from itertools import chain, islice, repeat
 
-from . util import slab_indx, slab_x, slab_y, slab_z
+from . util    import slab_indx, slab_x, slab_y, slab_z
 from . io_util import coinc_evt_loop
 
 
@@ -107,10 +107,10 @@ def singles_evt_loop(first_line, line_it, mod_mapping):
     Should be for what PETSys calls 'grouped'
     which seems more like a PET single.
     """
-    nlines = first_line[0]
-    return list(map(unpack_supermodule                              ,
-                    chain([first_line], islice(line_it, nlines - 1)),
-                    repeat(mod_mapping)                             )), []
+    nlines = first_line[0] - 1
+    return list(map(unpack_supermodule                          ,
+                    chain([first_line], islice(line_it, nlines)),
+                    repeat(mod_mapping)                         )), []
 
 
 def coincidences_evt_loop(first_line, line_it, mod_mapping):
