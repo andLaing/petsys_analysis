@@ -149,12 +149,9 @@ def unpack_supermodule(sm_info, mod_mapping):
     return [id, mini_mod, tstp, eng]
 
 
-def read_ymlmapping(mapping_file):
+def _read_yaml_file(mapping_file):
     """
-    Read channel mapping information from
-    yaml file.
-
-    This version for 2 super module setup.
+    Read and return yaml mapping file.
     """
     try:
         with open(mapping_file) as map_buffer:
@@ -164,6 +161,17 @@ def read_ymlmapping(mapping_file):
     if type(channel_map) is not dict or "time_channels" not in channel_map.keys()\
         or "energy_channels" not in channel_map.keys():
         raise RuntimeError('Mapping file not correct format.')
+    return channel_map
+
+
+def read_ymlmapping(mapping_file):
+    """
+    Read channel mapping information from
+    yaml file.
+
+    This version for 2 super module setup for IMAS.
+    """
+    channel_map = _read_yaml_file(mapping_file)
 
     ALLSM_time_ch    = set()
     ALLSM_energy_ch  = set()
@@ -204,6 +212,56 @@ def read_ymlmapping(mapping_file):
                 rc_num = 0
                 row   += 1
             slab_num += 1
+    return ALLSM_time_ch, ALLSM_energy_ch, mM_mapping, centroid_mapping, slab_positions
+
+
+def read_ymlmapping_brain(mapping_file):
+    """
+    Read channel mapping information from
+    yaml file.
+
+    This version for 2 super module setup for IBRAIN.
+    """
+    channel_map = _read_yaml_file(mapping_file)
+
+    ALLSM_time_ch    = set()
+    ALLSM_energy_ch  = set()
+    mM_mapping       = {}
+    centroid_mapping = {}
+    slab_positions   = {}
+
+    FEM_num_ch = 256
+    no_sm      =   4
+    for sm in range(no_sm):
+        mM_num   = 1
+        slab_num = 1
+        half     = 0
+        r_num    = 0
+        c_num    = 0
+        for tch, ech in zip(channel_map["time_channels"], channel_map["energy_channels"]):
+            absolut_tch = tch + sm * FEM_num_ch
+            absolut_ech = ech + sm * FEM_num_ch
+            ALLSM_time_ch  .append(absolut_tch)
+            ALLSM_energy_ch.append(absolut_ech)
+
+            mM_mapping[absolut_tch] = mM_num            
+            mM_mapping[absolut_ech] = mM_num
+            if   half == 0:
+                centroid_mapping[absolut_tch] = (0, round(1.6 + 3.2 *       c_num , 2))
+                centroid_mapping[absolut_ech] = (1, round(1.6 + 3.2 *       r_num , 2))
+            elif half == 1:
+                centroid_mapping[absolut_tch] = (0, round(1.6 + 3.2 * (15 - c_num), 2))
+                centroid_mapping[absolut_ech] = (1, round(1.6 + 3.2 * (63 - r_num), 2))
+            r_num += 1
+            c_num += 1
+            if slab_num %  8 == 0:
+                mM_num += 1  
+                c_num   = 0              
+            if slab_num % 64 == 0:
+                half  = 1
+                r_num = 0
+            slab_num += 1
+            ## Need to add physical positions!
     return ALLSM_time_ch, ALLSM_energy_ch, mM_mapping, centroid_mapping, slab_positions
 
 
