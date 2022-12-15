@@ -23,6 +23,7 @@ from pet_code.src.plots import mm_energy_spectra
 from pet_code.src.util  import calibrate_energies
 from pet_code.src.util  import centroid_calculation
 from pet_code.src.util  import filter_event_by_impacts
+from pet_code.src.util  import filter_event_by_impacts_noneg
 from pet_code.src.util  import filter_impacts_one_minimod
 from pet_code.src.util  import mm_energy_centroids
 from pet_code.src.util  import select_module
@@ -47,6 +48,9 @@ if __name__ == '__main__':
     elif 'OneMod' in filt_type:
         min_chan   = tuple(map(int, conf.get('filter', 'min_channels').split(',')))
         evt_select = filter_impacts_one_minimod(eng_ch, *min_chan)
+    elif 'NoNeg'  in filt_type:
+        min_chan   = tuple(map(int, conf.get('filter', 'min_channels').split(',')))
+        evt_select = filter_event_by_impacts_noneg(eng_ch, *min_chan)
     else:
         print('No valid filter found, fallback to 4, 4 minimum energy channels')
         evt_select = filter_event_by_impacts(eng_ch, 4, 4)
@@ -54,7 +58,7 @@ if __name__ == '__main__':
     time_cal = conf.get('calibration',   'time_channels', fallback='')
     eng_cal  = conf.get('calibration', 'energy_channels', fallback='')
     cal_func = calibrate_energies(time_ch, eng_ch, time_cal, eng_cal)
-    
+
     pet_reader      = read_petsys_filebyfile(infile, mm_map, evt_select)
     filtered_events = [cal_func(tpl) for tpl in pet_reader()]
     end_r           = time.time()

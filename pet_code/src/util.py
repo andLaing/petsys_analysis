@@ -224,6 +224,32 @@ def filter_impacts_mmgroup(mm_sm1, mm_sm2, eng_map, min_sm1, min_sm2):
         sm2_grp = (mm in mm_sm2 for _, mm, *_ in sm2)
         return all(sm1_grp) and all(sm2_grp) and sm1_filter(sm1) and sm2_filter
     return valid_event
+
+
+def filter_negatives(sm):
+    """
+    Return true if all energies
+    are positive.
+    """
+    if not sm:
+        return True
+    return all(np.asarray(sm)[:, 3] > 0)
+
+
+def filter_event_by_impacts_noneg(eng_map, min_sm1, min_sm2, singles=False):
+    """
+    Event filter based on the minimum number of energy channels
+    for each of the two super modules in coincidence filtering any
+    events with negative signals.
+    """
+    m1_filter = filter_impact(min_sm1, eng_map)
+    m2_filter = lambda x: True
+    if not singles:
+        m2_filter = filter_impact(min_sm2, eng_map)
+    def valid_event(sm1, sm2):
+        return m1_filter(sm1) and m2_filter(sm2) and\
+            filter_negatives(sm1) and filter_negatives(sm2)
+    return valid_event
 ## End filters (examples)
 
 
