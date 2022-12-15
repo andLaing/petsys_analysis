@@ -3,10 +3,16 @@ import yaml
 
 import numpy as np
 
+from enum      import auto, Enum
 from itertools import chain, islice, repeat
 
 from . util    import slab_indx, slab_x, slab_y, slab_z
 from . io_util import coinc_evt_loop
+
+
+class ChannelType(Enum):
+    TIME   = auto()
+    ENERGY = auto()
 
 
 def read_petsys(mod_mapping, sm_filter=lambda x, y: True, singles=False):
