@@ -232,15 +232,14 @@ def select_module(sm_info, eng_ch):
     Select the mini module with
     highest energy in a SM.
     """
-    sm  = np.asarray(sm_info)
+    sm  = np.asarray(sm_info, dtype='object')
     mms = np.unique(sm[:, 1])
     if mms.shape[0] == 1:
         return sm_info
     e_chan = np.fromiter(map(lambda x: x[0] in eng_ch, sm), bool)
-    sums = np.fromiter((sm[(sm[:, 1] == mm) & e_chan, 3].sum() for mm in mms), float)
+    sums   = np.fromiter((sm[(sm[:, 1] == mm) & e_chan, 3].sum() for mm in mms), float)
     max_mm = mms[np.argmax(sums)]
-    #return sm[sm[:, 1] == max_mm, :].tolist()
-    return list(filter(lambda x: x[1] == max_mm, sm_info))
+    return sm[sm[:, 1] == max_mm, :].tolist()
 
 
 def get_electronics_nums(channel_id):
