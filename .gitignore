@@ -1,0 +1,19 @@
+# Byte-compiled / optimized
+__pycache__/
+*.py[cod]
+
+# C extensions
+*.c
+*.so
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+environment-*.yml
+
+# Backup files
+*~
+
+# macOS
+.DS_Store
