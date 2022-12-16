@@ -182,36 +182,26 @@ def read_ymlmapping(mapping_file):
     mM_energyMapping = {1:1,  2:5,  3:9 ,  4:13,  5:2,  6:6,  7:10,  8:14,
                         9:3, 10:7, 11:11, 12:15, 13:4, 14:8, 15:12, 16:16}
     FEM_num_ch = 256
-    slab_num   =   1
-    rc_num     =   0
     no_sm      =   4
     for sm in range(no_sm):
-        mM_num = 1
-        row    = 0
-        for tch, ech in zip(channel_map["time_channels"], channel_map["energy_channels"]):
+        for i, (tch, ech) in enumerate(zip(channel_map["time_channels"], channel_map["energy_channels"])):
             absolut_tch = tch + sm * FEM_num_ch
             absolut_ech = ech + sm * FEM_num_ch
             ALLSM_time_ch  .add(absolut_tch)
             ALLSM_energy_ch.add(absolut_ech)
 
+            mM_num    = i // 8 + 1
             mM_num_en = mM_energyMapping[mM_num]
             mM_mapping      [absolut_tch] = mM_num
             mM_mapping      [absolut_ech] = mM_num_en
             # The centroid mapping 'x, y' is set for floodmap display
             # So that the first module is in the top left. Doesn't
             # represent true positions. Should be reviewed.
-            centroid_mapping[absolut_tch] = (0, round(1.6 + 3.2*(rc_num), 2))
-            centroid_mapping[absolut_ech] = (1, round(1.6 + 3.2 * (31 - rc_num), 2))  #establish 0 reference at the botom left of the floodmap
+            centroid_mapping[absolut_tch] = (0, round(1.6 + 3.2 *       i % 32 , 2))
+            centroid_mapping[absolut_ech] = (1, round(1.6 + 3.2 * (31 - i % 32), 2))  #establish 0 reference at the botom left of the floodmap
             # slab_positions  [absolut_tch] = (slab_x(rc_num, sm), slab_y(row), slab_z(sm))
-            slab_positions  [absolut_tch] = (slab_x(row), slab_y(rc_num, sm), slab_z(sm))
+            slab_positions  [absolut_tch] = (slab_x(i // 32), slab_y(i % 32, sm), slab_z(sm))
 
-            rc_num += 1
-            if slab_num%8 == 0:
-                mM_num += 1
-            if slab_num%32 == 0:
-                rc_num = 0
-                row   += 1
-            slab_num += 1
     return ALLSM_time_ch, ALLSM_energy_ch, mM_mapping, centroid_mapping, slab_positions
 
 
