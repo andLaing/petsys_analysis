@@ -5,7 +5,7 @@ import numpy as np
 
 from itertools import chain, islice, repeat
 
-from . util import slab_indx, slab_x, slab_y, slab_z
+from . util import slab_indx, slab_x, slab_y, echan_x, echan_y, slab_z
 
 
 def read_petsys(mod_mapping, sm_filter=lambda x, y: True, singles=False):
@@ -201,6 +201,8 @@ def read_ymlmapping(mapping_file):
             centroid_mapping[absolut_ech] = (1, round(1.6 + 3.2 * (31 - i % 32), 2))  #establish 0 reference at the botom left of the floodmap
             # slab_positions  [absolut_tch] = (slab_x(rc_num, sm), slab_y(row), slab_z(sm))
             slab_positions  [absolut_tch] = (slab_x(i // 32), slab_y(i % 32, sm), slab_z(sm))
+            ## not really slabs but this is maybe temp.
+            slab_positions  [absolut_ech] = (echan_x(i % 32), echan_y(sm, i // 32), slab_z(sm))
 
     return ALLSM_time_ch, ALLSM_energy_ch, mM_mapping, centroid_mapping, slab_positions
 

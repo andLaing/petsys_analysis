@@ -80,6 +80,11 @@ def slab_x(row):
     return round(25.9 * (0.5 + row % 4), 2)
 
 
+def echan_x(rc_num):
+    mm_wrap = round(0.3 * (rc_num // 8), 2)
+    return round(1.75 + mm_wrap + 3.2 * rc_num, 2)
+
+
 # def slab_y(row):
 #     """
 #     Get the y position of the channel
@@ -105,6 +110,12 @@ def slab_y(rc_num, sm_num=1):
     if sm_num == 2:
         return round(-1.75 - mm_wrap - 3.2 * rc_num, 2)
     return round(-103.6 + 1.75 + mm_wrap + 3.2 * rc_num, 2)
+
+
+def echan_y(sm, row):
+    if sm == 0:
+        return round(-25.9 * (0.5 + (3 - row % 4)), 2)
+    return round(-25.9 * (0.5 + row % 4), 2)
 
 
 def slab_z(sm_num):
