@@ -268,7 +268,7 @@ def group_times_slab(filtered_events, peak_select, time_ch, ref_indx):
     return reco_dt
 
 
-def group_times_list(filtered_events, peaks, time_ch, ref_indx):
+def group_times_list(filtered_events, peaks, time_ch, ref_indx, ch_pos=None):
     coinc_indx = 0 if ref_indx == 1 else 1
     def get_times(evt):
         try:
