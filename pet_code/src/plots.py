@@ -288,7 +288,7 @@ def ctr(time_ch, peaks, skew=pd.Series(dtype=float)):
     """
     CTR
     """
-    def CTR(evt):
+    def timestamp_difference(evt):
         try:
             chns = [select_max_energy(sm, time_ch) for sm in evt]
         except ValueError:
@@ -296,5 +296,5 @@ def ctr(time_ch, peaks, skew=pd.Series(dtype=float)):
         if peaks[0][chns[0][0]](chns[0][3]) and peaks[1][chns[1][0]](chns[1][3]):
             return chns[0][2] - chns[1][2] + skew.get(chns[1][0], 0.0) - skew.get(chns[0][0], 0.0)
         return
-    return CTR
+    return timestamp_difference
 
