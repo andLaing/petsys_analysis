@@ -59,10 +59,8 @@ if __name__ == '__main__':
 
     time_cal = conf.get('calibration',   'time_channels', fallback='')
     eng_cal  = conf.get('calibration', 'energy_channels', fallback='')
-    if time_cal or eng_cal:
-        cal_func = calibrate_energies(time_ch, eng_ch, time_cal, eng_cal)
-    else:
-        cal_func = lambda x: x
+    cal_func = calibrate_energies(time_ch, eng_ch, time_cal, eng_cal)
+
     pet_reader = read_petsys_filebyfile(infile, mm_map, evt_select)
     filtered_events = [cal_func(tpl) for tpl in pet_reader()]
     ## Should we be filtering the events with multiple mini-modules in one sm?

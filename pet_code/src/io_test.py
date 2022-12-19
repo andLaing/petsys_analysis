@@ -143,7 +143,7 @@ def test_read_petsys_filebyfile(TEST_DATA_DIR, module_mapping):
 
 
 def test_read_ymlmapping(TEST_DATA_DIR):
-    test_yml = os.path.join(TEST_DATA_DIR, "SM_mapping.yaml")
+    test_yml = os.path.join(TEST_DATA_DIR, "SM_mapping_corrected.yaml")
 
     all_time, all_eng, mm_map, cent_map, slab_positions = read_ymlmapping(test_yml)
 
@@ -153,6 +153,19 @@ def test_read_ymlmapping(TEST_DATA_DIR):
     assert len(all_eng)  == 2 * FEM_num_ch
     assert all_time.issubset(mm_map.keys())
     assert all_eng .issubset(mm_map.keys())
+
+    assert all(k in (0, 1) for k, _ in cent_map.values())
+    assert all(cent_map[id][0] == 0 for id in all_time)
+    assert all(cent_map[id][0] == 1 for id in all_eng )
+    assert all(0 < ppos < 103.6 for _, ppos in cent_map.values())
+
+    ## Example positions: (id, mm, pos). For now, only time channels.
+    exp_pos = [(  0,  5, (38.85, -79.45,   0.0   )), ( 52,  2, (12.95, -75.95,   0.0   )),
+               (200, 12, (64.75, -20.95,   0.0   )), (223, 16, (90.65, -14.55,   0.0   )),
+               (514,  6, (38.85, -27.65, 123.7971)), (567,  2, (12.95, -30.85, 123.7971)),
+               (720, 12, (64.75, -85.85, 123.7971)), (738, 16, (90.65, -92.25, 123.7971))]
+    assert all(np.allclose(slab_positions[id], pos) for id, _, pos in exp_pos)
+    assert all(mm_map[id] == mm for id, mm, _ in exp_pos)
     ## Need more tests
 
 

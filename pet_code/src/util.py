@@ -76,15 +76,18 @@ def slab_x(row):
     TODO: generalise, only valid for
     current iteration of cal setup.
     """
-    return round(90.65 - 25.6 * row, 2)
+    # return round(90.65 - 25.6 * row, 2)
+    return round(25.9 * (0.5 + row % 4), 2)
 
 
 # def slab_y(row):
 #     """
 #     Get the y position of the channel
 #     given row number.
+#     TODO: generalise, only valid for
+#     current iteration of cal setup.
 #     """
-#     return round(89.6 - 25.6 * row, 2)
+#     return round(103.6 - 25.9 * (0.5 + row), 2)
 def slab_y(rc_num, sm_num=1):
     """
     Get the y position of the channel
@@ -93,9 +96,15 @@ def slab_y(rc_num, sm_num=1):
     TODO: generalise, only valid for
     current iteration of cal setup.
     """
+    # if sm_num == 2:
+    #     return round(-100.8 + 3.2 * rc_num, 2)
+    # return round(-1.6 - 3.2 * rc_num, 2)
+    # Is this correction correct?
+    # Correct for extra spacing between MMs
+    mm_wrap = round(0.3 * (rc_num // 8), 2)
     if sm_num == 2:
-        return round(-100.8 + 3.2 * rc_num, 2)
-    return round(-1.6 - 3.2 * rc_num, 2)
+        return round(-1.75 - mm_wrap - 3.2 * rc_num, 2)
+    return round(-103.6 + 1.75 + mm_wrap + 3.2 * rc_num, 2)
 
 
 def slab_z(sm_num):
@@ -201,6 +210,46 @@ def filter_impacts_specific_mod(sm_num, mm_num, eng_map, min_sm1, min_sm2):
         return sel_mm(sm1, sm2) and filter_one_minimod(sm1, sm2)\
                 and m1_filter(sm1) and m2_filter(sm2)
     return valid_event
+
+
+def filter_impacts_mmgroup(mm_sm1, mm_sm2, eng_map, min_sm1, min_sm2):
+    """
+    Only use events with mini-modules within
+    specific groups.
+    """
+    sm1_filter = filter_impact(min_sm1, eng_map)
+    sm2_filter = filter_impact(min_sm2, eng_map)
+    def valid_event(sm1, sm2):
+        sm1_grp = (mm in mm_sm1 for _, mm, *_ in sm1)
+        sm2_grp = (mm in mm_sm2 for _, mm, *_ in sm2)
+        return all(sm1_grp) and all(sm2_grp) and sm1_filter(sm1) and sm2_filter
+    return valid_event
+
+
+def filter_negatives(sm):
+    """
+    Return true if all energies
+    are positive.
+    """
+    if not sm:
+        return True
+    return all(np.asarray(sm)[:, 3] > 0)
+
+
+def filter_event_by_impacts_noneg(eng_map, min_sm1, min_sm2, singles=False):
+    """
+    Event filter based on the minimum number of energy channels
+    for each of the two super modules in coincidence filtering any
+    events with negative signals.
+    """
+    m1_filter = filter_impact(min_sm1, eng_map)
+    m2_filter = lambda x: True
+    if not singles:
+        m2_filter = filter_impact(min_sm2, eng_map)
+    def valid_event(sm1, sm2):
+        return m1_filter(sm1) and m2_filter(sm2) and\
+            filter_negatives(sm1) and filter_negatives(sm2)
+    return valid_event
 ## End filters (examples)
 
 
@@ -209,15 +258,47 @@ def select_module(sm_info, eng_ch):
     Select the mini module with
     highest energy in a SM.
     """
-    sm  = np.asarray(sm_info)
+    sm  = np.asarray(sm_info, dtype='object')
     mms = np.unique(sm[:, 1])
     if mms.shape[0] == 1:
         return sm_info
     e_chan = np.fromiter(map(lambda x: x[0] in eng_ch, sm), bool)
-    sums = np.fromiter((sm[(sm[:, 1] == mm) & e_chan, 3].sum() for mm in mms), float)
+    sums   = np.fromiter((sm[(sm[:, 1] == mm) & e_chan, 3].sum() for mm in mms), float)
     max_mm = mms[np.argmax(sums)]
-    #return sm[sm[:, 1] == max_mm, :].tolist()
-    return list(filter(lambda x: x[1] == max_mm, sm_info))
+    return sm[sm[:, 1] == max_mm, :].tolist()
+
+
+def get_electronics_nums(channel_id):
+    """
+    Calculates the electronics numbers:
+    portID, slaveID, chipID, channelID
+    """
+    portID    =   channel_id                   // 131072
+    slaveID   =  (channel_id % 131072)         //   4096
+    chipID    = ((channel_id % 131072) % 4096) //     64
+    channelID =   channel_id                   %      64
+    return portID, slaveID, chipID, channelID
+
+
+def get_absolute_id(portID, slaveID, chipID, channelID):
+    """
+    Calculates absolute channel id from
+    electronics numbers.
+    """
+    return 131072 * portID + 4096 * slaveID + 64 * chipID + channelID
+
+
+def select_max_energy(superm, channels=None):
+    """
+    Select the channel with highest deposit.
+    superm   : List
+               List of impacts with [id, mm, time, eng]
+    channels : set
+               The channels to be compared.
+    """
+    if channels is None:
+        return max(superm, key=lambda x: x[3])
+    return max(filter(lambda x: x[0] in channels, superm), key=lambda y: y[3])
 
 
 def shift_to_centres(bin_low_edge):
@@ -314,6 +395,10 @@ def calibrate_energies(time_ch, eng_ch, time_cal, eng_cal):
     given the peak positions in a file (for now)
     for time channels and energy channels.
     """
+    if not time_cal and not eng_cal:
+        # No calibration.
+        return lambda x: x
+
     if time_cal:
         tcal_df = pd.read_csv(time_cal, sep='\t ')# Need to fix file format to remove space
         # time calibrated relative to 511 keV peak

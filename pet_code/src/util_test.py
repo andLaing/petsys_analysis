@@ -12,6 +12,8 @@ from . util import filter_impacts_one_minimod
 from . util import filter_multihit
 from . util import filter_one_minimod
 from . util import get_no_eng_channels
+from . util import get_absolute_id
+from . util import get_electronics_nums
 from . util import get_supermodule_eng
 from . util import time_of_flight
 
@@ -32,6 +34,22 @@ def test_get_supermodule_eng(TEST_DATA_DIR, DUMMY_SM):
     n_eng, tot_eng = get_supermodule_eng(DUMMY_SM, energy_chid)
     assert n_eng == len(DUMMY_SM)
     assert_almost_equal(tot_eng, expected_eng, decimal=5)
+
+
+def test_get_absolute_id():
+    elec_nums = [(0, 0, 0, 1), (0, 0, 2, 1), (0, 1, 1, 1), (1, 1, 1, 5)]
+    exp_ids   = [          1 ,          129,         4161,       135237]
+
+    results = [get_absolute_id(*nums) for nums in elec_nums]
+    assert all([x == y for x, y in zip(results, exp_ids)])
+
+
+def test_get_electronics_nums():
+    ids      = [          1 ,          129,         4161,       135237]
+    exp_nums = [(0, 0, 0, 1), (0, 0, 2, 1), (0, 1, 1, 1), (1, 1, 1, 5)]
+
+    results = [get_electronics_nums(id) for id in ids]
+    assert all([x == y for x, y in zip(results, exp_nums)])
 
 
 def test_centroid_calculation(TEST_DATA_DIR, DUMMY_SM):

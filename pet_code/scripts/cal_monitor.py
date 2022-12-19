@@ -104,10 +104,7 @@ if __name__ == '__main__':
         cal_name = '_calTime_'
     elif not time_cal and     eng_cal:
         cal_name = '_calEng_'
-    if time_cal or eng_cal:
-        cal_func = calibrate_energies(time_ch, eng_ch, time_cal, eng_cal)
-    else:
-        cal_func = lambda x: x
+    cal_func = calibrate_energies(time_ch, eng_ch, time_cal, eng_cal)
 
     ebins = np.arange(*tuple(map(float, conf.get('output', 'ebinning', fallback='0,300,1.5').split(','))))
     tbins = np.arange(*tuple(map(float, conf.get('output', 'tbinning', fallback='9,25,0.2') .split(','))))

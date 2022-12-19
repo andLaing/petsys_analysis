@@ -3,7 +3,9 @@ import matplotlib.pyplot as plt
 from . fits import fit_gaussian
 from . util import get_supermodule_eng
 from . util import np
+from . util import pd
 from . util import select_energy_range
+from . util import select_max_energy
 
 def plot_settings():
     plt.rcParams[ 'lines.linewidth' ] =  2
@@ -123,14 +125,12 @@ def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150, bins=np.arange
         Dict of energy selection filters
     """
     photo_peak = {}
-    ## temp
-    mus = []
     ## Limit range to avoid noise floor, can this be made more robust?
     # bins = np.arange(9, 25, 0.2)
     if plot_output:
         for slab, xye in slab_xye.items():
             #Try to exclude more noise
-            first_bin = 0 if max(xye['energy']) < 25 else 10
+            first_bin = 0 if max(xye['energy']) < bins[-1] else int(3 / np.diff(bins[:2])[0])
             bin_vals, bin_edges, _ = plt.hist(xye['energy'], bins=bins[first_bin:])
             plt.xlabel(f'Energy (au) slab {slab}')
             try:
@@ -141,7 +141,6 @@ def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150, bins=np.arange
                 else:
                     minE, maxE = pars[1] - 2 * pars[2], pars[1] + 2 * pars[2]
                 plt.plot(bcent, gvals, label=f'fit $\mu$ = {round(pars[1], 3)},  $\sigma$ = {round(pars[2], 3)}')
-                mus.append(pars[1])
             except RuntimeError:
                 print(f'Failed fit, slab {slab}')
                 minE, maxE = -1, 0
@@ -152,7 +151,7 @@ def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150, bins=np.arange
             plt.clf()
     else:
         for slab, xye in slab_xye.items():
-            first_bin = 0 if max(xye['energy']) < 25 else 10
+            first_bin = 0 if max(xye['energy']) < bins[-1] else int(3 / np.diff(bins[:2])[0])
             bin_vals, bin_edges = np.histogram(xye['energy'], bins=bins[first_bin:])
             try:
                 *_, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
@@ -164,7 +163,6 @@ def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150, bins=np.arange
             except RuntimeError:
                 minE, maxE = -1, 0
             photo_peak[slab] = select_energy_range(minE, maxE)
-    print("Check spread: mean = ", np.mean(mus), ", std = ", np.std(mus, ddof=1), ", ratio = ", np.std(mus, ddof=1) / np.mean(mus))
     return photo_peak
 
 
@@ -201,12 +199,12 @@ def group_times(filtered_events, peak_select, eng_ch, time_ch, ref_indx):
         _, e2 = get_supermodule_eng(sm2, eng_ch)
         if peak_select[0][mm1-1](e1) and peak_select[1][mm2-1](e2):
             try:
-                min_ch[0] = next(filter(lambda x: x[0] in time_ch, sm1))
-            except StopIteration:
+                min_ch[0] = select_max_energy(sm1, time_ch)
+            except ValueError:
                 continue
             try:
-                min_ch[1] = next(filter(lambda x: x[0] in time_ch, sm2))
-            except StopIteration:
+                min_ch[1] = select_max_energy(sm2, time_ch)
+            except ValueError:
                 continue
             ## Want to know the two channel numbers and timestamps.
             try:
@@ -247,12 +245,12 @@ def group_times_slab(filtered_events, peak_select, time_ch, ref_indx):
     min_ch   = [0, 0]
     for sm1, sm2 in filtered_events:
         try:
-            min_ch[0] = next(filter(lambda x: x[0] in time_ch, sm1))
-        except StopIteration:
+            min_ch[0] = select_max_energy(sm1, time_ch)
+        except ValueError:
             continue
         try:
-            min_ch[1] = next(filter(lambda x: x[0] in time_ch, sm2))
-        except StopIteration:
+            min_ch[1] = select_max_energy(sm2, time_ch)
+        except ValueError:
             continue
         if peak_select[0][min_ch[0][0]](min_ch[0][3]) and\
            peak_select[1][min_ch[1][0]](min_ch[1][3]):
@@ -268,3 +266,35 @@ def group_times_slab(filtered_events, peak_select, time_ch, ref_indx):
                                                  min_ch[coinc_indx][2],
                                                  min_ch[ref_indx  ][2]]]
     return reco_dt
+
+
+def group_times_list(filtered_events, peaks, time_ch, ref_indx):
+    coinc_indx = 0 if ref_indx == 1 else 1
+    def get_times(evt):
+        try:
+            chns = list(map(select_max_energy, evt, [time_ch] * 2))
+        except ValueError:
+            return
+        if peaks[0][chns[0][0]](chns[0][3]) and peaks[1][chns[1][0]](chns[1][3]):
+            return [chns[  ref_indx][0], chns[coinc_indx][0],
+                    chns[coinc_indx][2], chns[  ref_indx][2]]
+
+    return list(filter(lambda x: x, map(get_times, filtered_events)))
+
+
+# Need to review all of this. Clearly repetition.
+# Should be a general energy selection for all? Lookup?
+def ctr(time_ch, peaks, skew=pd.Series(dtype=float)):
+    """
+    CTR
+    """
+    def timestamp_difference(evt):
+        try:
+            chns = [select_max_energy(sm, time_ch) for sm in evt]
+        except ValueError:
+            return
+        if peaks[0][chns[0][0]](chns[0][3]) and peaks[1][chns[1][0]](chns[1][3]):
+            return chns[0][2] - chns[1][2] + skew.get(chns[1][0], 0.0) - skew.get(chns[0][0], 0.0)
+        return
+    return timestamp_difference
+
