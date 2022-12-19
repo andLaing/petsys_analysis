@@ -220,6 +220,15 @@ def perf_to_file(slab_dict, compress_dict, ctr_meas, file_name):
 
 
 def total_en_sm_comp(read_gen_cal, read_gen_no_cal, cal, en_comp_name):
+    """Compares SM total energy spectrum with and wo calibration, needs calib input
+    Inputs:
+    read_gen_cal:    generator with events to be calibrated
+    read_gen_no_cal: generator with events wo calibration
+    cal:             calibration function
+    en_comp_name:    name for the output png spectrum
+    Returns:
+    no return
+    """
     no_cal           = lambda x: x
     events_cal       = [cal(tpl) for tpl in read_gen_cal()]
     events_no_cal    = [no_cal(tpl) for tpl in read_gen_no_cal()]
