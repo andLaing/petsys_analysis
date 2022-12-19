@@ -244,14 +244,14 @@ if __name__ == '__main__':
         if i == 0:
             ## Read the ldat binaries and do the first calculation.
             ## We definitely want to parallelize here.
-            chunk_args = [(file_set, conf) for file_set in np.array_split(input_files, ncores)]
-            # with mp.Pool(ncores) as p:
-            with get_context("spawn").Pool(ncores) as p:
-                # Run chunks in parallel
-                skew_chunks = p.starmap(read_and_select, chunk_args)
-            print('Finished parallel read, concatenating results')
-            skew_values = pd.concat(skew_chunks)
-            # skew_values = read_and_select(input_files, conf)
+            # chunk_args = [(file_set, conf) for file_set in np.array_split(input_files, ncores)]
+            # # with mp.Pool(ncores) as p:
+            # with get_context("spawn").Pool(ncores) as p:
+            #     # Run chunks in parallel
+            #     skew_chunks = p.starmap(read_and_select, chunk_args)
+            # print('Finished parallel read, concatenating results')
+            # skew_values = pd.concat(skew_chunks)
+            skew_values = read_and_select(input_files, conf)
         else:
             skew_values = time_distributions(input_files, conf,
                                              skew_values, i   )
