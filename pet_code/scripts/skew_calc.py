@@ -139,8 +139,8 @@ def read_and_select(file_list, config):
         photo_peak = list(map(slab_energy_spectra, slab_dicts,
                               repeat(None), repeat(min_efit), repeat(ebins)))
 
-        deltat_df = pd.DataFrame(group_times_list(sel_evts, photo_peak, time_ch, sm_num),
-                                 columns=['ref_ch', 'coinc_ch', 'coinc_tstp', 'ref_tstp'])
+        deltat_df = pd.DataFrame(group_times_list(sel_evts, photo_peak, time_ch, sm_num, slab_map),
+                                 columns=['ref_ch', 'coinc_ch', 'coinc_tstp', 'ref_tstp', 'ref_pos', 'coinc_pos'])
         deltat_df.to_pickle(out_base.replace('.ldat', '_dtFrame.pkl'))
         print(f'Time DataFrame output for {out_base}', flush=True)
  
@@ -187,7 +187,8 @@ def get_skew(flight_time, slab_map, skew=pd.Series(dtype=float), plot_output=Non
     hist_bins = np.linspace(-10000, 10000, 400, endpoint=False)
     def calc_skew(delta_t):
         ref_ch    = delta_t.ref_ch.unique()[0]
-        dt_th     = flight_time(slab_map[ref_ch]) - np.fromiter((flight_time(slab_map[id]) for id in delta_t.coinc_ch), float)
+        ref_pos   = delta_t.ref_pos.iat[0]
+        dt_th     = flight_time(ref_pos) - np.fromiter((flight_time(pos) for pos in delta_t.coinc_pos), float)
         ref_skew  = skew.get(ref_ch, 0)
         skew_corr = np.fromiter((skew.get(id, 0) for id in delta_t.coinc_ch), float) - ref_skew
         dt_reco   = np.diff(delta_t[['coinc_tstp', 'ref_tstp']], axis=1).flatten()

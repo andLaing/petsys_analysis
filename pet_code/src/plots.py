@@ -268,7 +268,7 @@ def group_times_slab(filtered_events, peak_select, time_ch, ref_indx):
     return reco_dt
 
 
-def _impact_position(events, slab_id, slab_pos, time_ch):
+def _impact_position(impacts, slab_id, chan_pos, time_ch):
     """
     Calculate the position of the impact
     using the y, z position of the slab
@@ -278,15 +278,15 @@ def _impact_position(events, slab_id, slab_pos, time_ch):
     """
     pos_sum = 0.0
     weights = 0.0
-    for eng_imp in filter(lambda x: x[0] not in time_ch, events):
-        pos      = slab_pos[eng_imp[0]]
+    for eng_imp in filter(lambda x: x[0] not in time_ch, impacts):
+        pos      = chan_pos[eng_imp[0]]
         weight   = eng_imp[3]**2
         pos_sum += weight * pos[0]
         weights += weight
-    return pos_sum / weights, *slab_pos[slab_id][1:]
+    return pos_sum / weights, *chan_pos[slab_id][1:]
 
 
-def group_times_list(filtered_events, peaks, time_ch, ref_indx, ch_pos=None):
+def group_times_list(filtered_events, peaks, time_ch, ref_indx, ch_pos):
     coinc_indx = 0 if ref_indx == 1 else 1
     def get_times(evt):
         try:
@@ -294,8 +294,11 @@ def group_times_list(filtered_events, peaks, time_ch, ref_indx, ch_pos=None):
         except ValueError:
             return
         if peaks[0][chns[0][0]](chns[0][3]) and peaks[1][chns[1][0]](chns[1][3]):
-            return [chns[  ref_indx][0], chns[coinc_indx][0],
-                    chns[coinc_indx][2], chns[  ref_indx][2]]
+            ref_id    = chns[  ref_indx][0]
+            coinc_id  = chns[coinc_indx][0]
+            ref_pos   = _impact_position(evt[  ref_indx],   ref_id, ch_pos, time_ch)
+            coinc_pos = _impact_position(evt[coinc_indx], coinc_id, ch_pos, time_ch)
+            return [ref_id, coinc_id, chns[coinc_indx][2], chns[ref_indx][2], ref_pos, coinc_pos]
 
     return list(filter(lambda x: x, map(get_times, filtered_events)))
 
