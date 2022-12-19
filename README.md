@@ -17,14 +17,17 @@ The code has the following minimum requirements:
  - docopt 0.6.2
  - configparser 5.0.2
 
- A script for environment set-up using `miniconda` is provided: `make_condaENV.sh` which currently assumes that miniconda is already installed in the `$HOME` folder.
+ A script for environment set-up using `miniconda` is provided: `make_condaENV.sh` which checks if conda installed in the `$HOME` folder. Running with `conda` already
+ activated will also create or update the environment.
 
  ## Structure
  The main code elements are structured as follows
  ```
  |- pet_code
  |  |- scripts/
+ |  |   |- cal_monitor.py -- Apply a given energy calibration and plot results.
  |  |   |- flood_maps.py -- Basic script to produce floodmaps
+ |  |   |- grp_channel_specs.py -- Get energy peak position for each channel.
  |  |   |- mm_hits.py -- Text output of coincidence hits per mini module
  |  |   |- skew_calc.py -- Estimate skew iterating over reference channel data.
  |  |   |- slab_spectra.py -- Make energy and time difference spectra for slabs.
