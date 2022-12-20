@@ -83,7 +83,7 @@ if __name__ == '__main__':
         # Need to protect from overwrite? Will add output folder when using docopt/config or both
         with open(out_file, 'w') as tout:
             sort_writer = sort_and_write_mm(write_event_trace(tout, centroid_map), control_indx)
-            reader      = read_petsys_filebyfile(fn, mm_map, evt_filter)
+            reader      = read_petsys_filebyfile(mm_map, evt_filter)
             for evt in reader():
                 all_evt += 1
                 sel_mods = tuple(map(select_module, cal_func(evt)))

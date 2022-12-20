@@ -112,11 +112,11 @@ if __name__ == '__main__':
     out_dir = conf.get('output', 'out_dir')
     if not os.path.isdir(out_dir):
         os.makedirs(out_dir)
+    reader   = read_petsys_filebyfile(mm_map, sm_filter=evt_filter, singles=singles)
     for fn in infiles:
         print(f'Reading file {fn}')
         plotter  = ChannelCal(time_ch, eng_ch, tbins, ebins, cal_func)
-        reader   = read_petsys_filebyfile(fn, mm_map, sm_filter=evt_filter, singles=singles)
-        num_time = list(map(plotter.add_evt, reader()))
+        num_time = list(map(plotter.add_evt, reader(fn)))
         print(f'Time channels per selected module in file {fn}: {Counter(num_time)}')
         print('Checking time channel energy distributions...')
         mu_vals  = []

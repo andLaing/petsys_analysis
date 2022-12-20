@@ -127,8 +127,8 @@ def test_read_petsys_singles(TEST_DATA_DIR, module_mapping):
 def test_read_petsys_filebyfile(TEST_DATA_DIR, module_mapping):
     infile = os.path.join(TEST_DATA_DIR,
                           "petsys_test_TB_SMGathered_120s_4.0OV_10T1_15T2_5E_coinc.ldat")
-    pet_reader = read_petsys_filebyfile(infile, module_mapping)
-    all_evts = [evt for evt in pet_reader()]
+    pet_reader = read_petsys_filebyfile(module_mapping)
+    all_evts = [evt for evt in pet_reader(infile)]
 
     assert len(all_evts) == 20
     assert all(np.fromiter(map(len, all_evts), int) == 2)

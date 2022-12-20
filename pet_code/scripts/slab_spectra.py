@@ -61,8 +61,8 @@ if __name__ == '__main__':
     eng_cal  = conf.get('calibration', 'energy_channels', fallback='')
     cal_func = calibrate_energies(time_ch, eng_ch, time_cal, eng_cal)
 
-    pet_reader = read_petsys_filebyfile(infile, mm_map, evt_select)
-    filtered_events = [cal_func(tpl) for tpl in pet_reader()]
+    pet_reader = read_petsys_filebyfile(mm_map, evt_select)
+    filtered_events = list(map(cal_func, pet_reader(infile)))
     ## Should we be filtering the events with multiple mini-modules in one sm?
     c_calc     = centroid_calculation(centroid_map)
     slab_dicts = slab_energy_centroids(filtered_events, c_calc, time_ch)

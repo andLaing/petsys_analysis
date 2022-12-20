@@ -24,11 +24,11 @@ if __name__ == '__main__':
     time_ch, eng_ch, mm_map, *_ = read_ymlmapping('pet_code/test_data/SM_mapping_corrected.yaml')
 
     evt_filt = filter_minch(4, eng_ch)
-    reader   = read_petsys_filebyfile(infile, mm_map, sm_filter=evt_filt, singles=True)
+    reader   = read_petsys_filebyfile(mm_map, sm_filter=evt_filt, singles=True)
     print(f'Checking for events with channel {chan_test} in Q range ({q_low}, {q_high})')
     occ_count = 0
     max_chan  = 0
-    for sm, _ in reader():
+    for sm, _ in reader(infile):
         chan_found = sum(map(lambda x: x[0] == chan_test and q_low < x[3] < q_high, sm))
         if chan_found:
             occ_count += 1

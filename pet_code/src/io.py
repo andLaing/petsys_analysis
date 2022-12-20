@@ -5,7 +5,8 @@ import numpy as np
 
 from itertools import chain, islice, repeat
 
-from . util import slab_indx, slab_x, slab_y, slab_z
+from . util    import slab_indx, slab_x, slab_y, slab_z
+from . io_util import coinc_evt_loop
 
 
 def read_petsys(mod_mapping, sm_filter=lambda x, y: True, singles=False):
@@ -21,9 +22,6 @@ def read_petsys(mod_mapping, sm_filter=lambda x, y: True, singles=False):
     petsys_event: Fn, loops over input file list and yields
                       event information.
     """
-    line_struct = '<BBqfiBBqfi'
-    if singles:
-        line_struct = line_struct[:6]
     def petsys_event(file_list):
         """
         file_list: List{String}
@@ -31,18 +29,15 @@ def read_petsys(mod_mapping, sm_filter=lambda x, y: True, singles=False):
         """
         for fn in file_list:
             yield from _read_petsys_file(fn         ,
-                                         line_struct,
                                          mod_mapping,
                                          sm_filter  ,
                                          singles    )
     return petsys_event
 
 
-def read_petsys_filebyfile(file_name, mod_mapping, sm_filter=lambda x, y: True, singles=False):
+def read_petsys_filebyfile(mod_mapping, sm_filter=lambda x, y: True, singles=False):
     """
     Reader for petsys output for a list of input files.
-    file_name  : String
-                 The path to the file to be read.
     mod_mapping: Lookup table for the channel id
                  to mini module numbering.
     energy_ch  : energy channels.
@@ -52,12 +47,13 @@ def read_petsys_filebyfile(file_name, mod_mapping, sm_filter=lambda x, y: True, 
     petsys_event: Fn, loops over input file list and yields
                       event information.
     """
-    line_struct = '<BBqfiBBqfi'
-    if singles:
-        line_struct = line_struct[:6]
-    def petsys_event():
+    def petsys_event(file_name):
+        """
+        Read a single file:
+        file_name  : String
+                     The path to the file to be read.
+        """
         yield from _read_petsys_file(file_name  ,
-                                     line_struct,
                                      mod_mapping,
                                      sm_filter  ,
                                      singles    )
@@ -85,7 +81,6 @@ def read_petsys_singles(file_name, mod_mapping):
 
 
 def _read_petsys_file(file_name      ,
-                      line_struct    ,
                       mod_mapping    ,
                       sm_filter      ,
                       singles = False):
@@ -94,7 +89,8 @@ def _read_petsys_file(file_name      ,
     file yielding those meeting sm_filter
     conditions.
     """
-    evt_loop = singles_evt_loop if singles else coincidences_evt_loop
+    line_struct = '<BBqfi'         if singles else '<BBqfiBBqfi'
+    evt_loop    = singles_evt_loop if singles else coinc_evt_loop
     with open(file_name, 'rb') as fbuff:
         b_iter = struct.iter_unpack(line_struct, fbuff.read())
         for first_line in b_iter:
@@ -111,10 +107,10 @@ def singles_evt_loop(first_line, line_it, mod_mapping):
     Should be for what PETSys calls 'grouped'
     which seems more like a PET single.
     """
-    nlines = first_line[0]
-    return list(map(unpack_supermodule                              ,
-                    chain([first_line], islice(line_it, nlines - 1)),
-                    repeat(mod_mapping)                             )), []
+    nlines = first_line[0] - 1
+    return list(map(unpack_supermodule                          ,
+                    chain([first_line], islice(line_it, nlines)),
+                    repeat(mod_mapping)                         )), []
 
 
 def coincidences_evt_loop(first_line, line_it, mod_mapping):
