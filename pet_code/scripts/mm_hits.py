@@ -84,12 +84,12 @@ if __name__ == '__main__':
         with open(out_file, 'w') as tout:
             sort_writer = sort_and_write_mm(write_event_trace(tout, centroid_map), control_indx)
             reader      = read_petsys_filebyfile(fn, mm_map, evt_filter)
-            for evt in cal_func(reader()):
+            for evt in reader():
                 all_evt += 1
-                n_mm = len(set(x[1] for x in sel_mods[control_indx]))
+                sel_mods = tuple(map(select_module, cal_func(evt)))
+                n_mm     = len(set(x[1] for x in sel_mods[control_indx]))
                 if n_mm > 1:
                     mm_check += 1
-                sel_mods = tuple(map(select_module, evt))
                 sort_writer(sel_mods)
     print("Proportion of events with multihit in sm (highest charge MM selected): ", mm_check / all_evt)
 

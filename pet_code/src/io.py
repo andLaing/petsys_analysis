@@ -197,7 +197,7 @@ def read_ymlmapping(mapping_file):
             # The centroid mapping 'x, y' is set for floodmap display
             # So that the first module is in the top left. Doesn't
             # represent true positions. Should be reviewed.
-            centroid_mapping[absolut_tch] = (0, round(1.6 + 3.2 *       i % 32 , 2))
+            centroid_mapping[absolut_tch] = (0, round(1.6 + 3.2 * (     i % 32), 2))
             centroid_mapping[absolut_ech] = (1, round(1.6 + 3.2 * (31 - i % 32), 2))  #establish 0 reference at the botom left of the floodmap
             # slab_positions  [absolut_tch] = (slab_x(rc_num, sm), slab_y(row), slab_z(sm))
             slab_positions  [absolut_tch] = (slab_x(i // 32), slab_y(i % 32, sm), slab_z(sm))
