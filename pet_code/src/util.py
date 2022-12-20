@@ -259,6 +259,9 @@ def select_module(sm_info, eng_ch):
     highest energy in a SM.
     """
     sm  = np.asarray(sm_info, dtype='object')
+    if sm.size == 0:
+        return sm_info
+
     mms = np.unique(sm[:, 1])
     if mms.shape[0] == 1:
         return sm_info
@@ -338,13 +341,14 @@ def mm_energy_centroids(events, c_calc, eng_ch, mod_sel=lambda sm: sm):
     for evt in events:
         sel_evt = tuple(map(mod_sel, evt))
         for i, ((x, y, _), (_, eng)) in enumerate(zip(map(c_calc, sel_evt), map(get_supermodule_eng, sel_evt, repeat(eng_ch)))):
-            mm = evt[i][0][1]
-            try:
-                mod_dicts[i][mm]['x'].append(x)
-                mod_dicts[i][mm]['y'].append(y)
-                mod_dicts[i][mm]['energy'].append(eng)
-            except KeyError:
-                mod_dicts[i][mm] = {'x': [x], 'y': [y], 'energy': [eng]}
+            if evt[i]:
+                mm = evt[i][0][1]
+                try:
+                    mod_dicts[i][mm]['x'].append(x)
+                    mod_dicts[i][mm]['y'].append(y)
+                    mod_dicts[i][mm]['energy'].append(eng)
+                except KeyError:
+                    mod_dicts[i][mm] = {'x': [x], 'y': [y], 'energy': [eng]}
     return mod_dicts
 
 
