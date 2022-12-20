@@ -2,14 +2,14 @@ import os
 
 import pytest
 
-from . io import np
-from . io import ChannelMap
-from . io import ChannelType
-from . io import read_petsys
-from . io import read_petsys_filebyfile
-from . io import read_petsys_singles
-from . io import read_ymlmapping
-from . io import write_event_trace
+from . io   import np
+from . io   import ChannelMap
+from . io   import read_petsys
+from . io   import read_petsys_filebyfile
+from . io   import read_petsys_singles
+from . io   import read_ymlmapping
+from . io   import write_event_trace
+from . util import ChannelType
 
 
 @pytest.fixture(scope = 'module')

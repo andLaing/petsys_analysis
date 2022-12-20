@@ -4,18 +4,13 @@ import yaml
 import numpy  as np
 import pandas as pd
 
-from enum      import auto, Enum
 from itertools import chain, islice, repeat
 
+from . util    import ChannelType
 from . util    import slab_indx, slab_x, slab_y, slab_z
 from . io_util import coinc_evt_loop
 
 from typing import List, Tuple, Union # Once upgraded to python 3.9 not necessary
-
-
-class ChannelType(Enum):
-    TIME   = auto()
-    ENERGY = auto()
 
 
 def read_petsys(mod_mapping, sm_filter=lambda x, y: True, singles=False):

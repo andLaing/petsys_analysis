@@ -1,25 +1,32 @@
 import numpy  as np
 import pandas as pd
 
+from enum      import auto, Enum
 from itertools import repeat
 
 from scipy.constants import c as c_vac
 
-def get_no_eng_channels(mod_data, energy_chid):
+
+class ChannelType(Enum):
+    TIME   = auto()
+    ENERGY = auto()
+
+
+def get_no_eng_channels(mod_data):
     """
     Return the number of channels for energy
     measurement in the module data list.
     """
-    return sum(x[0] in energy_chid for x in mod_data)
+    return sum(x[1] is ChannelType.ENERGY for x in mod_data)
 
 
-def get_supermodule_eng(mod_data, energy_chid):
+def get_supermodule_eng(mod_data):
     """
     Return the number of channels for energy
     measurement in the module data and the
     total energy deposited.
     """
-    eng_ch = list(filter(lambda x: x[0] in energy_chid, mod_data))
+    eng_ch = list(filter(lambda x: x[1] is ChannelType.ENERGY, mod_data))
     return len(eng_ch), sum(hit[3] for hit in eng_ch)
 
 
@@ -126,102 +133,103 @@ def select_energy_range(minE, maxE):
 
 
 ## Event and impact filters...
-def filter_impact(min_ch, energy_chid):
+def filter_impact(min_ch):
     """
     Make a filter to check impacts recorded
     in sufficient channels.
     """
     def valid_impact(mod_data):
-        neng = get_no_eng_channels(mod_data, energy_chid)
+        neng = get_no_eng_channels(mod_data)
         return min_ch < neng < len(mod_data)
     return valid_impact
 
 
-def filter_multihit(sm):
+def filter_multihit(sm, mm_map):
     """
     Select super modules with one
     and only one mini modules hit.
     """
-    n_mm = len(set(x[1] for x in sm))
+    n_mm = len(set(mm_map(x[0]) for x in sm))
     return n_mm == 1
 
 
-def filter_event_by_impacts(eng_map, min_sm1, min_sm2, singles=False):
+def filter_event_by_impacts(min_sm1, min_sm2, singles=False):
     """
     Event filter based on the minimum energy channel
     hist for each of the two super modules in coincidence.
     """
-    m1_filter = filter_impact(min_sm1, eng_map)
+    m1_filter = filter_impact(min_sm1)
     m2_filter = lambda x: True
     if not singles:
-        m2_filter = filter_impact(min_sm2, eng_map)
+        m2_filter = filter_impact(min_sm2)
     def valid_event(sm1, sm2):
         return m1_filter(sm1) and m2_filter(sm2)
     return valid_event
 
 
-def filter_one_minimod(sm1, sm2, singles=False):
+def filter_one_minimod(sm1, sm2, mm_map, singles=False):
     """
     Select events with only one
     minimodule hit in each super module.
     """
     if singles:
-        return filter_multihit(sm1)
-    return filter_multihit(sm1) and filter_multihit(sm2)
+        return filter_multihit(sm1, mm_map)
+    return filter_multihit(sm1, mm_map) and filter_multihit(sm2, mm_map)
 
 
-def filter_impacts_one_minimod(eng_map, min_sm1, min_sm2, singles=False):
+def filter_impacts_one_minimod(min_sm1, min_sm2, mm_map, singles=False):
     """
     Event filter based on the minimum energy channel
     hist for each of the two super modules in coincidence
     with additional filter requiring only one mini module
     per super module.
     """
-    m1_filter = filter_impact(min_sm1, eng_map)
+    m1_filter = filter_impact(min_sm1)
     m2_filter = lambda x: True
     if not singles:
-        m2_filter = filter_impact(min_sm2, eng_map)
+        m2_filter = filter_impact(min_sm2)
     def valid_event(sm1, sm2):
-        return filter_one_minimod(sm1, sm2, singles) and m1_filter(sm1) and m2_filter(sm2)
+        one_mm = filter_one_minimod(sm1, sm2, mm_map, singles)
+        return one_mm and m1_filter(sm1) and m2_filter(sm2)
     return valid_event
 
 
-def filter_specific_mm(sm_num, mm_num):
+def filter_specific_mm(sm_num, mm_num, mm_map):
     """
     Select events in a specific mini module.
     TODO review for full body.
     """
     def valid_event(sm1, sm2):
         if sm_num == 0:
-            return mm_num in set(x[1] for x in sm1)
-        return mm_num in set(x[1] for x in sm2)
+            return mm_num in set(mm_map(x[0]) for x in sm1)
+        return mm_num in set(mm_map(x[0]) for x in sm2)
     return valid_event
 
 
-def filter_impacts_specific_mod(sm_num, mm_num, eng_map, min_sm1, min_sm2):
+def filter_impacts_specific_mod(sm_num, mm_num, mm_map, min_sm1, min_sm2):
     """
     Combines requirements of impacts, specific mm and
     that only one module hit in both sm.
     """
-    sel_mm = filter_specific_mm(sm_num, mm_num)
-    m1_filter = filter_impact(min_sm1, eng_map)
-    m2_filter = filter_impact(min_sm2, eng_map)
+    sel_mm    = filter_specific_mm(sm_num, mm_num, mm_map)
+    m1_filter = filter_impact(min_sm1)
+    m2_filter = filter_impact(min_sm2)
     def valid_event(sm1, sm2):
         return sel_mm(sm1, sm2) and filter_one_minimod(sm1, sm2)\
                 and m1_filter(sm1) and m2_filter(sm2)
     return valid_event
 
 
-def filter_impacts_mmgroup(mm_sm1, mm_sm2, eng_map, min_sm1, min_sm2):
+def filter_impacts_mmgroup(mm_sm1, mm_sm2, mm_map, min_sm1, min_sm2):
     """
     Only use events with mini-modules within
     specific groups.
     """
-    sm1_filter = filter_impact(min_sm1, eng_map)
-    sm2_filter = filter_impact(min_sm2, eng_map)
+    sm1_filter = filter_impact(min_sm1)
+    sm2_filter = filter_impact(min_sm2)
     def valid_event(sm1, sm2):
-        sm1_grp = (mm in mm_sm1 for _, mm, *_ in sm1)
-        sm2_grp = (mm in mm_sm2 for _, mm, *_ in sm2)
+        sm1_grp = (mm_map(id) in mm_sm1 for id, *_ in sm1)
+        sm2_grp = (mm_map(id) in mm_sm2 for id, *_ in sm2)
         return all(sm1_grp) and all(sm2_grp) and sm1_filter(sm1) and sm2_filter
     return valid_event
 
@@ -236,16 +244,16 @@ def filter_negatives(sm):
     return all(np.asarray(sm)[:, 3] > 0)
 
 
-def filter_event_by_impacts_noneg(eng_map, min_sm1, min_sm2, singles=False):
+def filter_event_by_impacts_noneg(min_sm1, min_sm2, singles=False):
     """
     Event filter based on the minimum number of energy channels
     for each of the two super modules in coincidence filtering any
     events with negative signals.
     """
-    m1_filter = filter_impact(min_sm1, eng_map)
+    m1_filter = filter_impact(min_sm1)
     m2_filter = lambda x: True
     if not singles:
-        m2_filter = filter_impact(min_sm2, eng_map)
+        m2_filter = filter_impact(min_sm2)
     def valid_event(sm1, sm2):
         return m1_filter(sm1) and m2_filter(sm2) and\
             filter_negatives(sm1) and filter_negatives(sm2)
@@ -253,7 +261,7 @@ def filter_event_by_impacts_noneg(eng_map, min_sm1, min_sm2, singles=False):
 ## End filters (examples)
 
 
-def select_module(sm_info, eng_ch):
+def select_module(sm_info, mm_map):
     """
     Select the mini module with
     highest energy in a SM.
@@ -265,7 +273,7 @@ def select_module(sm_info, eng_ch):
     mms = np.unique(sm[:, 1])
     if mms.shape[0] == 1:
         return sm_info
-    e_chan = np.fromiter(map(lambda x: x[0] in eng_ch, sm), bool)
+    e_chan = np.fromiter(map(lambda x: x[1] is ChannelType.ENERGY, sm), bool)
     sums   = np.fromiter((sm[(sm[:, 1] == mm) & e_chan, 3].sum() for mm in mms), float)
     max_mm = mms[np.argmax(sums)]
     return sm[sm[:, 1] == max_mm, :].tolist()
