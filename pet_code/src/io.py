@@ -13,15 +13,14 @@ from . io_util import coinc_evt_loop
 from typing import List, Tuple, Union # Once upgraded to python 3.9 not necessary
 
 
-def read_petsys(mod_mapping, sm_filter=lambda x, y: True, singles=False):
+def read_petsys(type_func, sm_filter=lambda x, y: True, singles=False):
     """
     Reader for petsys output for a list of input files.
     All files yielded in single generator.
-    mod_mapping: Lookup table for the channel id
-                 to mini module numbering.
-    energy_ch  : energy channels.
-    singles    : Is the file singles mode? default False.
-    sm_filter  : Function taking a tuple of smto filter the module data.
+    type_func : Lookup function for the channel id
+                to ChannelType.
+    singles   : Is the file singles mode? default False.
+    sm_filter : Function taking a tuple of sm to filter the module data.
     returns
     petsys_event: Fn, loops over input file list and yields
                       event information.
@@ -32,21 +31,17 @@ def read_petsys(mod_mapping, sm_filter=lambda x, y: True, singles=False):
                    List of strings with the paths to the files of interest.
         """
         for fn in file_list:
-            yield from _read_petsys_file(fn         ,
-                                         mod_mapping,
-                                         sm_filter  ,
-                                         singles    )
+            yield from _read_petsys_file(fn, type_func, sm_filter, singles)
     return petsys_event
 
 
-def read_petsys_filebyfile(mod_mapping, sm_filter=lambda x, y: True, singles=False):
+def read_petsys_filebyfile(type_func, sm_filter=lambda x, y: True, singles=False):
     """
     Reader for petsys output for a list of input files.
-    mod_mapping: Lookup table for the channel id
-                 to mini module numbering.
-    energy_ch  : energy channels.
-    singles    : Is the file singles mode? default False.
-    sm_filter  : Function taking a tuple of smto filter the module data.
+    type_func : Lookup function for the channel id
+                to ChannelType.
+    singles   : Is the file singles mode? default False.
+    sm_filter : Function taking a tuple of smto filter the module data.
     returns
     petsys_event: Fn, loops over input file list and yields
                       event information.
@@ -57,37 +52,31 @@ def read_petsys_filebyfile(mod_mapping, sm_filter=lambda x, y: True, singles=Fal
         file_name  : String
                      The path to the file to be read.
         """
-        yield from _read_petsys_file(file_name  ,
-                                     mod_mapping,
-                                     sm_filter  ,
-                                     singles    )
+        yield from _read_petsys_file(file_name, type_func, sm_filter, singles)
     return petsys_event
 
 
-def read_petsys_singles(file_name, mod_mapping):
+def read_petsys_singles(file_name, type_func):
     """
     Read a petsys singles mode file which
     contains only channel by channel time
     and energy info with no impact (singles)
     nor coincidence grouping.
-    file_name  : String
-                 ldat file name with petsys singles
-    mod_mapping: Lookup table for the channel id
-                 to mini module numbering.
+    file_name : String
+                ldat file name with petsys singles
+    type_func : Lookup function for the channel id
+                to ChannelType.
     returns a generator for line info [id, mm, tstp, eng]
     """
     line_struct = '<qfi'
     def petsys_event():
         with open(file_name, 'rb') as fbuff:
             for line in struct.iter_unpack(line_struct, fbuff.read()):
-                yield line[2], mod_mapping[line[2]], line[0], line[1]
+                yield line[2], type_func(line[2]), line[0], line[1]
     return petsys_event
 
 
-def _read_petsys_file(file_name      ,
-                      mod_mapping    ,
-                      sm_filter      ,
-                      singles = False):
+def _read_petsys_file(file_name, type_func, sm_filter, singles=False):
     """
     Read all events from a single petsys
     file yielding those meeting sm_filter
@@ -98,12 +87,12 @@ def _read_petsys_file(file_name      ,
     with open(file_name, 'rb') as fbuff:
         b_iter = struct.iter_unpack(line_struct, fbuff.read())
         for first_line in b_iter:
-            sm1, sm2 = evt_loop(first_line, b_iter, mod_mapping)
+            sm1, sm2 = evt_loop(first_line, b_iter, type_func)
             if sm_filter(sm1, sm2):
                 yield sm1, sm2
 
 
-def singles_evt_loop(first_line, line_it, mod_mapping):
+def singles_evt_loop(first_line, line_it, type_func):
     """
     Loop through the lines for an event
     of singles data.
@@ -114,10 +103,10 @@ def singles_evt_loop(first_line, line_it, mod_mapping):
     nlines = first_line[0] - 1
     return list(map(unpack_supermodule                          ,
                     chain([first_line], islice(line_it, nlines)),
-                    repeat(mod_mapping)                         )), []
+                    repeat(type_func)                           )), []
 
 
-def coincidences_evt_loop(first_line, line_it, mod_mapping):
+def coincidences_evt_loop(first_line, line_it, type_func):
     """
     Loop through the lines for an event
     of coincidence data.
@@ -129,24 +118,24 @@ def coincidences_evt_loop(first_line, line_it, mod_mapping):
     nlines = first_line[0] + first_line[5] - 2
     for evt in chain([first_line], islice(line_it, nlines)):
         if evt[4] not in ch_sm1:
-            sm1.append(unpack_supermodule(evt[:5], mod_mapping))
+            sm1.append(unpack_supermodule(evt[:5], type_func))
             ch_sm1.add(evt[4])
         if evt[-1] not in ch_sm2:
-            sm2.append(unpack_supermodule(evt[5:], mod_mapping))
+            sm2.append(unpack_supermodule(evt[5:], type_func))
             ch_sm2.add(evt[-1])
     return sm1, sm2
 
 
-def unpack_supermodule(sm_info, mod_mapping):
+def unpack_supermodule(sm_info, type_func):
     """
     For a super module readout line give the
     channel, module, time and energy info.
     """
-    id       =       sm_info[4]
-    mini_mod = mod_mapping[id]
-    tstp     =       sm_info[2]
-    eng      = float(sm_info[3])
-    return [id, mini_mod, tstp, eng]
+    id      =       sm_info[4]
+    ch_type = type_func(id)
+    tstp    =       sm_info[2]
+    eng     = float(sm_info[3])
+    return [id, ch_type, tstp, eng]
 
 
 def _read_yaml_file(mapping_file):
