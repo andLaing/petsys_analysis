@@ -105,13 +105,13 @@ if __name__ == '__main__':
     plotS  = ChannelCal(time_ch, eng_ch)
     plotNS = ChannelCal(time_ch, eng_ch)
     # Maybe a bit dangerous memory wise, review
+    reader = read_petsys_filebyfile(mm_map, sm_filter=filt, singles=True)
     for fn in infiles:
-        reader = read_petsys_filebyfile(fn, mm_map, sm_filter=filt, singles=True)
         print(f'Reading {fn}')
         if 'wo' in fn:
-            num_mmsN = tuple(map(plotNS.add_evt, reader()))
+            num_mmsN = tuple(map(plotNS.add_evt, reader(fn)))
         else:
-            num_mmsS = tuple(map(plotS .add_evt, reader()))
+            num_mmsS = tuple(map(plotS .add_evt, reader(fn)))
     print("First pass complete, mm multiplicities with    Source: ", Counter(num_mmsS))
     print("First pass complete, mm multiplicities without Source: ", Counter(num_mmsN))
 

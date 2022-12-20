@@ -44,16 +44,15 @@ if __name__ == '__main__':
     _, _, mm_map, _, _ = read_ymlmapping('pet_code/test_data/SM_mapping_corrected.yaml')
     #
 
-    eng_ch    = {}
-    evt_filt  = filter_minch(4, eng_ch)
-    reader_s  = read_petsys_filebyfile( s_file, mm_map, sm_filter=evt_filt, singles=True)
-    reader_ns = read_petsys_filebyfile(ns_file, mm_map, sm_filter=evt_filt, singles=True)
+    eng_ch   = {}
+    evt_filt = filter_minch(4, eng_ch)
+    reader   = read_petsys_filebyfile(mm_map, sm_filter=evt_filt, singles=True)
 
     spec_build_s , spec_read_s,        _ = channel_engs()
     spec_build_ns,           _, spec_get = channel_engs()
-    for sm, _ in reader_s():
+    for sm, _ in reader( s_file):
         spec_build_s(sm)
-    for sm, _ in reader_ns():
+    for sm, _ in reader(ns_file):
         spec_build_ns(sm)
     bins    = np.arange(0, 30, 0.2)
     out_dir = 'onco_channel_tests'

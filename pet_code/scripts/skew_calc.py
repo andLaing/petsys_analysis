@@ -124,15 +124,17 @@ def read_and_select(file_list, config):
     min_efit = config.getint('plots', 'min_estats', fallback=100)
 
     all_skews = pd.Series(dtype=float)
+    relax = config.getfloat('filter', 'relax_fact')
+
+    evt_reader = read_petsys_filebyfile(mm_map, evt_filter)
     for fn in file_list:
         print(f'Processing file {fn}', flush=True)
         sm_num, mm_num, source_pos = get_references(fn)
         evt_filter = filter_impacts_specific_mod(sm_num, mm_num, eng_ch, sm1_minch, sm2_minch)
-        evt_reader = read_petsys_filebyfile(fn, mm_map, evt_filter)
         out_base   = os.path.join(outdir, fn.split('/')[-1])
         skew_calc  = get_skew(time_of_flight(source_pos), slab_map, plot_output=out_base)
 
-        sel_evts   = list(map(cal_func, evt_reader()))
+        sel_evts   = list(map(cal_func, evt_reader(fn)))
         print(f'Events read {len(sel_evts)}. Proceeding...', flush=True)
         slab_dicts = slab_energy_centroids(sel_evts, c_calc, time_ch)
 

@@ -39,11 +39,9 @@ def read_petsys(mod_mapping, sm_filter=lambda x, y: True, singles=False):
     return petsys_event
 
 
-def read_petsys_filebyfile(file_name, mod_mapping, sm_filter=lambda x, y: True, singles=False):
+def read_petsys_filebyfile(mod_mapping, sm_filter=lambda x, y: True, singles=False):
     """
     Reader for petsys output for a list of input files.
-    file_name  : String
-                 The path to the file to be read.
     mod_mapping: Lookup table for the channel id
                  to mini module numbering.
     energy_ch  : energy channels.
@@ -56,7 +54,12 @@ def read_petsys_filebyfile(file_name, mod_mapping, sm_filter=lambda x, y: True, 
     line_struct = '<BBqfiBBqfi'
     if singles:
         line_struct = line_struct[:6]
-    def petsys_event():
+    def petsys_event(file_name):
+        """
+        Read a single file:
+        file_name  : String
+                     The path to the file to be read.
+        """
         yield from _read_petsys_file(file_name  ,
                                      line_struct,
                                      mod_mapping,

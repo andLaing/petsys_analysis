@@ -59,8 +59,8 @@ if __name__ == '__main__':
     eng_cal  = conf.get('calibration', 'energy_channels', fallback='')
     cal_func = calibrate_energies(time_ch, eng_ch, time_cal, eng_cal)
 
-    pet_reader      = read_petsys_filebyfile(infile, mm_map, evt_select)
-    filtered_events = [cal_func(tpl) for tpl in pet_reader()]
+    pet_reader      = read_petsys_filebyfile(mm_map, evt_select)
+    filtered_events = [cal_func(tpl) for tpl in pet_reader(infile)]
     end_r           = time.time()
     print("Time enlapsed reading: {} s".format(int(end_r - start)))
     print("length check: ", len(filtered_events))
