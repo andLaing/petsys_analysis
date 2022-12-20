@@ -159,6 +159,17 @@ def test_read_ymlmapping(TEST_DATA_DIR):
     assert all(cent_map[id][0] == 1 for id in all_eng )
     assert all(0 < ppos < 103.6 for _, ppos in cent_map.values())
 
+    mm3_filt = filter(lambda tpl: tpl[0] < FEM_num_ch and tpl[1] == 3, mm_map.items())
+    mm3_ids  = list(map(lambda tpl: tpl[0], mm3_filt))
+    mm3_cent = [cent_map[id] for id in mm3_ids]
+    mm3_minX = 2 * 26.4
+    mm3_maxX = 3 * 26.4
+    assert all([mm3_minX <= xpos < mm3_maxX for _, xpos in filter(lambda tpl: tpl[0] == 0, mm3_cent)])
+    mm3_minY =  78.4
+    mm3_maxY = 103.6
+    assert all([mm3_minY <= ypos < mm3_maxY for _, ypos in filter(lambda tpl: tpl[0] == 1, mm3_cent)])
+    # the min/max values are not completely physical here!
+
     ## Example positions: (id, mm, pos). For now, only time channels.
     exp_pos = [(  0,  5, (38.85, -79.45,   0.0   )), ( 52,  2, (12.95, -75.95,   0.0   )),
                (200, 12, (64.75, -20.95,   0.0   )), (223, 16, (90.65, -14.55,   0.0   )),
