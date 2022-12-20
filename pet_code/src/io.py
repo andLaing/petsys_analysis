@@ -1,13 +1,16 @@
 import struct
 import yaml
 
-import numpy as np
+import numpy  as np
+import pandas as pd
 
 from enum      import auto, Enum
 from itertools import chain, islice, repeat
 
 from . util    import slab_indx, slab_x, slab_y, slab_z
 from . io_util import coinc_evt_loop
+
+from typing import List, Tuple, Union # Once upgraded to python 3.9 not necessary
 
 
 class ChannelType(Enum):
@@ -255,6 +258,49 @@ def read_ymlmapping_brain(mapping_file):
             slab_num += 1
             ## Need to add physical positions!
     return ALLSM_time_ch, ALLSM_energy_ch, mM_mapping, centroid_mapping, slab_positions
+
+
+class ChannelMap:
+    def __init__(self, map_file: str, ch_fem: int = 256) -> None:
+        """
+        Initialize Channel map type reading from feather
+        mapping file with optional setting of channels
+        per FEM.
+        """
+        self.mapping    = pd.read_feather(map_file).set_index('id')
+        if 'gain' not in self.mapping.columns:
+            ## Uncalibrated map.
+            self.mapping['gain'] = 1.0
+        self.ch_per_fem = ch_fem
+
+    def get_channel_type(self, id: int) -> ChannelType:
+        return ChannelType[self.mapping.at[id, 'type']]
+
+    def get_supermodule(self, id: int) -> int:
+        return id // self.ch_per_fem
+
+    def get_minimodule(self, id: int) -> int:
+        return self.mapping.at[id, 'minimodule']
+
+    def get_minimodule_channels(self, sm: int, mm: int) -> np.ndarray:
+        sm_mask = (self.mapping.index >=  sm      * self.ch_per_fem) &\
+                  (self.mapping.index <  (sm + 1) * self.ch_per_fem)
+        return self.mapping.index[sm_mask & (self.mapping.minimodule == mm)].values
+
+    def get_channel_gain(self, id: int) -> float:
+        return self.mapping.at[id, 'gain']
+
+    def get_gains(self, ids: Union[List, Tuple, np.ndarray]) -> np.ndarray:
+        return self.mapping.loc[ids, 'gain'].values
+
+    def get_plot_position(self, id: int) -> float:
+        """
+        Pseudo position for floodmap plotting.
+        """
+        return self.mapping.at[id, 'PLOTP']
+
+    def get_channel_position(self, id: int) -> np.ndarray:
+        return self.mapping.loc[id, ['X', 'Y', 'Z']].values.astype('float')
 
 
 def write_event_trace(file_buffer, centroid_map):
