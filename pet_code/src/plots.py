@@ -58,6 +58,7 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150, bran
         fig, axes = plt.subplots(nrows=4, ncols=4, figsize=(15, 15))
         xfilt = None
         yfilt = None
+        print(module_xye.keys())
         for j, ax in enumerate(axes.flatten()):
             ## mmini-module numbers start at 1
             try:
