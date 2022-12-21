@@ -5,6 +5,7 @@ from numpy.testing import assert_almost_equal
 from . io   import read_ymlmapping
 from . util import c_vac
 from . util import np
+from . util import ChannelType
 from . util import centroid_calculation
 from . util import filter_event_by_impacts
 from . util import filter_impact
@@ -18,20 +19,18 @@ from . util import get_supermodule_eng
 from . util import time_of_flight
 
 
-def test_get_no_eng_channels(TEST_DATA_DIR, DUMMY_SM):
-    test_yml           = os.path.join(TEST_DATA_DIR, "SM_mapping.yaml")
-    _, energy_chid, *_ = read_ymlmapping(test_yml)
+def _enum_dummy(SM):
+    return list(map(lambda imp: [imp[0], ChannelType[imp[1]], imp[2], imp[3]], SM))
 
-    n_eng = get_no_eng_channels(DUMMY_SM, energy_chid)
+
+def test_get_no_eng_channels(DUMMY_SM):
+    n_eng = get_no_eng_channels(_enum_dummy(DUMMY_SM))
     assert n_eng == len(DUMMY_SM)
 
 
-def test_get_supermodule_eng(TEST_DATA_DIR, DUMMY_SM):
-    test_yml           = os.path.join(TEST_DATA_DIR, "SM_mapping.yaml")
-    _, energy_chid, *_ = read_ymlmapping(test_yml)
-
+def test_get_supermodule_eng(DUMMY_SM):
     expected_eng   = sum(x[3] for x in DUMMY_SM)
-    n_eng, tot_eng = get_supermodule_eng(DUMMY_SM, energy_chid)
+    n_eng, tot_eng = get_supermodule_eng(_enum_dummy(DUMMY_SM))
     assert n_eng == len(DUMMY_SM)
     assert_almost_equal(tot_eng, expected_eng, decimal=5)
 
