@@ -141,7 +141,7 @@ def read_and_select(file_list, config):
         photo_peak = list(map(slab_energy_spectra, slab_dicts,
                               repeat(None), repeat(min_efit), repeat(ebins)))
 
-        deltat_df = pd.DataFrame(group_times_list(sel_evts, photo_peak, time_ch, sm_num),
+        deltat_df = pd.DataFrame(group_times_list(sel_evts, photo_peak, sm_num),
                                  columns=['ref_ch', 'coinc_ch', 'coinc_tstp', 'ref_tstp'])
         deltat_df.to_pickle(out_base.replace('.ldat', '_dtFrame.pkl'))
         print(f'Time DataFrame output for {out_base}', flush=True)

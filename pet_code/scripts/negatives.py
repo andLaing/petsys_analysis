@@ -4,6 +4,7 @@ import numpy as np
 
 from pet_code.src.io   import read_petsys_filebyfile
 from pet_code.src.io   import read_ymlmapping
+from pet_code.src.util import ChannelType
 from pet_code.src.util import filter_event_by_impacts
 from pet_code.src.util import select_max_energy
 
@@ -13,8 +14,8 @@ def print_info(all_channels, neg_channels, time_ch, eng_ch):
     total_chan = len(all_channels)
     total_time = sum(x[0] in time_ch for x in all_channels)
     nMM        = len(set(x[1] for x in all_channels))
-    max_time   = select_max_energy(all_channels, time_ch)
-    max_eng    = select_max_energy(all_channels,  eng_ch)
+    max_time   = select_max_energy(all_channels, ChannelType.TIME  )
+    max_eng    = select_max_energy(all_channels, ChannelType.ENERGY)
     neg_ids    = [x[0] for x in neg_channels]
     neg_engs   = [x[3] for x in neg_channels]
     time_neg   = sum(x[0] in time_ch for x in neg_channels)

@@ -4,6 +4,7 @@ from . fits import fit_gaussian
 from . util import get_supermodule_eng
 from . util import np
 from . util import pd
+from . util import ChannelType
 from . util import select_energy_range
 from . util import select_max_energy
 
@@ -166,7 +167,7 @@ def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150, bins=np.arange
     return photo_peak
 
 
-def group_times(filtered_events, peak_select, mm_map, eng_ch, time_ch, ref_indx):
+def group_times(filtered_events, peak_select, mm_map, ref_indx):
     """
     Group the first time signals for each slab
     in a reference super module with all slabs
@@ -178,10 +179,6 @@ def group_times(filtered_events, peak_select, mm_map, eng_ch, time_ch, ref_indx)
                     Energy filter functions for each minimodule
     mm_map        : Callable
                     Maps channel id to minimodule number.
-    eng_ch        : Set
-                    Set of all channels for energy measurement.
-    time_ch       : Set
-                    Set of all channels for time measurement.
     ref_indx      : int
                     Index (0 or 1) of the reference SM.
     returns
@@ -201,11 +198,11 @@ def group_times(filtered_events, peak_select, mm_map, eng_ch, time_ch, ref_indx)
         _, e2 = get_supermodule_eng(sm2)
         if peak_select[0][mm1-1](e1) and peak_select[1][mm2-1](e2):
             try:
-                min_ch[0] = select_max_energy(sm1, time_ch)
+                min_ch[0] = select_max_energy(sm1, ChannelType.TIME)
             except ValueError:
                 continue
             try:
-                min_ch[1] = select_max_energy(sm2, time_ch)
+                min_ch[1] = select_max_energy(sm2, ChannelType.TIME)
             except ValueError:
                 continue
             ## Want to know the two channel numbers and timestamps.
@@ -222,7 +219,7 @@ def group_times(filtered_events, peak_select, mm_map, eng_ch, time_ch, ref_indx)
     return reco_dt
 
 
-def group_times_slab(filtered_events, peak_select, time_ch, ref_indx):
+def group_times_slab(filtered_events, peak_select, ref_indx):
     """
     Group the first time signals for each slab
     in a reference super module with all slabs
@@ -234,8 +231,6 @@ def group_times_slab(filtered_events, peak_select, time_ch, ref_indx):
                     ([[id, mm, tstp, eng], ...], [...])
     peak_select   : List of Dicts
                     Energy filter functions for each minimodule
-    time_ch       : Set
-                    Set of all channels for time measurement.
     ref_indx      : int
                     Index (0 or 1) of the reference SM.
     returns
@@ -247,11 +242,11 @@ def group_times_slab(filtered_events, peak_select, time_ch, ref_indx):
     min_ch   = [0, 0]
     for sm1, sm2 in filtered_events:
         try:
-            min_ch[0] = select_max_energy(sm1, time_ch)
+            min_ch[0] = select_max_energy(sm1, ChannelType.TIME)
         except ValueError:
             continue
         try:
-            min_ch[1] = select_max_energy(sm2, time_ch)
+            min_ch[1] = select_max_energy(sm2, ChannelType.TIME)
         except ValueError:
             continue
         if peak_select[0][min_ch[0][0]](min_ch[0][3]) and\
@@ -270,11 +265,11 @@ def group_times_slab(filtered_events, peak_select, time_ch, ref_indx):
     return reco_dt
 
 
-def group_times_list(filtered_events, peaks, time_ch, ref_indx):
+def group_times_list(filtered_events, peaks, ref_indx):
     coinc_indx = 0 if ref_indx == 1 else 1
     def get_times(evt):
         try:
-            chns = list(map(select_max_energy, evt, [time_ch] * 2))
+            chns = list(map(select_max_energy, evt, [ChannelType.TIME] * 2))
         except ValueError:
             return
         if peaks[0][chns[0][0]](chns[0][3]) and peaks[1][chns[1][0]](chns[1][3]):

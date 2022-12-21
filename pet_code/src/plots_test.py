@@ -91,15 +91,15 @@ def enum_channels(SM):
 
 
 def test_group_times(TEST_DATA_DIR, DUMMY_EVT):
-    test_yml            = os.path.join(TEST_DATA_DIR, "SM_mapping.yaml")
-    time_ch, eng_ch, mm_map, *_ = read_ymlmapping(test_yml)
+    test_yml         = os.path.join(TEST_DATA_DIR, "SM_mapping.yaml")
+    _, _, mm_map, *_ = read_ymlmapping(test_yml)
 
     dummy_with_enum = tuple(map(enum_channels, DUMMY_EVT))
     # Dummy peak filters
     peak_sel = [[lambda x: (x >  50) & (x <  60) for _ in range(10)],
                 [lambda x: (x > 100) & (x < 110) for _ in range(10)]]
     
-    reco_dt  = group_times([dummy_with_enum], peak_sel, lambda id: mm_map[id], eng_ch, time_ch, 1)
+    reco_dt  = group_times([dummy_with_enum], peak_sel, lambda id: mm_map[id], 1)
 
     assert len(reco_dt) == 1
     k, times = next(iter(reco_dt.items()))
@@ -114,9 +114,8 @@ def test_group_times(TEST_DATA_DIR, DUMMY_EVT):
     assert times[0][2] - times[0][1] == -15
 
 
-def test_group_times_slab(TEST_DATA_DIR, DUMMY_EVT):
-    test_yml    = os.path.join(TEST_DATA_DIR, "SM_mapping.yaml")
-    time_ch, *_ = read_ymlmapping(test_yml)
+def test_group_times_slab(DUMMY_EVT):
+    dummy_with_enum = tuple(map(enum_channels, DUMMY_EVT))
 
     # Dummy peak filters.
     peak_sel = [{682: lambda x: (x >  5) & (x <  7),
@@ -124,7 +123,7 @@ def test_group_times_slab(TEST_DATA_DIR, DUMMY_EVT):
                 { 64: lambda x: (x > 12) & (x < 14),
                   65: lambda x: (x > 12) & (x < 14)}]
 
-    reco_dt = group_times_slab([DUMMY_EVT], peak_sel, time_ch, 1)
+    reco_dt = group_times_slab([dummy_with_enum], peak_sel, 1)
 
     assert len(reco_dt) == 1
     k, times = next(iter(reco_dt.items()))
@@ -139,9 +138,8 @@ def test_group_times_slab(TEST_DATA_DIR, DUMMY_EVT):
     assert times[0][2] - times[0][1] == -15
 
 
-def test_group_times_list(TEST_DATA_DIR, DUMMY_EVT):
-    test_yml    = os.path.join(TEST_DATA_DIR, "SM_mapping.yaml")
-    time_ch, *_ = read_ymlmapping(test_yml)
+def test_group_times_list(DUMMY_EVT):
+    dummy_with_enum = tuple(map(enum_channels, DUMMY_EVT))
 
     # Dummy peak filters.
     peak_sel = [{682: lambda x: (x >  5) & (x <  7),
@@ -149,7 +147,7 @@ def test_group_times_list(TEST_DATA_DIR, DUMMY_EVT):
                 { 64: lambda x: (x > 12) & (x < 14),
                   65: lambda x: (x > 12) & (x < 14)}]
 
-    reco_dt = group_times_list([DUMMY_EVT], peak_sel, time_ch, 1)
+    reco_dt = group_times_list([dummy_with_enum], peak_sel, 1)
 
     assert len(reco_dt) == 1
     times0 = reco_dt[0]

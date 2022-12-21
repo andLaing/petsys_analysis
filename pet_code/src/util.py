@@ -299,17 +299,17 @@ def get_absolute_id(portID, slaveID, chipID, channelID):
     return 131072 * portID + 4096 * slaveID + 64 * chipID + channelID
 
 
-def select_max_energy(superm, channels=None):
+def select_max_energy(superm, chan_type=None):
     """
     Select the channel with highest deposit.
-    superm   : List
+    superm    : List
                List of impacts with [id, mm, time, eng]
-    channels : set
-               The channels to be compared.
+    chan_type : Optional ChannelType
+                The channel type to be compared.
     """
-    if channels is None:
+    if chan_type is None:
         return max(superm, key=lambda x: x[3])
-    return max(filter(lambda x: x[0] in channels, superm), key=lambda y: y[3])
+    return max(filter(lambda x: x[1] is chan_type, superm), key=lambda y: y[3])
 
 
 def shift_to_centres(bin_low_edge):
