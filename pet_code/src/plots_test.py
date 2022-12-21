@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 
 from . io    import read_ymlmapping
 from . util  import np
+from . util  import ChannelType
 
 from . plots import hist1d
 from . plots import group_times
@@ -85,15 +86,20 @@ def test_slab_energy_spectra_plots(TMP_OUT):
     assert all(os.path.isfile(plot_name.format(k)) for k in slab_eng.keys())
 
 
+def enum_channels(SM):
+    return list(map(lambda imp: [imp[0], ChannelType[imp[1]], imp[2], imp[3]], SM))
+
+
 def test_group_times(TEST_DATA_DIR, DUMMY_EVT):
     test_yml            = os.path.join(TEST_DATA_DIR, "SM_mapping.yaml")
-    time_ch, eng_ch, *_ = read_ymlmapping(test_yml)
+    time_ch, eng_ch, mm_map, *_ = read_ymlmapping(test_yml)
 
+    dummy_with_enum = tuple(map(enum_channels, DUMMY_EVT))
     # Dummy peak filters
     peak_sel = [[lambda x: (x >  50) & (x <  60) for _ in range(10)],
                 [lambda x: (x > 100) & (x < 110) for _ in range(10)]]
     
-    reco_dt  = group_times([DUMMY_EVT], peak_sel, eng_ch, time_ch, 1)
+    reco_dt  = group_times([dummy_with_enum], peak_sel, lambda id: mm_map[id], eng_ch, time_ch, 1)
 
     assert len(reco_dt) == 1
     k, times = next(iter(reco_dt.items()))

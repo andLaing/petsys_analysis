@@ -166,7 +166,7 @@ def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150, bins=np.arange
     return photo_peak
 
 
-def group_times(filtered_events, peak_select, eng_ch, time_ch, ref_indx):
+def group_times(filtered_events, peak_select, mm_map, eng_ch, time_ch, ref_indx):
     """
     Group the first time signals for each slab
     in a reference super module with all slabs
@@ -176,6 +176,8 @@ def group_times(filtered_events, peak_select, eng_ch, time_ch, ref_indx):
                     ([[id, mm, tstp, eng], ...], [...])
     peak_select   : List of Lists
                     Energy filter functions for each minimodule
+    mm_map        : Callable
+                    Maps channel id to minimodule number.
     eng_ch        : Set
                     Set of all channels for energy measurement.
     time_ch       : Set
@@ -193,10 +195,10 @@ def group_times(filtered_events, peak_select, eng_ch, time_ch, ref_indx):
     coinc_sm = 0 if ref_indx == 1 else 1
     min_ch   = [0, 0]
     for sm1, sm2 in filtered_events:
-        mm1   = sm1[0][1]
-        _, e1 = get_supermodule_eng(sm1, eng_ch)
-        mm2   = sm2[0][1]
-        _, e2 = get_supermodule_eng(sm2, eng_ch)
+        mm1   = mm_map(sm1[0][0])
+        _, e1 = get_supermodule_eng(sm1)
+        mm2   = mm_map(sm2[0][0])
+        _, e2 = get_supermodule_eng(sm2)
         if peak_select[0][mm1-1](e1) and peak_select[1][mm2-1](e2):
             try:
                 min_ch[0] = select_max_energy(sm1, time_ch)
