@@ -249,11 +249,14 @@ def test_ChannelMap(TEST_DATA_DIR):
 
 def test_write_event_trace(TEST_DATA_DIR, TMP_OUT, DUMMY_SM):
     test_yml         = os.path.join(TEST_DATA_DIR, "SM_mapping.yaml")
-    *_, centroid_map, _ = read_ymlmapping(test_yml)
+    *_, mm_map, centroid_map, _ = read_ymlmapping(test_yml)
+
+    def mm_map_f(id):
+        return mm_map[id]
 
     tmp_out = os.path.join(TMP_OUT, 'first_test.txt')
     with open(tmp_out, 'w') as out_buf:
-        writer = write_event_trace(out_buf, centroid_map)
+        writer = write_event_trace(out_buf, centroid_map, mm_map_f)
         writer(DUMMY_SM)
 
     with open(tmp_out) as txt_test:
