@@ -65,37 +65,38 @@ def test_centroid_calculation(TEST_DATA_DIR, DUMMY_SM):
     assert_almost_equal(tot_eng, expected_eng, decimal=5)
 
 
-def test_filter_impact(TEST_DATA_DIR, DUMMY_SM):
-    test_yml           = os.path.join(TEST_DATA_DIR, "SM_mapping.yaml")
-    _, energy_chid, *_ = read_ymlmapping(test_yml)
-
-    impact_filter = filter_impact(4, energy_chid)
+def test_filter_impact(DUMMY_SM):
+    impact_filter = filter_impact(4)
     ## The dummy event is all energy so not expected to pass. Improve test?
-    assert not impact_filter(DUMMY_SM)
+    assert not impact_filter(_enum_dummy(DUMMY_SM))
 
 
-def test_filter_multihit(DUMMY_SM):
-    assert filter_multihit(DUMMY_SM)
-
-
-def test_filter_event_by_impacts(TEST_DATA_DIR, DUMMY_EVT):
+def test_filter_multihit(TEST_DATA_DIR, DUMMY_SM):
     test_yml           = os.path.join(TEST_DATA_DIR, "SM_mapping.yaml")
-    _, energy_chid, *_ = read_ymlmapping(test_yml)
-
-    evt_select = filter_event_by_impacts(energy_chid, 5, 4)
-    assert evt_select(*DUMMY_EVT)
+    _, _, mm_map, *_ = read_ymlmapping(test_yml)
+    assert filter_multihit(DUMMY_SM, lambda id: mm_map[id])
 
 
-def test_filter_one_minimod(DUMMY_EVT):
-    assert not filter_one_minimod(*DUMMY_EVT)
+def test_filter_event_by_impacts(DUMMY_EVT):
+    evt_select      = filter_event_by_impacts(5, 4)
+    dummy_with_enum = tuple(map(_enum_dummy, DUMMY_EVT))
+    assert evt_select(*dummy_with_enum)
+
+
+def test_filter_one_minimod(TEST_DATA_DIR, DUMMY_EVT):
+    test_yml           = os.path.join(TEST_DATA_DIR, "SM_mapping.yaml")
+    _, _, mm_map, *_ = read_ymlmapping(test_yml)
+    dummy_with_enum = tuple(map(_enum_dummy, DUMMY_EVT))
+    assert not filter_one_minimod(*dummy_with_enum, lambda id: mm_map[id])
 
 
 def test_filter_impacts_one_minimod(TEST_DATA_DIR, DUMMY_EVT):
     test_yml           = os.path.join(TEST_DATA_DIR, "SM_mapping.yaml")
-    _, energy_chid, *_ = read_ymlmapping(test_yml)
+    _, _, mm_map, *_ = read_ymlmapping(test_yml)
 
-    evt_select = filter_impacts_one_minimod(energy_chid, 5, 4)
-    assert not evt_select(*DUMMY_EVT)
+    evt_select = filter_impacts_one_minimod(5, 4, lambda id: mm_map[id])
+    dummy_with_enum = tuple(map(_enum_dummy, DUMMY_EVT))
+    assert not evt_select(*dummy_with_enum)
 
 
 def test_time_of_flight(TEST_DATA_DIR):
