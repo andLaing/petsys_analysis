@@ -262,7 +262,7 @@ def filter_event_by_impacts_noneg(min_sm1, min_sm2, singles=False):
 ## End filters (examples)
 
 
-def select_module(sm_info, mm_map):
+def select_module(sm_info):
     """
     Select the mini module with
     highest energy in a SM.
@@ -340,7 +340,7 @@ def time_of_flight(source_pos):
     return flight_time
 
 
-def mm_energy_centroids(events, c_calc, eng_ch, mod_sel=lambda sm: sm):
+def mm_energy_centroids(events, c_calc, mod_sel=lambda sm: sm):
     """
     Calculate centroid and energy for
     mini modules per event assuming
@@ -349,7 +349,7 @@ def mm_energy_centroids(events, c_calc, eng_ch, mod_sel=lambda sm: sm):
     mod_dicts = [{}, {}]
     for evt in events:
         sel_evt = tuple(map(mod_sel, evt))
-        for i, ((x, y, _), (_, eng)) in enumerate(zip(map(c_calc, sel_evt), map(get_supermodule_eng, sel_evt, repeat(eng_ch)))):
+        for i, ((x, y, _), (_, eng)) in enumerate(zip(map(c_calc, sel_evt), map(get_supermodule_eng, sel_evt))):
             if evt[i]:
                 mm = evt[i][0][1]
                 try:
