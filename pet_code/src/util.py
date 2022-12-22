@@ -30,7 +30,7 @@ def get_supermodule_eng(mod_data):
     return len(eng_ch), sum(hit[3] for hit in eng_ch)
 
 
-def centroid_calculation(centroid_map, offset_x=0.00001, offset_y=0.00001):
+def centroid_calculation(channel_map, offset_x=0.00001, offset_y=0.00001):
     """
     Calculates the centroid of a set of module
     data according to a centroid map.
@@ -46,7 +46,8 @@ def centroid_calculation(centroid_map, offset_x=0.00001, offset_y=0.00001):
         sums    = [0.0, 0.0]
         weights = [0.0, 0.0]
         for imp in data:
-            en_t, pos      = centroid_map[imp[0]]
+            en_t           = channel_map.get_channel_type (imp[0]).value - 1
+            pos            = channel_map.get_plot_position(imp[0])
             weight         = (imp[3] + offsets[en_t])**powers[en_t]
             sums   [en_t] += weight * pos
             weights[en_t] += weight

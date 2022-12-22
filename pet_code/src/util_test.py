@@ -1,8 +1,10 @@
 import os
 
+from pytest        import mark
 from numpy.testing import assert_almost_equal
 
 from . io   import read_ymlmapping
+from . io   import ChannelMap
 from . util import c_vac
 from . util import np
 from . util import ChannelType
@@ -51,18 +53,19 @@ def test_get_electronics_nums():
     assert all([x == y for x, y in zip(results, exp_nums)])
 
 
+@mark.filterwarnings("ignore:Imported map")
 def test_centroid_calculation(TEST_DATA_DIR, DUMMY_SM):
-    test_yml            = os.path.join(TEST_DATA_DIR, "SM_mapping.yaml")
-    *_, centroid_map, _ = read_ymlmapping(test_yml)
+    test_mapping = os.path.join(TEST_DATA_DIR, "twoSM_IMAS_map.feather")
+    channel_map  = ChannelMap(test_mapping)
 
-    centroid = centroid_calculation(centroid_map)
+    centroid                     = centroid_calculation(channel_map)
     time_mean, eng_mean, tot_eng = centroid(DUMMY_SM)
 
     ## DUMMY not ideal as 100% energy channels, to be improved.
     expected_eng = sum((x[3] + 0.00001)**2 for x in DUMMY_SM)
     assert time_mean == 0.0
-    assert_almost_equal(eng_mean, 40.00842, decimal=5)
-    assert_almost_equal(tot_eng, expected_eng, decimal=5)
+    assert_almost_equal(eng_mean,     43.20841, decimal=5)
+    assert_almost_equal(tot_eng , expected_eng, decimal=5)
 
 
 def test_filter_impact(DUMMY_SM):
