@@ -17,6 +17,7 @@ import configparser
 from docopt    import docopt
 from itertools import repeat
 
+from pet_code.src.io    import ChannelMap
 from pet_code.src.io    import read_petsys_filebyfile
 from pet_code.src.io    import read_ymlmapping
 from pet_code.src.plots import mm_energy_spectra
@@ -39,43 +40,37 @@ if __name__ == '__main__':
     map_file = conf.get('mapping', 'map_file')#'pet_code/test_data/SM_mapping_corrected.yaml' # shouldn't be hardwired
     infile   = args['INFILE']
 
-    time_ch, eng_ch, mm_map, centroid_map, slab_map = read_ymlmapping(map_file)
+    # time_ch, eng_ch, mm_map, centroid_map, slab_map = read_ymlmapping(map_file)
+    chan_map  = ChannelMap(map_file)
     filt_type = conf.get('filter', 'type', fallback='Impacts')
     # Should improve with an enum or something
     if 'Impacts'  in filt_type:
         min_chan   = tuple(map(int, conf.get('filter', 'min_channels').split(',')))
-        evt_select = filter_event_by_impacts(eng_ch, *min_chan)
+        evt_select = filter_event_by_impacts(*min_chan)
     elif 'OneMod' in filt_type:
         min_chan   = tuple(map(int, conf.get('filter', 'min_channels').split(',')))
-        evt_select = filter_impacts_one_minimod(eng_ch, *min_chan)
+        evt_select = filter_impacts_one_minimod(*min_chan, chan_map.get_minimodule)
     elif 'NoNeg'  in filt_type:
         min_chan   = tuple(map(int, conf.get('filter', 'min_channels').split(',')))
-        evt_select = filter_event_by_impacts_noneg(eng_ch, *min_chan)
+        evt_select = filter_event_by_impacts_noneg(*min_chan)
     else:
         print('No valid filter found, fallback to 4, 4 minimum energy channels')
-        evt_select = filter_event_by_impacts(eng_ch, 4, 4)
+        evt_select = filter_event_by_impacts(4, 4)
 
     time_cal = conf.get('calibration',   'time_channels', fallback='')
     eng_cal  = conf.get('calibration', 'energy_channels', fallback='')
-    cal_func = calibrate_energies(time_ch, eng_ch, time_cal, eng_cal)
+    cal_func = calibrate_energies(chan_map.get_chantype_ids, time_cal, eng_cal)
 
-    pet_reader      = read_petsys_filebyfile(mm_map, evt_select)
+    pet_reader      = read_petsys_filebyfile(chan_map.get_channel_type, evt_select)
     filtered_events = list(map(cal_func, pet_reader(infile)))
     end_r           = time.time()
     print("Time enlapsed reading: {} s".format(int(end_r - start)))
     print("length check: ", len(filtered_events))
     ## Should we be filtering the events with multiple mini-modules in one sm?
-    c_calc = centroid_calculation(centroid_map)
+    c_calc = centroid_calculation(chan_map)
     # ## Must be a better way but...
-    if conf.getboolean('filter', 'sel_max_mm'):
-        def wrap_mmsel(eng_ch):
-            def sel(sm):
-                return select_module(sm, eng_ch)
-            return sel
-        msel = wrap_mmsel(eng_ch)
-    else:
-        msel = lambda x: x
-    mod_dicts = mm_energy_centroids(filtered_events, c_calc, eng_ch, mod_sel=msel)
+    max_sel   = select_module if conf.getboolean('filter', 'sel_max_mm') else lambda x: x
+    mod_dicts = mm_energy_centroids(filtered_events, c_calc, mod_sel=max_sel)
 
     out_dir    = conf.get('output', 'out_dir')
     if not os.path.isdir(out_dir):
