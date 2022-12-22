@@ -401,11 +401,12 @@ def slab_energy_centroids(events, c_calc, time_ch):
     return slab_dicts
 
 
-def calibrate_energies(time_ch, eng_ch, time_cal, eng_cal):
+def calibrate_energies(type_ids, time_cal, eng_cal):
     """
     Equalize the energy for the channels
     given the peak positions in a file (for now)
     for time channels and energy channels.
+    OBSOLETE??
     """
     if not time_cal and not eng_cal:
         # No calibration.
@@ -416,7 +417,7 @@ def calibrate_energies(time_ch, eng_ch, time_cal, eng_cal):
         # time calibrated relative to 511 keV peak
         tcal    = pd.read_csv(time_cal, sep='\t ').set_index('ID')['MU'].apply(lambda x: 511 / x)
     else:
-        tcal    = pd.Series(1, index=time_ch)
+        tcal    = pd.Series(1, index=type_ids(ChannelType.TIME))
     if eng_cal:
         # Need to fix file format to remove space
         # Energy channels calibrated relative to mean. Maybe unstable between calibrations, review.
@@ -424,7 +425,7 @@ def calibrate_energies(time_ch, eng_ch, time_cal, eng_cal):
         mu_mean = np.mean(ecal)
         ecal    = ecal.apply(lambda x: mu_mean / x)
     else:
-        ecal    = pd.Series(1, index=eng_ch)
+        ecal    = pd.Series(1, index=type_ids(ChannelType.ENERGY))
 
     cal = tcal.append(ecal).to_dict()
     def apply_calibration(event):
