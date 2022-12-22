@@ -225,7 +225,8 @@ def test_nonyml_raises(TMP_TXT):
 def test_ChannelMap(TEST_DATA_DIR):
     test_map = os.path.join(TEST_DATA_DIR, "twoSM_IMAS_map.feather")
 
-    ch_map = ChannelMap(test_map)
+    with pytest.warns(UserWarning):
+        ch_map = ChannelMap(test_map)
 
     t_chans = [(  0,  5, (38.85, -79.45,   0.0   )), ( 52,  2, (12.95, -75.95,   0.0   )),
                (200, 12, (64.75, -20.95,   0.0   )), (223, 16, (90.65, -14.55,   0.0   )),
@@ -236,6 +237,7 @@ def test_ChannelMap(TEST_DATA_DIR):
     assert all(ch_map.get_supermodule (id) ==  2 for id, *_    in t_chans[4: ])
     assert all(ch_map.get_minimodule  (id) == mm for id, mm, _ in t_chans)
     assert all(np.allclose(ch_map.get_channel_position(id), pos) for id, _, pos in t_chans)
+
     e_chans = [(  1,  6, (37.25, -64.75,   0.0   )), ( 53,  2, (24.15, -64.75,   0.0   )),
                (201, 11, (53.55, -38.85,   0.0   )), (229, 16, (79.45, -12.95,   0.0   )),
                (515,  6, (40.45, -38.85, 123.7971)), (572,  6, (27.65, -38.85, 123.7971)),

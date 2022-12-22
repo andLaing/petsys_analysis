@@ -5,6 +5,7 @@ import numpy  as np
 import pandas as pd
 
 from itertools import chain, islice, repeat
+from warnings  import warn
 
 from . util    import ChannelType
 from . util    import slab_indx, slab_x, slab_y, slab_z
@@ -250,15 +251,25 @@ class ChannelMap:
         Initialize Channel map type reading from feather
         mapping file with optional setting of channels
         per FEM.
+        map_file : str
+                   Name of mapping file to be used.
+        ch_fem   : int
+                   Number of channels per Supermodule.
         """
-        self.mapping    = pd.read_feather(map_file).set_index('id')
+        self.ch_per_fem      = ch_fem
+        self.mapping         = pd.read_feather(map_file).set_index('id')
+        self.mapping['type'] = self.mapping.type.map(lambda x: ChannelType[x])
         if 'gain' not in self.mapping.columns:
             ## Uncalibrated map.
+            warn('Imported map does not contain gains. Defaulting to uncalibrated.')
             self.mapping['gain'] = 1.0
-        self.ch_per_fem = ch_fem
 
     def get_channel_type(self, id: int) -> ChannelType:
-        return ChannelType[self.mapping.at[id, 'type']]
+        return self.mapping.at[id, 'type']
+
+    def get_chantype_ids(self, chan_type: ChannelType) -> np.ndarray:
+        sel_channels = self.mapping.type.map(lambda t: t is chan_type)
+        return self.mapping.index[sel_channels].values
 
     def get_supermodule(self, id: int) -> int:
         return id // self.ch_per_fem
