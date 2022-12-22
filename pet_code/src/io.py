@@ -14,11 +14,11 @@ from . io_util import coinc_evt_loop
 from typing import List, Tuple, Union # Once upgraded to python 3.9 not necessary
 
 
-def read_petsys(type_func, sm_filter=lambda x, y: True, singles=False):
+def read_petsys(type_dict, sm_filter=lambda x, y: True, singles=False):
     """
     Reader for petsys output for a list of input files.
     All files yielded in single generator.
-    type_func : Lookup function for the channel id
+    type_dict : Lookup for the channel id
                 to ChannelType.
     singles   : Is the file singles mode? default False.
     sm_filter : Function taking a tuple of sm to filter the module data.
@@ -32,14 +32,14 @@ def read_petsys(type_func, sm_filter=lambda x, y: True, singles=False):
                    List of strings with the paths to the files of interest.
         """
         for fn in file_list:
-            yield from _read_petsys_file(fn, type_func, sm_filter, singles)
+            yield from _read_petsys_file(fn, type_dict, sm_filter, singles)
     return petsys_event
 
 
-def read_petsys_filebyfile(type_func, sm_filter=lambda x, y: True, singles=False):
+def read_petsys_filebyfile(type_dict, sm_filter=lambda x, y: True, singles=False):
     """
     Reader for petsys output for a list of input files.
-    type_func : Lookup function for the channel id
+    type_dict : Lookup for the channel id
                 to ChannelType.
     singles   : Is the file singles mode? default False.
     sm_filter : Function taking a tuple of smto filter the module data.
@@ -53,11 +53,11 @@ def read_petsys_filebyfile(type_func, sm_filter=lambda x, y: True, singles=False
         file_name  : String
                      The path to the file to be read.
         """
-        yield from _read_petsys_file(file_name, type_func, sm_filter, singles)
+        yield from _read_petsys_file(file_name, type_dict, sm_filter, singles)
     return petsys_event
 
 
-def read_petsys_singles(file_name, type_func):
+def read_petsys_singles(file_name, type_dict):
     """
     Read a petsys singles mode file which
     contains only channel by channel time
@@ -65,7 +65,7 @@ def read_petsys_singles(file_name, type_func):
     nor coincidence grouping.
     file_name : String
                 ldat file name with petsys singles
-    type_func : Lookup function for the channel id
+    type_dict : Lookup for the channel id
                 to ChannelType.
     returns a generator for line info [id, mm, tstp, eng]
     """
@@ -73,11 +73,11 @@ def read_petsys_singles(file_name, type_func):
     def petsys_event():
         with open(file_name, 'rb') as fbuff:
             for line in struct.iter_unpack(line_struct, fbuff.read()):
-                yield line[2], type_func(line[2]), line[0], line[1]
+                yield line[2], type_dict[line[2]], line[0], line[1]
     return petsys_event
 
 
-def _read_petsys_file(file_name, type_func, sm_filter, singles=False):
+def _read_petsys_file(file_name, type_dict, sm_filter, singles=False):
     """
     Read all events from a single petsys
     file yielding those meeting sm_filter
@@ -88,12 +88,12 @@ def _read_petsys_file(file_name, type_func, sm_filter, singles=False):
     with open(file_name, 'rb') as fbuff:
         b_iter = struct.iter_unpack(line_struct, fbuff.read())
         for first_line in b_iter:
-            sm1, sm2 = evt_loop(first_line, b_iter, type_func)
+            sm1, sm2 = evt_loop(first_line, b_iter, type_dict)
             if sm_filter(sm1, sm2):
                 yield sm1, sm2
 
 
-def singles_evt_loop(first_line, line_it, type_func):
+def singles_evt_loop(first_line, line_it, type_dict):
     """
     Loop through the lines for an event
     of singles data.
@@ -104,10 +104,10 @@ def singles_evt_loop(first_line, line_it, type_func):
     nlines = first_line[0] - 1
     return list(map(unpack_supermodule                          ,
                     chain([first_line], islice(line_it, nlines)),
-                    repeat(type_func)                           )), []
+                    repeat(type_dict)                           )), []
 
 
-def coincidences_evt_loop(first_line, line_it, type_func):
+def coincidences_evt_loop(first_line, line_it, type_dict):
     """
     Loop through the lines for an event
     of coincidence data.
@@ -119,21 +119,21 @@ def coincidences_evt_loop(first_line, line_it, type_func):
     nlines = first_line[0] + first_line[5] - 2
     for evt in chain([first_line], islice(line_it, nlines)):
         if evt[4] not in ch_sm1:
-            sm1.append(unpack_supermodule(evt[:5], type_func))
+            sm1.append(unpack_supermodule(evt[:5], type_dict))
             ch_sm1.add(evt[4])
         if evt[-1] not in ch_sm2:
-            sm2.append(unpack_supermodule(evt[5:], type_func))
+            sm2.append(unpack_supermodule(evt[5:], type_dict))
             ch_sm2.add(evt[-1])
     return sm1, sm2
 
 
-def unpack_supermodule(sm_info, type_func):
+def unpack_supermodule(sm_info, type_dict):
     """
     For a super module readout line give the
     channel, module, time and energy info.
     """
     id      =       sm_info[4]
-    ch_type = type_func(id)
+    ch_type = type_dict[id]
     tstp    =       sm_info[2]
     eng     = float(sm_info[3])
     return [id, ch_type, tstp, eng]
@@ -263,6 +263,7 @@ class ChannelMap:
             ## Uncalibrated map.
             warn('Imported map does not contain gains. Defaulting to uncalibrated.')
             self.mapping['gain'] = 1.0
+        self.ch_type = self.mapping.type.to_dict()
 
     def get_channel_type(self, id: int) -> ChannelType:
         return self.mapping.at[id, 'type']

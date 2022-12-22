@@ -68,14 +68,14 @@ def module_mapping():
         return mapping[id]
     def get_map_keys():
         return mapping.keys()
-    return get_chtype, get_mm, get_map_keys
+    return ch_types, get_mm, get_map_keys
 
 
 def test_read_petsys(TEST_DATA_DIR, module_mapping):
-    type_func, _, map_keys = module_mapping
+    type_dict, _, map_keys = module_mapping
     infile = os.path.join(TEST_DATA_DIR,
                           "petsys_test_TB_SMGathered_120s_4.0OV_10T1_15T2_5E_coinc.ldat")
-    pet_reader = read_petsys(type_func)
+    pet_reader = read_petsys(type_dict)
     all_evts = [evt for evt in pet_reader([infile])]
 
     assert len(all_evts) == 20
@@ -87,18 +87,18 @@ def test_read_petsys(TEST_DATA_DIR, module_mapping):
     ids2 = [x[0] for evt in all_evts for x in evt[1]]
     assert set(ids1).issubset(map_keys())
     assert set(ids2).issubset(map_keys())
-    assert all(x[1] is type_func(x[0]) for evt in all_evts for sm in evt for x in sm)
+    assert all(x[1] is type_dict[x[0]] for evt in all_evts for sm in evt for x in sm)
     # Check energy and timestamp?
 
 
 def test_read_petsys_mod1(TEST_DATA_DIR, module_mapping):
-    type_func, get_mm, _ = module_mapping
+    type_dict, get_mm, _ = module_mapping
     infile = os.path.join(TEST_DATA_DIR,
                           "petsys_test_TB_SMGathered_120s_4.0OV_10T1_15T2_5E_coinc.ldat")
     def filt_one_mod(sm1, _):
         mms = np.fromiter(map(lambda x: get_mm(x[0]), sm1), int)
         return all(mms == 9)
-    pet_reader = read_petsys(type_func, filt_one_mod)
+    pet_reader = read_petsys(type_dict, filt_one_mod)
     all_evts = [evt for evt in pet_reader([infile])]
 
     exp_evt1 = ([[696, ChannelType.ENERGY, 1137456113288,  5.1196],
@@ -140,10 +140,10 @@ def test_read_petsys_mod1(TEST_DATA_DIR, module_mapping):
 
 
 def test_read_petsys_singles(TEST_DATA_DIR, module_mapping):
-    type_func, *_ = module_mapping
+    type_dict, *_ = module_mapping
     infile = os.path.join(TEST_DATA_DIR, 'petsys_singles_test.ldat')
 
-    reader  = read_petsys_singles(infile, type_func)
+    reader  = read_petsys_singles(infile, type_dict)
     all_evt = [evt for evt in reader()]
 
     exp_ch = {525, 715, 717}
@@ -155,15 +155,15 @@ def test_read_petsys_singles(TEST_DATA_DIR, module_mapping):
                 1362231630985, 1362232428710, 1362233168959, 1362234228854]
     assert len(all_evt) == 20
     assert all(evt[0] in exp_ch for evt in all_evt)
-    assert all(evt[1] is type_func(evt[0]) for evt in all_evt)
+    assert all(evt[1] is type_dict[evt[0]] for evt in all_evt)
     assert all(evt[2] == t for evt, t in zip(all_evt, exp_time))
 
 
 def test_read_petsys_filebyfile(TEST_DATA_DIR, module_mapping):
-    type_func, _, map_keys = module_mapping
+    type_dict, _, map_keys = module_mapping
     infile = os.path.join(TEST_DATA_DIR,
                           "petsys_test_TB_SMGathered_120s_4.0OV_10T1_15T2_5E_coinc.ldat")
-    pet_reader = read_petsys_filebyfile(type_func)
+    pet_reader = read_petsys_filebyfile(type_dict)
     all_evts = [evt for evt in pet_reader(infile)]
 
     assert len(all_evts) == 20
@@ -175,7 +175,7 @@ def test_read_petsys_filebyfile(TEST_DATA_DIR, module_mapping):
     ids2 = [x[0] for evt in all_evts for x in evt[1]]
     assert set(ids1).issubset(map_keys())
     assert set(ids2).issubset(map_keys())
-    assert all(x[1] is type_func(x[0]) for evt in all_evts for sm in evt for x in sm)
+    assert all(x[1] is type_dict[x[0]] for evt in all_evts for sm in evt for x in sm)
     # Check energy and timestamp?
 
 
