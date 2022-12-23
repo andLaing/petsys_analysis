@@ -30,7 +30,7 @@ def get_supermodule_eng(mod_data):
     return len(eng_ch), sum(hit[3] for hit in eng_ch)
 
 
-def centroid_calculation(channel_map, offset_x=0.00001, offset_y=0.00001):
+def centroid_calculation(plot_pos, offset_x=0.00001, offset_y=0.00001):
     """
     Calculates the centroid of a set of module
     data according to a centroid map.
@@ -46,8 +46,8 @@ def centroid_calculation(channel_map, offset_x=0.00001, offset_y=0.00001):
         sums    = [0.0, 0.0]
         weights = [0.0, 0.0]
         for imp in data:
-            en_t           = channel_map.get_channel_type (imp[0]).value - 1
-            pos            = channel_map.get_plot_position(imp[0])
+            en_t           = imp[1].value - 1
+            pos            = plot_pos(imp[0])
             weight         = (imp[3] + offsets[en_t])**powers[en_t]
             sums   [en_t] += weight * pos
             weights[en_t] += weight
@@ -347,7 +347,7 @@ def time_of_flight(source_pos):
     return flight_time
 
 
-def mm_energy_centroids(events, c_calc, mod_sel=lambda sm: sm):
+def mm_energy_centroids(events, c_calc, mm_map, mod_sel=lambda sm: sm):
     """
     Calculate centroid and energy for
     mini modules per event assuming
@@ -358,7 +358,7 @@ def mm_energy_centroids(events, c_calc, mod_sel=lambda sm: sm):
         sel_evt = tuple(map(mod_sel, evt))
         for i, ((x, y, _), (_, eng)) in enumerate(zip(map(c_calc, sel_evt), map(get_supermodule_eng, sel_evt))):
             if evt[i]:
-                mm = evt[i][0][1]
+                mm = mm_map(evt[i][0][0])
                 try:
                     mod_dicts[i][mm]['x'].append(x)
                     mod_dicts[i][mm]['y'].append(y)
