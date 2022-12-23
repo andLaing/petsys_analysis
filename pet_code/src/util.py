@@ -262,22 +262,29 @@ def filter_event_by_impacts_noneg(min_sm1, min_sm2, singles=False):
 ## End filters (examples)
 
 
-def select_module(sm_info):
+def select_module(mm_map):
     """
     Select the mini module with
     highest energy in a SM.
     """
-    sm  = np.asarray(sm_info, dtype='object')
-    if sm.size == 0:
-        return sm_info
+    # Is there a vectorize decorator?
+    to_mm   = np.vectorize(mm_map)
+    is_eng  = np.vectorize(lambda x: x is ChannelType.ENERGY)
+    def select(sm_info):
+        if not sm_info:
+            return sm_info
 
-    mms = np.unique(sm[:, 1])
-    if mms.shape[0] == 1:
-        return sm_info
-    e_chan = np.fromiter(map(lambda x: x[1] is ChannelType.ENERGY, sm), bool)
-    sums   = np.fromiter((sm[(sm[:, 1] == mm) & e_chan, 3].sum() for mm in mms), float)
-    max_mm = mms[np.argmax(sums)]
-    return sm[sm[:, 1] == max_mm, :].tolist()
+        sm_arr  = np.asarray(sm_info, dtype='object')
+        mms     = to_mm(sm_arr[:, 0])
+        mms_uni = np.unique(mms)
+        if mms_uni.shape[0] == 1:
+            return sm_info
+
+        e_chan = is_eng(sm_arr[:, 1])
+        sums   = np.fromiter((sm_arr[(mms == mm) & e_chan, 3].sum() for mm in mms_uni), float)
+        max_mm = mms_uni[np.argmax(sums)]
+        return sm_arr[mms == max_mm, :].tolist()
+    return select
 
 
 def get_electronics_nums(channel_id):
