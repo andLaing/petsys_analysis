@@ -264,6 +264,7 @@ class ChannelMap:
             warn('Imported map does not contain gains. Defaulting to uncalibrated.')
             self.mapping['gain'] = 1.0
         self.ch_type = self.mapping.type.to_dict()
+        self.plotp   = self.mapping.PLOTP.to_dict()
 
     def get_channel_type(self, id: int) -> ChannelType:
         return self.mapping.at[id, 'type']

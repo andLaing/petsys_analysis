@@ -67,7 +67,8 @@ if __name__ == '__main__':
     print("Time enlapsed reading: {} s".format(int(end_r - start)))
     print("length check: ", len(filtered_events))
     ## Should we be filtering the events with multiple mini-modules in one sm?
-    c_calc = centroid_calculation(chan_map.get_plot_position)
+    # c_calc = centroid_calculation(chan_map.get_plot_position)
+    c_calc = centroid_calculation(chan_map.plotp)
     # ## Must be a better way but...
     max_sel   = select_module(chan_map.get_minimodule) if conf.getboolean('filter', 'sel_max_mm') else lambda x: x
     mod_dicts = mm_energy_centroids(filtered_events, c_calc, chan_map.get_minimodule, mod_sel=max_sel)

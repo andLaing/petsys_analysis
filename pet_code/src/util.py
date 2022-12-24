@@ -47,7 +47,7 @@ def centroid_calculation(plot_pos, offset_x=0.00001, offset_y=0.00001):
         weights = [0.0, 0.0]
         for imp in data:
             en_t           = imp[1].value - 1
-            pos            = plot_pos(imp[0])
+            pos            = plot_pos[imp[0]]
             weight         = (imp[3] + offsets[en_t])**powers[en_t]
             sums   [en_t] += weight * pos
             weights[en_t] += weight
