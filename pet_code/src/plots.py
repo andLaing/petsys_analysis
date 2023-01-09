@@ -298,3 +298,80 @@ def ctr(time_ch, peaks, skew=pd.Series(dtype=float)):
         return
     return timestamp_difference
 
+
+class ChannelEHistograms:
+    def __init__(self, tbins, ebins, esum_bins, eng_ch, mm_map) -> None:
+        self.tbin_edges = tbins
+        self.ebin_edges = ebins
+        self.sum_edges  = esum_bins
+        self.nbin_time  = len(tbins)     - 1
+        self.nbin_eng   = len(ebins)     - 1
+        self.nbin_sum   = len(esum_bins) - 1
+        self.tdist      = {}
+        self.edist      = {}
+        self.sum_dist   = {}
+        self.underflow  = {}
+        self.overflow   = {}
+        self.eng_id     = eng_ch
+        self.mm_map     = mm_map
+
+    def add_overflow(self, id: int) -> None:
+        try:
+            self.overflow[id] += 1
+        except KeyError:
+            self.overflow[id]  = 1
+
+    def add_underflow(self, id: int) -> None:
+        try:
+            self.underflow[id] += 1
+        except KeyError:
+            self.underflow[id]  = 1
+
+    @staticmethod
+    def fill_histo(id: int, indx: int, hist_dict: dict, nbins) -> None:
+        try:
+            hist_dict[id][indx] += 1
+        except KeyError:
+            hist_dict[id]        = np.zeros(nbins, int)
+            hist_dict[id][indx] += 1
+
+    def fill_time_channel(self, impact: list) -> None:
+        if impact[3] >= self.tbin_edges[-1]:
+            self.add_overflow(impact[0])
+            return
+        bin_indx = np.searchsorted(self.tbin_edges, impact[3], side='right') - 1
+        if bin_indx < 0:
+            self.add_underflow(impact[0])
+            return
+
+        self.fill_histo(impact[0], bin_indx, self.tdist, self.nbin_time)
+
+    def fill_energy_channel(self, impact: list) -> None:
+        if impact[3] >= self.ebin_edges[-1]:
+            self.add_overflow(impact[0])
+            return
+        bin_indx = np.searchsorted(self.ebin_edges, impact[3], side='right') - 1
+        if bin_indx < 0:
+            self.add_underflow(impact[0])
+            return
+
+        self.fill_histo(impact[0], bin_indx, self.edist, self.nbin_eng)
+
+    def fill_esum(self, impacts: list, id_val: int = -99) -> None:
+        ## Needs to be sorted for new types and improved.
+        esum = sum(map(lambda x: x[3], filter(lambda y: y[0] in self.eng_id, impacts)))
+        ## Need to think of a standard way to set an 'id' for a sum.
+        ## Temp: SM0MM, assuming all from same MM
+        if id_val == -99:
+            id0 = impacts[0][0]
+            id_val = int(str(id0 // 256) + '0' + str(self.mm_map[id0]).zfill(2))
+        if esum >= self.sum_edges[-1]:
+            self.add_overflow(id_val)
+            return
+        bin_indx = np.searchsorted(self.sum_edges, esum, side='right') - 1
+        if bin_indx < 0:
+            self.add_underflow(id_val)
+            return
+
+        self.fill_histo(id_val, bin_indx, self.sum_dist, self.nbin_sum)
+
