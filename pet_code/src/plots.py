@@ -1,3 +1,5 @@
+from typing import List, Union
+
 import matplotlib.pyplot as plt
 
 from . fits import fit_gaussian
@@ -294,4 +296,82 @@ def ctr(time_ch, peaks, skew=pd.Series(dtype=float)):
             return chns[0][2] - chns[1][2] + skew.get(chns[1][0], 0.0) - skew.get(chns[0][0], 0.0)
         return
     return timestamp_difference
+
+
+class ChannelEHistograms:
+    def __init__(self, tbins: np.ndarray, ebins: np.ndarray, esum_bins: np.ndarray) -> None:
+        self.edges      = {ChannelType.TIME  :     tbins,
+                           ChannelType.ENERGY:     ebins,
+                           'ESUM'            : esum_bins}
+        self.nbin_time  = len(tbins)     - 1
+        self.nbin_eng   = len(ebins)     - 1
+        self.nbin_sum   = len(esum_bins) - 1
+        self.tdist      = {}
+        self.edist      = {}
+        self.sum_dist   = {}
+        self.underflow  = {}
+        self.overflow   = {}
+
+    def add_overflow(self, id: int) -> None:
+        try:
+            self.overflow[id] += 1
+        except KeyError:
+            self.overflow[id]  = 1
+
+    def add_underflow(self, id: int) -> None:
+        try:
+            self.underflow[id] += 1
+        except KeyError:
+            self.underflow[id]  = 1
+
+    @staticmethod
+    def __fill_histo(id: int, indx: int, hist_dict: dict, nbins) -> None:
+        try:
+            hist_dict[id][indx] += 1
+        except KeyError:
+            hist_dict[id]        = np.zeros(nbins, int)
+            hist_dict[id][indx] += 1
+
+    def __get_bin(self, id: int, type: Union[ChannelType, str], eng: float) -> Union[int, None]:
+        if eng >= self.edges[type][-1]:
+            self.add_overflow(id)
+            return
+        bin_indx = np.searchsorted(self.edges[type], eng, side='right') - 1
+        if bin_indx < 0:
+            self.add_underflow(id)
+            return
+        return bin_indx
+
+    def fill_time_channel(self, impact: List) -> None:
+        bin_indx = self.__get_bin(impact[0], impact[1], impact[3])
+        if bin_indx is None:
+            return
+        self.__fill_histo(impact[0], bin_indx, self.tdist, self.nbin_time)
+
+    def fill_energy_channel(self, impact: list) -> None:
+        bin_indx = self.__get_bin(impact[0], impact[1], impact[3])
+        if bin_indx is None:
+            return
+        self.__fill_histo(impact[0], bin_indx, self.edist, self.nbin_eng)
+
+    def fill_esum(self, sm_impacts: List, id_val: int) -> None:
+        ## Needs to be sorted for new types and improved.
+        efilt    = filter(lambda y: y[1] is ChannelType.ENERGY, sm_impacts)
+        esum     = sum(map(lambda x: x[3], efilt))
+        bin_indx = self.__get_bin(id_val, 'ESUM', esum)
+        self.__fill_histo(id_val, bin_indx, self.sum_dist, self.nbin_sum)
+
+    # Used for channel equalization/peak value plots
+    # Will normally be used with singles but general just in case
+    def add_emax_evt(self, evt) -> None:
+        # time channels
+        chns = list(filter(lambda x: x, map(select_max_energy, evt, [ChannelType.TIME]*2)))
+        for slab in chns:
+            self.fill_time_channel(slab)
+
+        # energy channels
+        chns = list(filter(lambda x: x, map(select_max_energy, evt, [ChannelType.ENERGY]*2)))
+        for echn in chns:
+            self.fill_energy_channel(echn)
+
 
