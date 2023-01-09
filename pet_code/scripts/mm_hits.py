@@ -71,7 +71,7 @@ if __name__ == '__main__':
     mm_check = 0
     all_evt  = 0
     for fn in file_list:
-        in_parts = os.path.normpath(fn).split(os.path)
+        in_parts = os.path.normpath(fn).split(os.sep)
         if out_fldr:
             out_dir = os.path.join(out_fldr, out_name)
         else:
@@ -84,9 +84,9 @@ if __name__ == '__main__':
         with open(out_file, 'w') as tout:
             sort_writer = sort_and_write_mm(write_event_trace(tout, centroid_map), control_indx)
             reader      = read_petsys_filebyfile(mm_map, evt_filter)
-            for evt in reader():
+            for evt in reader(fn):
                 all_evt += 1
-                sel_mods = tuple(map(select_module, cal_func(evt)))
+                sel_mods = tuple(map(select_module, cal_func(evt), [eng_ch]*2))
                 n_mm     = len(set(x[1] for x in sel_mods[control_indx]))
                 if n_mm > 1:
                     mm_check += 1
