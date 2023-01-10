@@ -1,12 +1,14 @@
 import os
 
-from types import FunctionType
+from functools import partial
+from types     import FunctionType
 
 import matplotlib.pyplot as plt
 
 from . io    import read_ymlmapping
 from . util  import np
 
+from . plots import ChannelEHistograms
 from . plots import hist1d
 from . plots import group_times
 from . plots import group_times_list
@@ -151,3 +153,79 @@ def test_group_times_list(TEST_DATA_DIR, DUMMY_EVT):
     assert times0[0] ==  64
     assert times0[1] == 682
     assert times0[3] - times0[2] == -15
+
+
+def test_ChannelEHistograms(TEST_DATA_DIR, DUMMY_EVT):
+    test_yml            = os.path.join(TEST_DATA_DIR, "SM_mapping.yaml")
+    time_ch, eng_ch, *_ = read_ymlmapping(test_yml)
+
+    trange   = 2,  24, 0.1
+    erange   = 4,  24, 0.2
+    srange   = 0, 200, 1.5
+    tbins    = np.arange(*trange)
+    ebins    = np.arange(*erange)
+    sumbins  = np.arange(*srange)
+    e_histos = ChannelEHistograms(tbins, ebins, sumbins, eng_ch)
+
+    tchans   = list(filter(lambda x: x[0] in time_ch, DUMMY_EVT[0] + DUMMY_EVT[1]))
+    echans   = list(filter(lambda x: x[0] in  eng_ch, DUMMY_EVT[0] + DUMMY_EVT[1]))
+
+    # Expected over and underflow
+    tunder = [imp[0] for imp in filter(lambda x: x[3] <  trange[0]            , tchans)]
+    eunder = [imp[0] for imp in filter(lambda x: x[3] <  erange[0]            , echans)]
+    tover  = [imp[0] for imp in filter(lambda x: x[3] >= trange[1] - trange[2], tchans)]
+    eover  = [imp[0] for imp in filter(lambda x: x[3] >= erange[1] - erange[2], echans)]
+
+    # numpy histogram
+    thist = partial(np.histogram, bins=tbins)
+    ehist = partial(np.histogram, bins=ebins)
+
+    for imp in tchans:
+        e_histos.fill_time_channel(imp)
+
+    ntchan   = np.unique([imp[0] for imp in tchans]).shape[0]
+    ch_under = len(e_histos.underflow)
+    assert np.unique(tunder).shape[0] == ch_under
+    assert set(tunder).issubset(e_histos.underflow.keys())
+    assert len(tunder) ==   sum(e_histos.underflow.values())
+    ch_over  = len(e_histos.overflow)
+    assert np.unique(tover).shape[0] == ch_over
+    assert set(tover).issubset(e_histos.overflow.keys())
+    assert len(tover)  ==  sum(e_histos.overflow.values())
+    assert len(e_histos.tdist) == ntchan - ch_over - ch_under
+    assert sum(e_histos.tdist.values()).sum() == len(tchans) - ch_over - ch_under
+    for id, hist in e_histos.tdist.items():
+        allE_id  = list(map(lambda x: x[3], filter(lambda y: y[0] == id, tchans)))
+        exp_hist = thist(allE_id)[0]
+        np.testing.assert_array_equal(exp_hist, hist)
+    
+    for imp in echans:
+        e_histos.fill_energy_channel(imp)
+    
+    nechan   = np.unique([imp[0] for imp in echans]).shape[0]
+    ch_under = len(e_histos.underflow) - ch_under
+    assert np.unique(eunder).shape[0] == ch_under
+    assert set(eunder).issubset(e_histos.underflow.keys())
+    assert len(eunder) ==   sum(e_histos.underflow.values()) - len(tunder)
+    ch_over  = len(e_histos.overflow) - ch_over
+    assert np.unique(eover).shape[0] == ch_over
+    assert set(eover).issubset(e_histos.overflow.keys())
+    assert len(eover)  ==  sum(e_histos.overflow.values()) - len(tover)
+    assert len(e_histos.edist) == nechan - ch_over - ch_under
+    assert sum(e_histos.edist.values()).sum() == len(echans) - ch_over - ch_under
+    for id, hist in e_histos.edist.items():
+        allE_id  = list(map(lambda x: x[3], filter(lambda y: y[0] == id, echans)))
+        exp_hist = ehist(allE_id)[0]
+        np.testing.assert_array_equal(exp_hist, hist)
+
+    # Energy sum
+    e_histos.fill_esum(DUMMY_EVT[1])
+
+    exp_id = 1008 # Def need a bigger number if than this for full setup!
+    exp_sum = sum(map(lambda x: x[3], filter(lambda y: y[0] in eng_ch, DUMMY_EVT[1])))
+    assert len(e_histos.sum_dist) == 1
+    assert exp_id     in e_histos.sum_dist .keys()
+    assert exp_id not in e_histos.overflow .keys()
+    assert exp_id not in e_histos.underflow.keys()
+    np.testing.assert_array_equal(np.histogram(exp_sum, bins=sumbins)[0],
+                                  e_histos.sum_dist[exp_id]             )
