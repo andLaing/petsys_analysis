@@ -229,3 +229,34 @@ def test_ChannelEHistograms(TEST_DATA_DIR, DUMMY_EVT):
     assert exp_id not in e_histos.underflow.keys()
     np.testing.assert_array_equal(np.histogram(exp_sum, bins=sumbins)[0],
                                   e_histos.sum_dist[exp_id]             )
+
+
+def test_ChannelEHistograms_maxes(TEST_DATA_DIR, DUMMY_EVT):
+    test_yml            = os.path.join(TEST_DATA_DIR, "SM_mapping.yaml")
+    time_ch, eng_ch, *_ = read_ymlmapping(test_yml)
+
+    tbins    = np.arange(2,  24, 0.1)
+    ebins    = np.arange(4,  24, 0.2)
+    sumbins  = np.arange(0, 200, 1.5)
+    e_histos = ChannelEHistograms(tbins, ebins, sumbins, eng_ch)
+
+    e_histos.add_emax_evt(DUMMY_EVT, time_ch)
+
+    assert len(e_histos.tdist) == 2
+    assert len(e_histos.edist) == 2
+    exp_ids  =  64, 682
+    exp_indx = 116,  44
+    assert e_histos.tdist.keys() == set(exp_ids)
+    for id, indx in zip(exp_ids, exp_indx):
+        assert e_histos.tdist[id][indx] == 1
+        mask       = np.ones(e_histos.tdist[id].size, bool)
+        mask[indx] = False
+        assert all(e_histos.tdist[id][mask] == 0)
+    exp_ids  = 116, 700
+    exp_indx =  80,  39
+    assert e_histos.edist.keys() == set(exp_ids)
+    for id, indx in zip(exp_ids, exp_indx):
+        assert e_histos.edist[id][indx] == 1
+        mask       = np.ones(e_histos.edist[id].size, bool)
+        mask[indx] = False
+        assert all(e_histos.edist[id][mask] == 0)
