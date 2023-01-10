@@ -327,7 +327,7 @@ class ChannelEHistograms:
             self.underflow[id]  = 1
 
     @staticmethod
-    def fill_histo(id: int, indx: int, hist_dict: dict, nbins) -> None:
+    def __fill_histo(id: int, indx: int, hist_dict: dict, nbins) -> None:
         try:
             hist_dict[id][indx] += 1
         except KeyError:
@@ -343,7 +343,7 @@ class ChannelEHistograms:
             self.add_underflow(impact[0])
             return
 
-        self.fill_histo(impact[0], bin_indx, self.tdist, self.nbin_time)
+        self.__fill_histo(impact[0], bin_indx, self.tdist, self.nbin_time)
 
     def fill_energy_channel(self, impact: list) -> None:
         if impact[3] >= self.ebin_edges[-1]:
@@ -354,7 +354,7 @@ class ChannelEHistograms:
             self.add_underflow(impact[0])
             return
 
-        self.fill_histo(impact[0], bin_indx, self.edist, self.nbin_eng)
+        self.__fill_histo(impact[0], bin_indx, self.edist, self.nbin_eng)
 
     def fill_esum(self, sm_impacts: list, id_val: int = -99) -> None:
         ## Needs to be sorted for new types and improved.
@@ -372,5 +372,28 @@ class ChannelEHistograms:
             self.add_underflow(id_val)
             return
 
-        self.fill_histo(id_val, bin_indx, self.sum_dist, self.nbin_sum)
+        self.__fill_histo(id_val, bin_indx, self.sum_dist, self.nbin_sum)
+
+    # Very loose wrapper around select_max_energy, could be improved?
+    @staticmethod
+    def __get_max_channel(sm: list, time_ch: set):
+        try:
+            return select_max_energy(sm, time_ch)
+        except ValueError:
+            return None
+
+    # Used for channel equalization/peak value plots
+    # Will normally be used with singles but general just in case
+    # time_ch argument temporary
+    def add_emax_evt(self, evt, time_ch) -> None:
+        # time channels
+        chns = list(filter(lambda x: x, map(self.__get_max_channel, evt, [time_ch]*2)))
+        for slab in chns:
+            self.fill_time_channel(slab)
+
+        # energy channels
+        chns = list(filter(lambda x: x, map(self.__get_max_channel, evt, [self.eng_id]*2)))
+        for slab in chns:
+            self.fill_energy_channel(slab)
+
 
