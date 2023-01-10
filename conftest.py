@@ -3,7 +3,7 @@ import pytest
 
 @pytest.fixture(scope = 'session')
 def TEST_DATA_DIR():
-    return os.path.join(os.environ['PWD'], "pet_code/test_data/")
+    return os.path.join(os.path.abspath(os.path.dirname(__file__)), "pet_code/test_data/")
 
 
 @pytest.fixture(scope = 'session')

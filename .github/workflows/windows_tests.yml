@@ -1,0 +1,32 @@
+# This workflow will install the necessary environment
+# and run all the tests on windows.
+
+name: Test code windows
+
+on:
+  pull_request:
+
+jobs:
+  build:
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [3.8]
+        platform: [windows-latest]
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install environment
+        run: |
+          C:\Miniconda\condabin\conda.bat env update --file environment.yml --name base
+          C:\Miniconda\condabin\conda.bat init powershell
+      - name: Test with pytest
+        run: |
+          C:\Miniconda\condabin\conda.bat activate base
+          C:\Miniconda\condabin\conda.bat install python=3.8 scipy=1.7.1 numpy=1.21.2 matplotlib=3.5
+          C:\Miniconda\condabin\conda.bat install pyyaml=6.0 natsort=7.1 pandas=1.3.5 docopt=0.6.2
+          C:\Miniconda\condabin\conda.bat install configparser=5.0.2 cython=0.29.32 pytest=6.2.5
+          python setup.py develop
+          pytest -v
