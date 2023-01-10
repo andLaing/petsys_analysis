@@ -300,7 +300,7 @@ def ctr(time_ch, peaks, skew=pd.Series(dtype=float)):
 
 
 class ChannelEHistograms:
-    def __init__(self, tbins, ebins, esum_bins, eng_ch, mm_map) -> None:
+    def __init__(self, tbins, ebins, esum_bins, eng_ch) -> None:
         self.tbin_edges = tbins
         self.ebin_edges = ebins
         self.sum_edges  = esum_bins
@@ -313,7 +313,6 @@ class ChannelEHistograms:
         self.underflow  = {}
         self.overflow   = {}
         self.eng_id     = eng_ch
-        self.mm_map     = mm_map
 
     def add_overflow(self, id: int) -> None:
         try:
@@ -357,14 +356,14 @@ class ChannelEHistograms:
 
         self.fill_histo(impact[0], bin_indx, self.edist, self.nbin_eng)
 
-    def fill_esum(self, impacts: list, id_val: int = -99) -> None:
+    def fill_esum(self, sm_impacts: list, id_val: int = -99) -> None:
         ## Needs to be sorted for new types and improved.
-        esum = sum(map(lambda x: x[3], filter(lambda y: y[0] in self.eng_id, impacts)))
+        esum = sum(map(lambda x: x[3], filter(lambda y: y[0] in self.eng_id, sm_impacts)))
         ## Need to think of a standard way to set an 'id' for a sum.
         ## Temp: SM0MM, assuming all from same MM
         if id_val == -99:
-            id0 = impacts[0][0]
-            id_val = int(str(id0 // 256) + '0' + str(self.mm_map[id0]).zfill(2))
+            id0 = sm_impacts[0][0]
+            id_val = int(str(id0 // 256 + 1) + '0' + str(sm_impacts[0][1]).zfill(2))
         if esum >= self.sum_edges[-1]:
             self.add_overflow(id_val)
             return
