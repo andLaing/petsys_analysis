@@ -16,6 +16,7 @@ The code has the following minimum requirements:
  - pandas 1.3.5
  - docopt 0.6.2
  - configparser 5.0.2
+ - cython 0.29.32
 
  A script for environment set-up using `miniconda` is provided: `make_condaENV.sh` which checks if conda installed in the `$HOME` folder. Running with `conda` already
  activated will also create or update the environment.
