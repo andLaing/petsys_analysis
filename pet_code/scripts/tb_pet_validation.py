@@ -2,7 +2,7 @@
 
 """Calculate and save at slab level: Energy Res., Centroid, CTR, min. and max. cog in monolithic direction
 
-Usage: slab_performance.py (--conf CONFFILE) INFILE...
+Usage: tb_pet_validation.py (--conf CONFFILE) INFILE...
 
 Arguments:
     INFILE  File name to be analysed
@@ -110,7 +110,7 @@ def sm_slab_specs(sm):
     return slab_params, roi_mm_dict, mm_compression
 
 
-def perf_to_file(slab_dict, compress_dict, file_name):
+def res_to_file(slab_dict, compress_dict, file_name, missing_channels):
     """Output slab performance to txt file to be plotted. 
     Inputs:
     slab_dict:     dictionary with slab characteristics. 
@@ -119,21 +119,52 @@ def perf_to_file(slab_dict, compress_dict, file_name):
     Returns:
     no return
     """
-    out_name = file_name.replace(".ldat","_performance.txt")
-    with open(out_name, 'w') as perf_out:
-        perf_out.write('SM_ID\tmM_ID\tslab_ID\tmin_y\tmax_y\tmu_e\tER\tmin_x\tmax_x\tCTR\n')    
+    out_name_slabs = file_name.replace(".ldat","_performance.txt")
+    with open(out_name_slabs, 'w') as res_out:
+        res_out.write('SM_ID\tmM_ID\tslab_ID\tmin_y\tmax_y\tmu_e\tER\tmin_x\tmax_x\n')    
         for mm in sorted(slab_dict):
             slabs = min(len(slab_dict[mm]), 8)
             for n_sl, sl in enumerate(slab_dict[mm]):                
-                perf_out.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(1, mm, sl,
+                res_out.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(1, mm, sl,
                 slab_dict[mm][sl][0], slab_dict[mm][sl][1], slab_dict[mm][sl][2], slab_dict[mm][sl][3], compress_dict[mm][0], 
                 compress_dict[mm][1]))
                 if n_sl == slabs - 1:
                     break
             if slabs < 8:
                 for zero_slabs in range(slabs, 8):
-                    perf_out.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(1, mm, zero_slabs,
+                    res_out.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(1, mm, zero_slabs,
                     0, 0, 0, 0, 0, 0))
+    out_name_missing_chann = file_name.replace(".ldat","_missChannels.txt")
+    
+    if missing_channels:
+        with open(out_name_missing_chann, 'w') as bad_out:
+            bad_out.write("mm\tch_type\tnum_ch_detected\n")
+            for bad in missing_channels:
+                bad_out.write("{}\t{}\t{}\n".format(bad[0], bad[1], bad[2]))
+
+
+
+def check_all_channels(filt_events, eng_ch):
+    check_ch_dict = {}
+    for ev in filt_events:
+        for ch_ev in ev[0]:
+            ch = ch_ev[0]
+            mm = ch_ev[1]
+            if mm not in check_ch_dict.keys():
+                check_ch_dict[mm] = {"time": set(), "energy": set()}
+            if ch in eng_ch:
+                check_ch_dict[mm]["energy"].add(ch)
+            else:
+                check_ch_dict[mm]["time"].add(ch)
+    
+    bad_mm = []
+    for mm in check_ch_dict.keys():
+        for key in check_ch_dict[mm].keys():
+            if len(check_ch_dict[mm][key]) < 8:
+                bad_mm.append([mm, key,len(check_ch_dict[mm][key])])
+                print("PROBLEM! mm {} - {} - only {} ch detected".format(mm, key, len(check_ch_dict[mm][key])))
+    return bad_mm
+
 
 
 if __name__ == '__main__':
@@ -169,7 +200,6 @@ if __name__ == '__main__':
         cal_func = lambda x: x
         out_cal  = "WoCal"
     end_r      = time.time()
-    print("Time enlapsed configuring: {} s".format(int(end_r - start)))
     for f_in in infiles:
         out_dir = conf.get('output', 'out_dir')
         png_dir = out_dir + "/pngs"
@@ -192,8 +222,8 @@ if __name__ == '__main__':
         filtered_events = [cal_func(tpl) for tpl in pet_reader()]
 
         end_r           = time.time()
-        print("Time enlapsed reading: {} s".format(int(end_r - start)))
-        print("length check: ", len(filtered_events))
+        print("Time eNlapsed reading: {} s".format(int(end_r - start)))
+        #print("length check: ", len(filtered_events))
         start           = time.time()
         ## Should we be filtering the events with multiple mini-modules in one sm?
         c_calc          = centroid_calculation(centroid_map)
@@ -207,8 +237,10 @@ if __name__ == '__main__':
         else:
             msel = lambda x: x
         #print(filtered_events[0])
-        mod_dicts           = mm_energy_centroids(filtered_events, c_calc, eng_ch, mod_sel=msel)
+        missing_channels = check_all_channels(filtered_events, eng_ch)
 
+        mod_dicts           = mm_energy_centroids(filtered_events, c_calc, eng_ch, mod_sel=msel)
+        
         roi_mm_dict_list    = {}   #ROI per slab of each SM - key (mm): value ([Rxmin, Rxmax, Rymin, Rymax]) 
         slab_params_list    = {}   #Slab parameters for each SM - key (mm): key(slab) : value ([ymin, ymax, mu, ER])
         mm_compression_list = {}   #Minimodule compresion (in x direction) SM - key (mm): value ((xmin, xmax))
@@ -218,8 +250,8 @@ if __name__ == '__main__':
             
         photo_peak          = list(mm_energy_spectra(mod_dicts[0], 1, out_base_png, 100, (0, 300), nsigma, roi_mm_dict_list))
 
-        perf_to_file(slab_params_list, mm_compression_list, out_base_txt)
+        res_to_file(slab_params_list, mm_compression_list, out_base_txt, missing_channels)
         end_r               = time.time()
-        print("Time enlapsed processing: {} s".format(int(end_r - start)))
+        print("Time eNlapsed processing: {} s".format(int(end_r - start)))
 
     
