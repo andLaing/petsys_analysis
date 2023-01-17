@@ -144,7 +144,7 @@ if __name__ == '__main__':
                 print(f'Failed fit for channel {id}')
                 plt.errorbar(bin_e[:-1], diff_data, yerr=bin_errs)
                 plt.show()
-                min_x = input('Do you want to try a refit? [n]/min_pos')
+                min_x = input('Do you want to try a refit? [n]/min_pos ')
                 if min_x:
                     bin_wid   = np.diff(bin_e[:2])[0]
                     indx      = int(float(min_x) / bin_wid - bin_e[0])
@@ -189,12 +189,17 @@ if __name__ == '__main__':
         par_out.write('ID\t MU\t MU_ERR\n')
         for id, engs in plotS.eng_max.items():
             ## This is a hack to get results, need to work out a way to avoid these fails
-            if id == 591 or id == 612:
-                vals  , edges, _ = plt.hist(engs              , bins=np.arange(8, 25, 0.2), histtype='step', label='Source')
-                valsNS, *_       = plt.hist(plotNS.eng_max[id], bins=np.arange(8, 25, 0.2), histtype='step', label='No Source')
-            else:
-                vals  , edges, _ = plt.hist(engs              , bins=ebins, histtype='step', label='Source')
-                valsNS, *_       = plt.hist(plotNS.eng_max[id], bins=ebins, histtype='step', label='No Source')
+            vals, edges, _ = plt.hist(engs, bins=ebins, histtype='step', label='Source')
+            try:
+                valsNS, *_ = plt.hist(plotNS.eng_max[id], bins=ebins, histtype='step', label='No Source')
+            except KeyError:
+                valsNS = np.zeros_like(vals)
+            # if id == 591 or id == 612:
+            #     vals  , edges, _ = plt.hist(engs              , bins=np.arange(8, 25, 0.2), histtype='step', label='Source')
+            #     valsNS, *_       = plt.hist(plotNS.eng_max[id], bins=np.arange(8, 25, 0.2), histtype='step', label='No Source')
+            # else:
+            #     vals  , edges, _ = plt.hist(engs              , bins=ebins, histtype='step', label='Source')
+            #     valsNS, *_       = plt.hist(plotNS.eng_max[id], bins=ebins, histtype='step', label='No Source')
             ##
             bin_cent  = shift_to_centres(edges)
             hdiff     = vals - valsNS
@@ -211,7 +216,19 @@ if __name__ == '__main__':
                 p_indx = np.argmax(hdiff)
             else:
                 p_indx = peaks[0]
-            mask          = (bin_cent > bin_cent[p_indx] - 5 * bin_wid) & (bin_cent < bin_cent[p_indx] + 5 * bin_wid)
+            ## Try to protect against noise floor
+            nbin_fit = 5
+            if p_indx <= 3 * nbin_fit:
+                print(f'Peak near min for channel {id}')
+                # plt.errorbar(bin_cent, hdiff, yerr=hdiff_err)
+                plt.show()
+                plt.clf()
+                plt.errorbar(bin_cent, hdiff, yerr=hdiff_err, label='Difference')
+                plt.plot(bin_cent[peaks], hdiff[peaks], 'rv', markersize=15, label="Peak finder")
+                min_x = input('Do you want to adjust? [n]/peak_pos ')
+                if min_x:
+                    p_indx = np.searchsorted(edges, float(min_x), side='right') - 1
+            mask          = (bin_cent > bin_cent[p_indx] - nbin_fit * bin_wid) & (bin_cent < bin_cent[p_indx] + nbin_fit * bin_wid)
             av_diff, wsum = np.average(bin_cent[mask], weights=hdiff[mask], returned=True)
             av_err        = average_error(bin_cent[mask], hdiff[mask], hdiff_err[mask], wsum)
             plt.axvspan(av_diff - av_err, av_diff + av_err, facecolor='#00FF00' , alpha = 0.3, label='Average diff')
