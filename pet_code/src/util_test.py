@@ -58,8 +58,8 @@ def test_centroid_calculation(TEST_DATA_DIR, DUMMY_SM):
     test_mapping = os.path.join(TEST_DATA_DIR, "twoSM_IMAS_map.feather")
     channel_map  = ChannelMap(test_mapping)
 
-    centroid                     = centroid_calculation(channel_map)
-    time_mean, eng_mean, tot_eng = centroid(DUMMY_SM)
+    centroid                     = centroid_calculation(channel_map.plotp)
+    time_mean, eng_mean, tot_eng = centroid(_enum_dummy(DUMMY_SM))
 
     ## DUMMY not ideal as 100% energy channels, to be improved.
     expected_eng = sum((x[3] + 0.00001)**2 for x in DUMMY_SM)
