@@ -315,9 +315,12 @@ def select_max_energy(superm, chan_type=None):
     chan_type : Optional ChannelType
                 The channel type to be compared.
     """
-    if chan_type is None:
-        return max(superm, key=lambda x: x[3])
-    return max(filter(lambda x: x[1] is chan_type, superm), key=lambda y: y[3])
+    try:
+        if chan_type is None:
+            return max(superm, key=lambda x: x[3])
+        return max(filter(lambda x: x[1] is chan_type, superm), key=lambda y: y[3])
+    except ValueError:
+        return None
 
 
 def shift_to_centres(bin_low_edge):
