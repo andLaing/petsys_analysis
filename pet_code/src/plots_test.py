@@ -1,6 +1,7 @@
 import os
 
-from types import FunctionType
+from pytest import mark
+from types  import FunctionType
 
 import matplotlib.pyplot as plt
 
@@ -38,6 +39,7 @@ def test_mm_energy_spectra_noplots():
     assert all(accepted_prop > 0.9)
 
 
+@mark.filterwarnings("ignore:DeprecationWarning")
 def test_mm_energy_spectra_plots(TMP_OUT):
     gen_stats = 10000
     mm_pitch  =    25.9
@@ -74,6 +76,7 @@ def test_slab_energy_spectra_noplots():
     assert all(acc_prop > 0.9)
 
 
+@mark.filterwarnings("ignore:DeprecationWarning")
 def test_slab_energy_spectra_plots(TMP_OUT):
     nhists    =     5
     gen_stats = 10000
