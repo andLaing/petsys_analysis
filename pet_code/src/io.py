@@ -246,17 +246,14 @@ def read_ymlmapping_brain(mapping_file):
 
 
 class ChannelMap:
-    def __init__(self, map_file: str, ch_fem: int = 256) -> None:
+    def __init__(self, map_file: str) -> None:
         """
         Initialize Channel map type reading from feather
         mapping file with optional setting of channels
         per FEM.
         map_file : str
                    Name of mapping file to be used.
-        ch_fem   : int
-                   Number of channels per Supermodule.
         """
-        self.ch_per_fem      = ch_fem
         self.mapping         = pd.read_feather(map_file).set_index('id')
         self.mapping['type'] = self.mapping.type.map(lambda x: ChannelType[x])
         if 'gain' not in self.mapping.columns:
@@ -274,15 +271,14 @@ class ChannelMap:
         return self.mapping.index[sel_channels].values
 
     def get_supermodule(self, id: int) -> int:
-        return id // self.ch_per_fem
+        return self.mapping.at[id, 'supermodule']
 
     def get_minimodule(self, id: int) -> int:
         return self.mapping.at[id, 'minimodule']
 
     def get_minimodule_channels(self, sm: int, mm: int) -> np.ndarray:
-        sm_mask = (self.mapping.index >=  sm      * self.ch_per_fem) &\
-                  (self.mapping.index <  (sm + 1) * self.ch_per_fem)
-        return self.mapping.index[sm_mask & (self.mapping.minimodule == mm)].values
+        mask = (self.mapping.supermodule == sm) & (self.mapping.minimodule == mm)
+        return self.mapping.index[mask].values
 
     def get_channel_gain(self, id: int) -> float:
         return self.mapping.at[id, 'gain']
@@ -298,6 +294,12 @@ class ChannelMap:
 
     def get_channel_position(self, id: int) -> np.ndarray:
         return self.mapping.loc[id, ['X', 'Y', 'Z']].values.astype('float')
+
+    def get_reco_id(self, id: int) -> int:
+        """
+        Return id for image reconstruction
+        """
+        return self.mapping.at[id, 'recID']
 
 
 def write_event_trace(file_buffer, centroid_map, mm_map):
