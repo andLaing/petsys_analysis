@@ -248,6 +248,9 @@ def test_ChannelMap(TEST_DATA_DIR):
     assert all(ch_map.get_minimodule  (id) == mm for id, mm, _ in e_chans)
     assert all(np.allclose(ch_map.get_channel_position(id), pos) for id, _, pos in e_chans)
 
+    exp_mm5 = np.array([27, 28, 26, 24, 25, 22, 20, 23, 21, 19, 17, 18, 15, 16, 8, 0])
+    assert all(ch_map.get_minimodule_channels(0, 5) == exp_mm5)
+
 
 def test_write_event_trace(TEST_DATA_DIR, TMP_OUT, DUMMY_SM):
     test_yml         = os.path.join(TEST_DATA_DIR, "SM_mapping.yaml")

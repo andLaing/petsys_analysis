@@ -44,13 +44,15 @@ def row_gen(nFEM, chan_per_mm, tchans, echans):
             z  = slab_z(i)
             # Position for floodmap (review!)
             pp = round(1.6 + 3.2 * (j % 32), 2)
-            yield id, 'TIME', mm, x, y, z, pp
+            # Make the recID the same as id for now
+            yield id, 'TIME', i, mm, x, y, z, pp, id
             id = ech + i * nFEM
             mm = mM_energyMapping[mm]
             x  = echan_x(j % 32)
             y  = echan_y(i, j // 32)
             pp = round(1.6 + 3.2 * (31 - j % 32), 2)
-            yield id, 'ENERGY', mm, x, y, z, pp
+            # Make the recID the same as id for now
+            yield id, 'ENERGY', i, mm, x, y, z, pp, id
 
 
 if __name__ == '__main__':
@@ -62,5 +64,5 @@ if __name__ == '__main__':
         channel_map = yaml.safe_load(map_buffer)
 
     df = pd.DataFrame((row for row in row_gen(nFEM, 8, channel_map['time_channels'], channel_map['energy_channels'])),
-                      columns=['id', 'type', 'minimodule', 'X', 'Y', 'Z', 'PLOTP'])
+                      columns=['id', 'type', 'supermodule', 'minimodule', 'X', 'Y', 'Z', 'PLOTP', 'recID'])
     df.to_feather('pet_code/test_data/twoSM_IMAS_map.feather')
