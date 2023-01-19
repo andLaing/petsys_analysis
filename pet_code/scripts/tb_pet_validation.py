@@ -21,6 +21,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import math
 from scipy.signal import find_peaks
+from colorama import Fore, Style
 
 
 from pet_code.src.io    import read_petsys_filebyfile
@@ -98,7 +99,7 @@ def sm_slab_specs(sm):
                 try:
                     bcent, gvals, pars, _ = fit_gaussian(n, bins, cb=6, min_peak=max(n)/2)
                     FWHM_e                = round(pars[2]*math.sqrt( 8 * math.log( 2 ) ) , 3)
-                    ER                    = round(pars[2]*math.sqrt( 8 * math.log( 2 ) ) / pars[1]*100, 2)
+                    ER                    = round(pars[2]*math.sqrt( 8 * math.log( 2 ) ) / pars[1]*100, 2)                    
                     mu_e                  = round(pars[1], 3)
                     slab_params[mm][slab] = [round(bins_y[peaks_y[0]], 2), round(bins_y[peaks_y[-1]], 2), mu_e, ER]
                     if mm not in mm_compression.keys():
@@ -128,6 +129,8 @@ def res_to_file(slab_dict, compress_dict, file_name, missing_channels):
                 res_out.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(1, mm, sl,
                 slab_dict[mm][sl][0], slab_dict[mm][sl][1], slab_dict[mm][sl][2], slab_dict[mm][sl][3], compress_dict[mm][0], 
                 compress_dict[mm][1]))
+                if slab_dict[mm][sl][3] > 17:
+                        print("{Fore.RED}Energy Resolution of slab {} from mm {} out of range... {}%{Style.RESET_ALL}".format(sl, mm, slab_dict[mm][sl][3]))
                 if n_sl == slabs - 1:
                     break
             if slabs < 8:
@@ -145,6 +148,13 @@ def res_to_file(slab_dict, compress_dict, file_name, missing_channels):
 
 
 def check_all_channels(filt_events, eng_ch):
+    """Output mm without a time or energy channel registered. 
+    Inputs:
+    filt_events:   all events per sm. 
+    eng_ch:        energy channels.
+    Returns:
+    bad_mm:        dictionary with mm as key and [mm, time/energy ch, number of channels detected] as value
+    """
     check_ch_dict = {}
     for ev in filt_events:
         for ch_ev in ev[0]:
@@ -162,7 +172,7 @@ def check_all_channels(filt_events, eng_ch):
         for key in check_ch_dict[mm].keys():
             if len(check_ch_dict[mm][key]) < 8:
                 bad_mm.append([mm, key,len(check_ch_dict[mm][key])])
-                print("PROBLEM! mm {} - {} - only {} ch detected".format(mm, key, len(check_ch_dict[mm][key])))
+                print("{Fore.BLUE}PROBLEM! mm {} - {} - only {} ch detected{Style.RESET_ALL}".format(mm, key, len(check_ch_dict[mm][key])))
     return bad_mm
 
 
@@ -171,7 +181,6 @@ if __name__ == '__main__':
     args      = docopt(__doc__)
     conf      = configparser.ConfigParser()
     conf.read(args['--conf'])
-    
     start     = time.time()
     map_file  = conf.get('mapping', 'map_file')#'pet_code/test_data/SM_mapping_corrected.yaml' # shouldn't be hardwired
     infiles   = args['INFILE']
@@ -248,7 +257,7 @@ if __name__ == '__main__':
                 
         slab_params_list, roi_mm_dict_list, mm_compression_list = sm_slab_specs(mod_dicts[0])
             
-        photo_peak          = list(mm_energy_spectra(mod_dicts[0], 1, out_base_png, 100, (0, 300), nsigma, roi_mm_dict_list))
+        photo_peak          = list(mm_energy_spectra(mod_dicts[0], 1, out_base_png, 100, (0, 300), nsigma, roi_mm_dict_list, False))
 
         res_to_file(slab_params_list, mm_compression_list, out_base_txt, missing_channels)
         end_r               = time.time()

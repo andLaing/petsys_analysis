@@ -25,7 +25,7 @@ def hist1d(axis, data, bins=200, range=(0, 300), histtype='step', label='histo')
     return pbins, weights
 
 
-def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150, brange=(0, 300), nsigma=2, ROI = {}):
+def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150, brange=(0, 300), nsigma=2, ROI = {}, log_flag = True):
     """
     Generate the energy spectra and select the photopeak
     for each module. Optionally plot and save spectra
@@ -63,7 +63,8 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150, bran
             try:
                 bin_edges, bin_vals = hist1d(ax, module_xye[j+1]['energy'], range=brange, label=f'Det: {sm_label}\n mM: {j+1}')
             except KeyError:
-                print(f'No data for super module {sm_label}, mini module {j+1}, skipping')
+                if log_flag:
+                    print(f'No data for super module {sm_label}, mini module {j+1}, skipping')
                 photo_peak.append(lambda x: False)
                 continue
             try:
