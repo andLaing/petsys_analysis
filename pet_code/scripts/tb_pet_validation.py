@@ -130,7 +130,7 @@ def res_to_file(slab_dict, compress_dict, file_name, missing_channels):
                 slab_dict[mm][sl][0], slab_dict[mm][sl][1], slab_dict[mm][sl][2], slab_dict[mm][sl][3], compress_dict[mm][0], 
                 compress_dict[mm][1]))
                 if slab_dict[mm][sl][3] > 17:
-                        print("{Fore.RED}Energy Resolution of slab {} from mm {} out of range... {}%{Style.RESET_ALL}".format(sl, mm, slab_dict[mm][sl][3]))
+                        print(f"{Fore.RED}Energy Resolution of slab {sl} from mm {mm} out of range... {slab_dict[mm][sl][3]}%{Style.RESET_ALL}")
                 if n_sl == slabs - 1:
                     break
             if slabs < 8:
@@ -170,9 +170,9 @@ def check_all_channels(filt_events, eng_ch):
     bad_mm = []
     for mm in check_ch_dict.keys():
         for key in check_ch_dict[mm].keys():
-            if len(check_ch_dict[mm][key]) < 8:
+            if len(check_ch_dict[mm][key]) < 9:
                 bad_mm.append([mm, key,len(check_ch_dict[mm][key])])
-                print("{Fore.BLUE}PROBLEM! mm {} - {} - only {} ch detected{Style.RESET_ALL}".format(mm, key, len(check_ch_dict[mm][key])))
+                print(f"{Fore.BLUE}PROBLEM! mm {mm} - {key} - only {len(check_ch_dict[mm][key])} ch detected{Style.RESET_ALL}")
     return bad_mm
 
 
