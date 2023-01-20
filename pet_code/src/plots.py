@@ -344,15 +344,13 @@ class ChannelEHistograms:
 
     def fill_time_channel(self, impact: List) -> None:
         bin_indx = self.__get_bin(impact[0], impact[1], impact[3])
-        if bin_indx is None:
-            return
-        self.__fill_histo(impact[0], bin_indx, self.tdist, self.nbin_time)
+        if bin_indx is not None:
+            self.__fill_histo(impact[0], bin_indx, self.tdist, self.nbin_time)
 
-    def fill_energy_channel(self, impact: list) -> None:
+    def fill_energy_channel(self, impact: List) -> None:
         bin_indx = self.__get_bin(impact[0], impact[1], impact[3])
-        if bin_indx is None:
-            return
-        self.__fill_histo(impact[0], bin_indx, self.edist, self.nbin_eng)
+        if bin_indx is not None:
+            self.__fill_histo(impact[0], bin_indx, self.edist, self.nbin_eng)
 
     def fill_esum(self, sm_impacts: List, id_val: int) -> None:
         ## Needs to be sorted for new types and improved.
@@ -365,13 +363,16 @@ class ChannelEHistograms:
     # Will normally be used with singles but general just in case
     def add_emax_evt(self, evt) -> None:
         # time channels
-        chns = list(filter(lambda x: x, map(select_max_energy, evt, [ChannelType.TIME]*2)))
+        tchn_map = map(select_max_energy, evt, [ChannelType.TIME]*2)
+        chns = list(filter(lambda x: x, tchn_map))
         for slab in chns:
             self.fill_time_channel(slab)
 
         # energy channels
-        chns = list(filter(lambda x: x, map(select_max_energy, evt, [ChannelType.ENERGY]*2)))
-        for echn in chns:
-            self.fill_energy_channel(echn)
+        if chns:
+            echn_map = map(select_max_energy, evt, [ChannelType.ENERGY]*2)
+            chns = list(filter(lambda x: x, echn_map))
+            for echn in chns:
+                self.fill_energy_channel(echn)
 
 
