@@ -37,15 +37,18 @@ from pet_code.src.util  import select_module
 from pet_code.src.util  import shift_to_centres
 
 
-def slab_plots(out_file, plot_source, plot_wosource, bin_edges, min_stats):
+def slab_plots(out_file, plot_source, plot_wosource, min_stats):
+    bin_edges = plot_source.edges[ChannelType.TIME]
     with open(out_file + 'timeSlabPeaks.txt', 'w') as par_out:
         par_out.write('ID\tMU\tMU_ERR\tSIG\tSIG_ERR\n')
-        for id, engs in plot_source.slab_energies.items():
-            s_vals, bin_e = np.histogram(engs, bins=bin_edges)
+        for id, s_vals in plot_source.tdist.items():
+            # s_vals, bin_e = np.histogram(engs, bins=bin_edges)
             try:
-                ns_vals, _ = np.histogram(plot_wosource.slab_energies[id], bins=bin_edges)
+                # ns_vals, _ = np.histogram(plot_wosource.tdist[id], bins=bin_edges)
+                ns_vals = plot_wosource.tdist[id]
             except KeyError:
-                plt.plot(bin_e[:-1], s_vals , label='Source')
+                # plt.plot(bin_e[:-1], s_vals , label='Source')
+                plt.errorbar(bin_edges[:-1], s_vals, label='Source')
                 plt.legend()
                 plt.xlabel(f'Energy time channel {id}')
                 plt.ylabel('au')
@@ -55,27 +58,28 @@ def slab_plots(out_file, plot_source, plot_wosource, bin_edges, min_stats):
             bin_errs  = np.sqrt(s_vals + ns_vals)
             diff_data = s_vals - ns_vals
             try:
-                bcent, g_vals, fit_pars, cov = fit_gaussian(diff_data, bin_e, yerr=bin_errs, min_peak=min_stats)
+                (bcent   , g_vals,
+                 fit_pars, cov   ) = fit_gaussian(diff_data, bin_edges, yerr=bin_errs, min_peak=min_stats)
                 ## hack
-                if fit_pars[1] <= bin_e[3]:
+                if fit_pars[1] <= bin_edges[3]:
                     raise RuntimeError
             except RuntimeError:
                 print(f'Failed fit for channel {id}')
-                plt.errorbar(bin_e[:-1], diff_data, yerr=bin_errs)
+                plt.errorbar(bin_edges[:-1], diff_data, yerr=bin_errs)
                 plt.show()
                 min_x = input('Do you want to try a refit? [n]/min_pos')
                 if min_x:
-                    bin_wid   = np.diff(bin_e[:2])[0]
-                    indx      = int(float(min_x) / bin_wid - bin_e[0])
+                    bin_wid   = np.diff(bin_edges[:2])[0]
+                    indx      = int(float(min_x) / bin_wid - bin_edges[0])
                     diff_data = s_vals[indx:] - ns_vals[indx:]
                     bin_errs = np.sqrt(s_vals[indx:] + ns_vals[indx:])
                     try:
-                        bcent, g_vals, fit_pars, cov = fit_gaussian(diff_data, bin_e[indx:], yerr=bin_errs, min_peak=int(min_peak * 0.7))
+                        bcent, g_vals, fit_pars, cov = fit_gaussian(diff_data, bin_edges[indx:], yerr=bin_errs, min_peak=int(min_peak * 0.7))
                     except RuntimeError:
-                        fail_plot(bin_e, s_vals, ns_vals, np.sqrt(s_vals + ns_vals))
+                        fail_plot(bin_edges, s_vals, ns_vals, np.sqrt(s_vals + ns_vals))
                         continue
                 else:
-                    fail_plot(bin_e, s_vals, ns_vals, bin_errs)
+                    fail_plot(bin_edges, s_vals, ns_vals, bin_errs)
                     continue
             mu_err  = np.sqrt(cov[1, 1])
             sig_err = np.sqrt(cov[2, 2])
@@ -89,38 +93,23 @@ def slab_plots(out_file, plot_source, plot_wosource, bin_edges, min_stats):
             plt.clf()
 
 
-def sum_plots(out_file, plot_source, esum_bins):
-    mm_figs = [plt.subplots(nrows=4, ncols=4, figsize=(15, 15)),
-               plt.subplots(nrows=4, ncols=4, figsize=(15, 15))]
-    for tid, engs in plot_source.eng_sum.items():
-        sm_indx = 0 if tid < 256 else 1#Temp?
-        mm      = mm_map[tid]
-        r       = (mm - 1) // 4
-        c       = (mm - 1) %  4
-        mm_figs[sm_indx][1][r, c].hist(engs, bins=esum_bins, histtype='step', label=f'tmax id {tid}')
-    for i, (fig, axes) in enumerate(mm_figs):
-        for j, ax in enumerate(axes.flatten()):
-            ax.set_xlabel(f'MM{j+1} Energy sum (au)')
-            ax.set_ylabel('Frequency per bin (au)')
-            ax.legend()
-        sm_no = 1 if i == 0 else 3
-        fig.savefig(out_file + f'MMEngs_sm{sm_no}.png')
-    plt.clf()
-
-
-def energy_plots(out_file, plot_source, plot_wosource, bin_edges):
+def energy_plots(out_file, plot_source, plot_wosource):
+    bin_edges = plot_source.edges[ChannelType.ENERGY]
+    bin_wid   = np.diff(bin_edges[:2])[0]
     with open(out_file + 'eChannelPeaks.txt', 'w') as par_out:
         par_out.write('ID\tMU\tMU_ERR\n')
-        for id, engs in plot_source.eng_max.items():
-            vals, edges, _ = plt.hist(engs, bins=ebins, histtype='step', label='Source')
+        for id, vals in plot_source.edist.items():
+            # vals, edges, _ = plt.hist(engs, bins=bin_edges, histtype='step', label='Source')
             try:
-                valsNS, *_ = plt.hist(plot_wosource.eng_max[id], bins=ebins, histtype='step', label='No Source')
+                # valsNS, *_ = plt.hist(plot_wosource.eng_max[id], bins=bin_edges, histtype='step', label='No Source')
+                valsNS = plot_wosource.edist[id]
             except KeyError:
                 valsNS = np.zeros_like(vals)
 
-            bin_cent  = shift_to_centres(edges)
+            bin_cent  = shift_to_centres(bin_edges)
             hdiff     = vals - valsNS
             hdiff_err = np.sqrt(vals + valsNS)
+            peaks, _  = find_peaks(hdiff, height=100, distance=5)
             if peaks.shape[0] > 1:
                 peak   = np.argmax(hdiff[peaks])
                 p_indx = peaks[peak]
@@ -137,9 +126,8 @@ def energy_plots(out_file, plot_source, plot_wosource, bin_edges):
                 plt.clf()
                 min_x = input('Do you want to adjust? [n]/peak_pos ')
                 if min_x:
-                    p_indx = np.searchsorted(edges, float(min_x), side='right') - 1
+                    p_indx = np.searchsorted(bin_edges, float(min_x), side='right') - 1
             plt.errorbar(bin_cent, hdiff, yerr=hdiff_err, label='Difference')
-            peaks, _  = find_peaks(hdiff, height=100, distance=5)
             plt.plot(bin_cent[peaks], hdiff[peaks], 'rv', markersize=15, label="Peak finder")
             mask          = (bin_cent > bin_cent[p_indx] - 5 * bin_wid) & (bin_cent < bin_cent[p_indx] + 5 * bin_wid)
             av_diff, wsum = np.average(bin_cent[mask], weights=hdiff[mask], returned=True)
@@ -175,13 +163,11 @@ def channel_plots(config, infiles):
         print(f'Reading {fn}')
         if 'wo' in fn:
             add_evt_wp = select_mod_wrapper(plotNS.add_emax_evt, chan_map.get_minimodule)
-            num_mmsN = tuple(map(add_evt_wp, reader(fn)))
+            _ = tuple(map(add_evt_wp, reader(fn)))
         else:
             add_evt_wp = select_mod_wrapper(plotS .add_emax_evt, chan_map.get_minimodule)
-            num_mmsS = tuple(map(add_evt_wp, reader(fn)))
+            _ = tuple(map(add_evt_wp, reader(fn)))
     
-    print("First pass complete, mm multiplicities with    Source: ", Counter(num_mmsS))
-    print("First pass complete, mm multiplicities without Source: ", Counter(num_mmsN))
     return plotS, plotNS
 
 
@@ -257,6 +243,5 @@ if __name__ == '__main__':
     min_peak  = conf.getint('filter', 'min_stats', fallback=300)
 
     # Plotting and fitting.
-    slab_plots  (out_file, plotS, plotNS, tbins, min_peak)
-    sum_plots   (out_file, plotS, esum_bins)
-    energy_plots(out_file, plotS, plotNS, ebins)
+    slab_plots  (out_file, plotS, plotNS, min_peak)
+    energy_plots(out_file, plotS, plotNS)
