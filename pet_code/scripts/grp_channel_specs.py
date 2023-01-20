@@ -32,6 +32,7 @@ from pet_code.src.io    import read_ymlmapping
 from pet_code.src.plots import ChannelEHistograms
 from pet_code.src.util  import ChannelType
 from pet_code.src.util  import filter_event_by_impacts
+from pet_code.src.util  import select_mod_wrapper
 from pet_code.src.util  import select_module
 from pet_code.src.util  import shift_to_centres
 
@@ -173,9 +174,11 @@ def channel_plots(config, infiles):
     for fn in infiles:
         print(f'Reading {fn}')
         if 'wo' in fn:
-            num_mmsN = tuple(map(plotNS.add_emax_evt, reader(fn)))
+            add_evt_wp = select_mod_wrapper(plotNS.add_emax_evt, chan_map.get_minimodule)
+            num_mmsN = tuple(map(add_evt_wp, reader(fn)))
         else:
-            num_mmsS = tuple(map(plotS .add_emax_evt, reader(fn)))
+            add_evt_wp = select_mod_wrapper(plotS .add_emax_evt, chan_map.get_minimodule)
+            num_mmsS = tuple(map(add_evt_wp, reader(fn)))
     
     print("First pass complete, mm multiplicities with    Source: ", Counter(num_mmsS))
     print("First pass complete, mm multiplicities without Source: ", Counter(num_mmsN))

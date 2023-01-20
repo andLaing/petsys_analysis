@@ -262,6 +262,14 @@ def filter_event_by_impacts_noneg(min_sm1, min_sm2, singles=False):
 ## End filters (examples)
 
 
+def select_mod_wrapper(fn, mm_map):
+    sel_mod = select_module(mm_map)
+    def wrapped(evt):
+        max_mms = tuple(map(sel_mod, evt))
+        return fn(max_mms)
+    return wrapped
+
+
 def select_module(mm_map):
     """
     Select the mini module with
