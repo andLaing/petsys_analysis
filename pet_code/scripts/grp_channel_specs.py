@@ -18,7 +18,6 @@ import os
 import configparser
 
 from docopt      import docopt
-from collections import Counter
 
 import matplotlib.pyplot as plt
 import numpy             as np
@@ -28,12 +27,10 @@ from scipy.signal import find_peaks
 from pet_code.src.fits  import fit_gaussian
 from pet_code.src.io    import ChannelMap
 from pet_code.src.io    import read_petsys_filebyfile
-from pet_code.src.io    import read_ymlmapping
 from pet_code.src.plots import ChannelEHistograms
 from pet_code.src.util  import ChannelType
 from pet_code.src.util  import filter_event_by_impacts
 from pet_code.src.util  import select_mod_wrapper
-from pet_code.src.util  import select_module
 from pet_code.src.util  import shift_to_centres
 
 
@@ -157,51 +154,19 @@ def channel_plots(config, infiles):
     ebins     = np.arange(*tuple(map(float, config.get('output',     'ebinning', fallback='7,40,0.4') .split(','))))
 
     plotS     = ChannelEHistograms(tbins, ebins, esum_bins)
+    splots    = select_mod_wrapper(plotS .add_emax_evt, chan_map.get_minimodule)
     plotNS    = ChannelEHistograms(tbins, ebins, esum_bins)
+    nsplots   = select_mod_wrapper(plotNS.add_emax_evt, chan_map.get_minimodule)
+
     reader    = read_petsys_filebyfile(chan_map.ch_type, sm_filter=filt, singles=True)
     for fn in infiles:
         print(f'Reading {fn}')
-        if 'wo' in fn:
-            add_evt_wp = select_mod_wrapper(plotNS.add_emax_evt, chan_map.get_minimodule)
-            _ = tuple(map(add_evt_wp, reader(fn)))
+        if 'woSource' in fn:
+            _ = tuple(map(nsplots, reader(fn)))
         else:
-            add_evt_wp = select_mod_wrapper(plotS .add_emax_evt, chan_map.get_minimodule)
-            _ = tuple(map(add_evt_wp, reader(fn)))
+            _ = tuple(map(splots , reader(fn)))
     
     return plotS, plotNS
-
-
-class ChannelCal:
-    def __init__(self, time_ch, eng_ch, mm_map) -> None:
-        self.slab_energies = {}
-        self.eng_sum       = {}# Mod eng channel sum with max slab key
-        self.eng_max       = {}# Eng channel spectra for max eng channel.
-        self.time_id       = time_ch
-        self.eng_id        = eng_ch
-        self.sel_mod       = select_module(mm_map)
-
-    def add_evt(self, supermods):
-        mms     = {ch[1] for ch in supermods[0]}
-        sel_mod = self.sel_mod(supermods[0])
-        try:
-            t_ch = next(filter(lambda ch: ch[0] in self.time_id, sel_mod))
-        except StopIteration:
-            return len(mms)
-        try:
-            self.slab_energies[t_ch[0]].append(t_ch[3])
-        except KeyError:
-            self.slab_energies[t_ch[0]] = [t_ch[3]]
-        e_chans = list(map(lambda x: x[3] if x[0] in self.eng_id else 0, sel_mod))
-        try:
-            self.eng_sum[t_ch[0]].append(sum(e_chans))
-        except KeyError:
-            self.eng_sum[t_ch[0]] = [sum(e_chans)]
-        try:
-            max_eng = sel_mod[np.argmax(e_chans)]
-            self.eng_max[max_eng[0]].append(max_eng[3])
-        except KeyError:
-            self.eng_max[max_eng[0]] = [max_eng[3]]
-        return len(mms)
 
 
 def average_error(x, y, yerr, ysum):
@@ -237,9 +202,6 @@ if __name__ == '__main__':
     
     plotS, plotNS = channel_plots(conf, infiles)
 
-    esum_bins = np.arange(*tuple(map(float, conf.get('output', 'esum_binning', fallback='0,300,1.5').split(','))))
-    tbins     = np.arange(*tuple(map(float, conf.get('output',     'tbinning', fallback='5,30,0.2') .split(','))))
-    ebins     = np.arange(*tuple(map(float, conf.get('output',     'ebinning', fallback='7,40,0.4') .split(','))))
     min_peak  = conf.getint('filter', 'min_stats', fallback=300)
 
     # Plotting and fitting.
