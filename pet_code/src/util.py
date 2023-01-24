@@ -262,6 +262,14 @@ def filter_event_by_impacts_noneg(min_sm1, min_sm2, singles=False):
 ## End filters (examples)
 
 
+def select_mod_wrapper(fn, mm_map):
+    sel_mod = select_module(mm_map)
+    def wrapped(evt):
+        max_mms = tuple(map(sel_mod, evt))
+        return fn(max_mms)
+    return wrapped
+
+
 def select_module(mm_map):
     """
     Select the mini module with
@@ -315,9 +323,12 @@ def select_max_energy(superm, chan_type=None):
     chan_type : Optional ChannelType
                 The channel type to be compared.
     """
-    if chan_type is None:
-        return max(superm, key=lambda x: x[3])
-    return max(filter(lambda x: x[1] is chan_type, superm), key=lambda y: y[3])
+    try:
+        if chan_type is None:
+            return max(superm, key=lambda x: x[3])
+        return max(filter(lambda x: x[1] is chan_type, superm), key=lambda y: y[3])
+    except ValueError:
+        return None
 
 
 def shift_to_centres(bin_low_edge):
