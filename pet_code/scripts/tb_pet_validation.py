@@ -137,17 +137,17 @@ def res_to_file(slab_dict, compress_dict, file_name, missing_channels):
                 for zero_slabs in range(slabs, 8):
                     res_out.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(1, mm, zero_slabs,
                     0, 0, 0, 0, 0, 0))
-    out_name_missing_chann = file_name.replace(".ldat","_missChannels.txt")
-    
+
+    out_name_missing_chann = file_name.replace(".ldat","_missChannels.txt")    
     if missing_channels:
         with open(out_name_missing_chann, 'w') as bad_out:
-            bad_out.write("mm\tch_type\tnum_ch_detected\n")
+            bad_out.write("mm\tch_type\tnum_ch_detected\tc/r\n")
             for bad in missing_channels:
-                bad_out.write("{}\t{}\t{}\n".format(bad[0], bad[1], bad[2]))
+                bad_out.write("{}\t{}\t{}\t{}\n".format(bad[0], bad[1], bad[2], bad[3]))
 
 
 
-def check_all_channels(filt_events, eng_ch):
+def check_all_channels(filt_events, eng_ch, tb_val_mapping):
     """Output mm without a time or energy channel registered. 
     Inputs:
     filt_events:   all events per sm. 
@@ -170,9 +170,14 @@ def check_all_channels(filt_events, eng_ch):
     bad_mm = []
     for mm in check_ch_dict.keys():
         for key in check_ch_dict[mm].keys():
-            if len(check_ch_dict[mm][key]) < 9:
-                bad_mm.append([mm, key,len(check_ch_dict[mm][key])])
-                print(f"{Fore.BLUE}PROBLEM! mm {mm} - {key} - only {len(check_ch_dict[mm][key])} ch detected{Style.RESET_ALL}")
+            if len(check_ch_dict[mm][key]) < 8:
+                t_e_key = 0 if key == "time" else 1
+                list_time_ch_mm = [el[0] for el in tb_val_mapping[0][mm] if el[1] == t_e_key]
+                list_ch_missing = list(set(list_time_ch_mm) - set(check_ch_dict[mm][key]))
+                idx = [list_time_ch_mm.index(ch) for ch in list_ch_missing]
+                bad_mm.append([mm, key, len(check_ch_dict[mm][key]), idx])
+                print(f"{Fore.BLUE}PROBLEM! mm {mm} - {key} - only {len(check_ch_dict[mm][key])} ch detected{Style.RESET_ALL}")                
+                print(f"{Fore.BLUE}Colums/Rows (Slabs/Energy rows) {idx} (0 to 7){Style.RESET_ALL}")
     return bad_mm
 
 
@@ -187,7 +192,7 @@ if __name__ == '__main__':
     nsigma    = conf.getint('output', 'nsigma', fallback=2)
     singles_flag = conf.get('filter', 'singles', fallback='False')
 
-    time_ch, eng_ch, mm_map, centroid_map, slab_map = read_ymlmapping(map_file)
+    time_ch, eng_ch, mm_map, centroid_map, slab_map, tb_val_mapping = read_ymlmapping(map_file)
     filt_type = conf.get('filter', 'type', fallback='Impacts')
     # Should improve with an enum or something
     if 'Impacts'  in filt_type:
@@ -246,9 +251,11 @@ if __name__ == '__main__':
         else:
             msel = lambda x: x
         #print(filtered_events[0])
-        missing_channels = check_all_channels(filtered_events, eng_ch)
+        missing_channels = check_all_channels(filtered_events, eng_ch, tb_val_mapping)
 
         mod_dicts           = mm_energy_centroids(filtered_events, c_calc, eng_ch, mod_sel=msel)
+        
+
         
         roi_mm_dict_list    = {}   #ROI per slab of each SM - key (mm): value ([Rxmin, Rxmax, Rymin, Rymax]) 
         slab_params_list    = {}   #Slab parameters for each SM - key (mm): key(slab) : value ([ymin, ymax, mu, ER])
@@ -262,5 +269,3 @@ if __name__ == '__main__':
         res_to_file(slab_params_list, mm_compression_list, out_base_txt, missing_channels)
         end_r               = time.time()
         print("Time eNlapsed processing: {} s".format(int(end_r - start)))
-
-    

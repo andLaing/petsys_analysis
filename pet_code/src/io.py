@@ -174,12 +174,14 @@ def read_ymlmapping(mapping_file):
     mM_mapping       = {}
     centroid_mapping = {}
     slab_positions   = {}
+    tb_val_mapping   = {}
     ## A lot of hardwired numbers here, maybe not stable
     mM_energyMapping = {1:1,  2:5,  3:9 ,  4:13,  5:2,  6:6,  7:10,  8:14,
                         9:3, 10:7, 11:11, 12:15, 13:4, 14:8, 15:12, 16:16}
     FEM_num_ch = 256
     no_sm      =   4
     for sm in range(no_sm):
+        tb_val_mapping[sm] = {}
         for i, (tch, ech) in enumerate(zip(channel_map["time_channels"], channel_map["energy_channels"])):
             absolut_tch = tch + sm * FEM_num_ch
             absolut_ech = ech + sm * FEM_num_ch
@@ -197,8 +199,14 @@ def read_ymlmapping(mapping_file):
             centroid_mapping[absolut_ech] = (1, round(1.6 + 3.2 * (31 - i % 32), 2))  #establish 0 reference at the botom left of the floodmap
             # slab_positions  [absolut_tch] = (slab_x(rc_num, sm), slab_y(row), slab_z(sm))
             slab_positions  [absolut_tch] = (slab_x(i // 32), slab_y(i % 32, sm), slab_z(sm))
+            try:                
+                tb_val_mapping[sm][mM_num]    .append([absolut_tch, 0, round(1.6 + 3.2 * (i % 32), 2)])
+                tb_val_mapping[sm][mM_num_en] .append([absolut_ech, 1, round(1.6 + 3.2 * (31 - i % 32), 2)])
+            except KeyError:                
+                tb_val_mapping[sm][mM_num]    = [[absolut_tch, 0, round(1.6 + 3.2 * (i % 32), 2)]]
+                tb_val_mapping[sm][mM_num_en] = [[absolut_ech, 1, round(1.6 + 3.2 * (31 - i % 32), 2)]]
 
-    return ALLSM_time_ch, ALLSM_energy_ch, mM_mapping, centroid_mapping, slab_positions
+    return ALLSM_time_ch, ALLSM_energy_ch, mM_mapping, centroid_mapping, slab_positions, tb_val_mapping
 
 
 def read_ymlmapping_brain(mapping_file):
