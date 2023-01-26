@@ -131,9 +131,9 @@ def single_ring(nFEM, chan_per_mm, tchans, echans):
 
             sm_r, sm_ang     = sm_angle(sm)
             ## Translate to XYZ relative to SM centre at X = R, Y = Z = 0.
-            sm_local['X']    = sm_r
-            sm_local['Y']    = sm_local.local_x              - SM_half_len
-            sm_local['Z']    = sm_local.local_y.values[::-1] - SM_half_len
+            sm_local['X']    =  sm_r
+            sm_local['Y']    =  sm_local.local_x - SM_half_len
+            sm_local['Z']    = -sm_local.local_y + SM_half_len
             ## Rotate to supermodule angular position.
             coords           = ['X', 'Y', 'Z']
             sm_rot           = R.from_euler('z', sm_ang)
