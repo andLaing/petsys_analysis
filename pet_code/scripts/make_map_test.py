@@ -97,5 +97,11 @@ def test_single_ring(TEST_DATA_DIR, sm_ringYX):
     np.testing.assert_allclose(sm_centres.X, sm_ringYX.X)
     np.testing.assert_allclose(sm_centres.Y, sm_ringYX.Y)
 
+    # Check z of time channels in row always the same.
+    mask =    (ring_df.supermodule == 3)\
+            & (ring_df.minimodule.isin([1, 2, 3, 4]))\
+            & (ring_df.type == 'TIME')
+    np.testing.assert_allclose(ring_df.Z[mask][1:], ring_df.Z[mask].iloc[0])
+
 
 
