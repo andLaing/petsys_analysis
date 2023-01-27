@@ -122,6 +122,7 @@ def single_ring(nFEM, chan_per_mm, tchans, echans):
     superm_gen       = sm_gen(nFEM, chan_per_mm, tchans, echans, mM_energyMapping)
     # Hardwired, fix.
     SM_half_len      = 103.6 / 2
+    coords           = ['X', 'Y', 'Z']
     def ring_gen():
         local_cols = ['id', 'type', 'minimodule', 'local_x', 'local_y']
         for sm in range(24):
@@ -135,7 +136,6 @@ def single_ring(nFEM, chan_per_mm, tchans, echans):
             sm_local['Y']    =  sm_local.local_x - SM_half_len
             sm_local['Z']    = -sm_local.local_y + SM_half_len
             ## Rotate to supermodule angular position.
-            coords           = ['X', 'Y', 'Z']
             sm_rot           = R.from_euler('z', sm_ang)
             sm_local[coords] = sm_local[coords].apply(sm_rot.apply, axis=1,
                                                       result_type='broadcast')

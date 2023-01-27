@@ -25,35 +25,15 @@ def test_channel_sm_coordinate():
     np.testing.assert_allclose(results[2], (  1.75,  12.95))
     np.testing.assert_allclose(results[3], ( 12.95,   1.75))
 
-# Might be worth making the yaml map read a fixture in conftest
-def test_sm_gen(TEST_DATA_DIR):
+
+@fixture(scope = 'module')
+def channel_types(TEST_DATA_DIR):
     test_yaml = os.path.join(TEST_DATA_DIR, 'SM_mapping_corrected.yaml')
 
     with open(test_yaml) as map_file:
         ch_map = yaml.safe_load(map_file)
 
-    mm_emap = {1:1,  2:5,  3:9 ,  4:13,  5:2,  6:6,  7:10,  8:14,
-               9:3, 10:7, 11:11, 12:15, 13:4, 14:8, 15:12, 16:16}
-
-    gen_sm = sm_gen(256, 8, ch_map['time_channels'], ch_map['energy_channels'], mm_emap)
-
-    cols  = ['id', 'type', 'minimodule', 'local_x', 'local_y']
-    sm_df = pd.DataFrame((ch for ch in gen_sm(0)), columns=cols)
-
-    assert sm_df.shape == (256, 5)
-    time_chans = sm_df.type.str.contains('TIME')
-    eng_chans  = sm_df.type.str.contains('ENERGY')
-    assert sm_df[time_chans].shape == (128, 5)
-    assert sm_df[ eng_chans].shape == (128, 5)
-    assert set(ch_map[  'time_channels']).issubset(sm_df.id)
-    assert set(ch_map['energy_channels']).issubset(sm_df.id)
-    for mm in range(1, 17):
-        assert sm_df[sm_df.minimodule == mm].shape[0] == 16
-    # Probably need a more complete test for this
-    assert all(sm_df.local_x >=   1.75)
-    assert all(sm_df.local_x <= 101.85)
-    assert all(sm_df.local_y >=   1.75)
-    assert all(sm_df.local_y <= 101.85)
+    return ch_map['time_channels'], ch_map['energy_channels']
 
 
 @fixture(scope = 'module')
@@ -76,14 +56,37 @@ def sm_ringYX():
     return pd.DataFrame(yx_dict, index=['Y', 'X']).T
 
 
-def test_single_ring(TEST_DATA_DIR, sm_ringYX):
-    test_yaml = os.path.join(TEST_DATA_DIR, 'SM_mapping_corrected.yaml')
+def test_sm_gen(channel_types):
+    tchans, echans = channel_types
+    mm_emap = {1:1,  2:5,  3:9 ,  4:13,  5:2,  6:6,  7:10,  8:14,
+               9:3, 10:7, 11:11, 12:15, 13:4, 14:8, 15:12, 16:16}
 
-    with open(test_yaml) as map_file:
-        ch_map = yaml.safe_load(map_file)
+    gen_sm = sm_gen(256, 8, tchans, echans, mm_emap)
+
+    cols  = ['id', 'type', 'minimodule', 'local_x', 'local_y']
+    sm_df = pd.DataFrame((ch for ch in gen_sm(0)), columns=cols)
+
+    assert sm_df.shape == (256, 5)
+    time_chans = sm_df.type.str.contains('TIME')
+    eng_chans  = sm_df.type.str.contains('ENERGY')
+    assert sm_df[time_chans].shape == (128, 5)
+    assert sm_df[ eng_chans].shape == (128, 5)
+    assert set(tchans).issubset(sm_df.id)
+    assert set(echans).issubset(sm_df.id)
+    for mm in range(1, 17):
+        assert sm_df[sm_df.minimodule == mm].shape[0] == 16
+    # Probably need a more complete test for this
+    assert all(sm_df.local_x >=   1.75)
+    assert all(sm_df.local_x <= 101.85)
+    assert all(sm_df.local_y >=   1.75)
+    assert all(sm_df.local_y <= 101.85)
+
+
+def test_single_ring(channel_types, sm_ringYX):
+    tchans, echans = channel_types
 
     nFEM    = 256
-    ring_df = single_ring(nFEM, 8, ch_map['time_channels'], ch_map['energy_channels'])
+    ring_df = single_ring(nFEM, 8, tchans, echans)
 
     cols = ['id', 'type', 'supermodule', 'minimodule',
             'local_x', 'local_y', 'X', 'Y', 'Z']
