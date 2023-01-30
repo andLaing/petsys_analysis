@@ -10,6 +10,12 @@ def gaussian(x, amp, mu, sigma):
     return amp * np.exp(-0.5 * (x - mu)**2 / sigma**2) / (np.sqrt(2 * np.pi) * sigma)
 
 
+def lorentzian(x, amp, x0, gamma):
+    if gamma <= 0:
+        return np.inf
+    return amp * gamma**2 / ((x - x0)**2 + gamma**2)
+
+
 def fit_gaussian(data, bins, cb=8, min_peak=150, yerr=None):
     """
     Tidy of existing function.
@@ -38,8 +44,8 @@ def fit_gaussian(data, bins, cb=8, min_peak=150, yerr=None):
     return bin_centres, gaussian(bin_centres, *pars), pars, pcov
 
 
-def curve_fit_gaus(x, y, yerr, p0):
-    pars, pcov = curve_fit(gaussian, x, y, sigma=yerr, p0=p0)
+def curve_fit_fn(fn, x, y, yerr, p0):
+    pars, pcov = curve_fit(fn, x, y, sigma=yerr, p0=p0)
     return pars, pcov
 
 

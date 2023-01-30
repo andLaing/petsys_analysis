@@ -24,8 +24,9 @@ import numpy             as np
 
 from scipy.signal import find_peaks
 
-from pet_code.src.fits  import curve_fit_gaus
+from pet_code.src.fits  import curve_fit_fn
 from pet_code.src.fits  import fit_gaussian
+from pet_code.src.fits  import lorentzian
 from pet_code.src.fits  import gaussian
 from pet_code.src.io    import ChannelMap
 from pet_code.src.io    import read_petsys_filebyfile
@@ -41,12 +42,9 @@ def slab_plots(out_file, plot_source, plot_wosource, min_stats):
     with open(out_file + 'timeSlabPeaks.txt', 'w') as par_out:
         par_out.write('ID\tMU\tMU_ERR\tSIG\tSIG_ERR\n')
         for id, s_vals in plot_source.tdist.items():
-            # s_vals, bin_e = np.histogram(engs, bins=bin_edges)
             try:
-                # ns_vals, _ = np.histogram(plot_wosource.tdist[id], bins=bin_edges)
                 ns_vals = plot_wosource.tdist[id]
             except KeyError:
-                # plt.plot(bin_e[:-1], s_vals , label='Source')
                 plt.errorbar(bin_edges[:-1], s_vals, label='Source')
                 plt.legend()
                 plt.xlabel(f'Energy time channel {id}')
@@ -61,25 +59,15 @@ def slab_plots(out_file, plot_source, plot_wosource, min_stats):
                  fit_pars, cov   ) = fit_gaussian(diff_data, bin_edges, yerr=bin_errs, min_peak=min_stats)
                 ## hack
                 if fit_pars[1] <= bin_edges[3]:
-                    raise RuntimeError
-            except RuntimeError:
-                print(f'Failed fit for channel {id}')
-                plt.errorbar(bin_edges[:-1], diff_data, yerr=bin_errs)
-                plt.show()
-                min_x = input('Do you want to try a refit? [n]/min_pos')
-                if min_x:
-                    bin_wid   = np.diff(bin_edges[:2])[0]
-                    indx      = int(float(min_x) / bin_wid - bin_edges[0])
-                    diff_data = s_vals[indx:] - ns_vals[indx:]
-                    bin_errs = np.sqrt(s_vals[indx:] + ns_vals[indx:])
-                    try:
-                        bcent, g_vals, fit_pars, cov = fit_gaussian(diff_data, bin_edges[indx:], yerr=bin_errs, min_peak=int(min_peak * 0.7))
-                    except RuntimeError:
-                        fail_plot(bin_edges, s_vals, ns_vals, np.sqrt(s_vals + ns_vals))
+                    refit = refit_slab(out_file, id, bin_edges, s_vals, ns_vals, diff_data, bin_errs)
+                    if refit is None:
                         continue
-                else:
-                    fail_plot(bin_edges, s_vals, ns_vals, bin_errs)
+                    bcent, g_vals, fit_pars, cov = refit
+            except RuntimeError:
+                refit = refit_slab(out_file, id, bin_edges, s_vals, ns_vals, diff_data, bin_errs)
+                if refit is None:
                     continue
+                bcent, g_vals, fit_pars, cov = refit
             mu_err  = np.sqrt(cov[1, 1])
             sig_err = np.sqrt(cov[2, 2])
             par_out.write(f'{id}\t{round(fit_pars[1], 3)}\t{round(mu_err, 3)}\t{round(fit_pars[2], 3)}\t{round(sig_err, 3)}\n')
@@ -92,15 +80,34 @@ def slab_plots(out_file, plot_source, plot_wosource, min_stats):
             plt.clf()
 
 
+def refit_slab(out_file, id, bin_edges, source, nosource, diff_data, yerr):
+    print(f'Failed or unsafe fit for channel {id}')
+    plt.errorbar(bin_edges[:-1], diff_data, yerr=yerr)
+    plt.show()
+    min_x = input('Do you want to try a refit? [n]/start x of plot ')
+    if min_x:
+        bin_wid   = np.diff(bin_edges[:2])[0]
+        indx      = int(float(min_x) / bin_wid - bin_edges[0])
+        diff_data = source[indx:] - nosource[indx:]
+        bin_errs  = np.sqrt(source[indx:] + nosource[indx:])
+        try:
+            bcent, g_vals, fit_pars, cov = fit_gaussian(diff_data, bin_edges[indx:], yerr=bin_errs, min_peak=int(min_peak * 0.7))
+        except RuntimeError:
+            fail_plot(out_file, id, bin_edges, source, nosource, np.sqrt(source + nosource))
+            return None
+    else:
+        fail_plot(out_file, id, bin_edges, source, nosource, bin_errs)
+        return None
+    return bcent, g_vals, fit_pars, cov
+
+
 def energy_plots(out_file, plot_source, plot_wosource):
     bin_edges = plot_source.edges[ChannelType.ENERGY]
     bin_wid   = np.diff(bin_edges[:2])[0]
     with open(out_file + 'eChannelPeaks.txt', 'w') as par_out:
         par_out.write('ID\tMU\tMU_ERR\n')
         for id, vals in plot_source.edist.items():
-            # vals, edges, _ = plt.hist(engs, bins=bin_edges, histtype='step', label='Source')
             try:
-                # valsNS, *_ = plt.hist(plot_wosource.eng_max[id], bins=bin_edges, histtype='step', label='No Source')
                 valsNS = plot_wosource.edist[id]
             except KeyError:
                 valsNS = np.zeros_like(vals)
@@ -118,7 +125,7 @@ def energy_plots(out_file, plot_source, plot_wosource):
                 p_indx = peaks[0]
             ## Try to protect against noise floor
             nbin_fit = 5
-            if p_indx <= 3 * nbin_fit:
+            if p_indx <= 2 * nbin_fit:
                 print(f'Peak near min for channel {id}')
                 plt.errorbar(bin_cent, hdiff, yerr=hdiff_err)
                 plt.show()
@@ -128,26 +135,31 @@ def energy_plots(out_file, plot_source, plot_wosource):
                     p_indx = np.searchsorted(bin_edges, float(min_x), side='right') - 1
             plt.errorbar(bin_cent, hdiff, yerr=hdiff_err, label='Difference')
             plt.plot(bin_cent[peaks], hdiff[peaks], 'rv', markersize=15, label="Peak finder")
-            mask = (bin_cent > bin_cent[p_indx] - 5 * bin_wid) & (bin_cent < bin_cent[p_indx] + 5 * bin_wid)
+            mask = (bin_cent > bin_cent[p_indx] - nbin_fit * bin_wid) & (bin_cent < bin_cent[p_indx] + nbin_fit * bin_wid)
             try:
-                p0            = [hdiff[mask].sum(), bin_cent[p_indx], 5]
-                fit_pars, cov = curve_fit_gaus(bin_cent[mask], hdiff[mask], np.sqrt(hdiff[mask]), p0)
-                # bcent, g_vals, fit_pars, cov = fit_gaussian(hdiff, bin_edges, yerr=np.sqrt(hdiff), cb=5, min_peak=100)
-                plt.plot(bin_cent, gaussian(bin_cent, *fit_pars), label='Gaussian fit')
+                p0            = [hdiff[p_indx], bin_cent[p_indx], 3]
+                fit_pars, cov = curve_fit_fn(lorentzian, bin_cent[mask], hdiff[mask], np.sqrt(hdiff[mask]), p0)
+                plt.plot(bin_cent, lorentzian(bin_cent, *fit_pars), label='Gaussian fit')
                 av_diff = fit_pars[1]
                 av_err  = np.sqrt(cov[1, 1])
+                if av_err > 1.0:
+                    av_diff, av_err = weighted_average(plt, bin_cent, hdiff, hdiff_err, mask)
             except RuntimeError:
-                av_diff, wsum = np.average(bin_cent[mask], weights=hdiff[mask], returned=True)
-                av_err        = average_error(bin_cent[mask], hdiff[mask], hdiff_err[mask], wsum)
-                plt.axvspan(av_diff - av_err, av_diff + av_err, facecolor='#00FF00' , alpha = 0.3, label='Average diff')
+                av_diff, av_err = weighted_average(plt, bin_cent, hdiff, hdiff_err, mask)
             plt.xlabel(f'Energy E channel {id}')
             plt.ylabel('Frequency per bin (au)')
             plt.legend()
 
             par_out.write(f'{id}\t{round(av_diff, 3)}\t{round(av_err, 3)}\n')
-            # par_out.write(f'{id}\t{round(fit_pars[1], 3)}\t{round(np.sqrt(cov[1, 1]), 3)}\n')
             plt.savefig(out_file + f'Emax_ch{id}.png')
             plt.clf()
+
+
+def weighted_average(axis, bin_cent, hdiff, hdiff_err, mask):
+    av_diff, wsum = np.average(bin_cent[mask], weights=hdiff[mask], returned=True)
+    av_err        = average_error(bin_cent[mask], hdiff[mask], hdiff_err[mask], wsum)
+    axis.axvspan(av_diff - av_err, av_diff + av_err, facecolor='#00FF00' , alpha = 0.3, label='Average diff')
+    return av_diff, av_err
 
 
 def channel_plots(config, infiles):
@@ -187,7 +199,7 @@ def average_error(x, y, yerr, ysum):
     return np.sqrt(x_cont + y_cont)
 
 
-def fail_plot(bin_e, s_vals, ns_vals, bin_errs):
+def fail_plot(out_file, id, bin_e, s_vals, ns_vals, bin_errs):
     plt.plot(bin_e[:-1], s_vals , label='Source')
     plt.plot(bin_e[:-1], ns_vals, label='No Source')
     plt.errorbar(bin_e[:-1], s_vals - ns_vals, yerr=bin_errs, label='difference')
