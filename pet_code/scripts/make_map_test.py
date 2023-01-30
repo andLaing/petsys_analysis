@@ -8,6 +8,7 @@ from .. src.util import ChannelType
 from . make_map import channel_sm_coordinate
 from . make_map import np
 from . make_map import pd
+from . make_map import row_gen
 from . make_map import single_ring
 from . make_map import sm_gen
 
@@ -107,4 +108,13 @@ def test_single_ring(channel_types, sm_ringYX):
     np.testing.assert_allclose(ring_df.Z[mask][1:], ring_df.Z[mask].iloc[0])
 
 
+def test_row_gen(TEST_DATA_DIR, channel_types):
+    test_map       = os.path.join(TEST_DATA_DIR, 'twoSM_IMAS_map.feather')
+    tchans, echans = channel_types
 
+    cols = ['id', 'type', 'supermodule', 'minimodule', 'X', 'Y', 'Z', 'PLOTP', 'recID']
+    twoSM_gen = (row for row in row_gen(256, 8, tchans, echans))
+    twoSM_map = pd.DataFrame(twoSM_gen, columns=cols)
+
+    exp_map = pd.read_feather(test_map)
+    pd.testing.assert_frame_equal(twoSM_map, exp_map)
