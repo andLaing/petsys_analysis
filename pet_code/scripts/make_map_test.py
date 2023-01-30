@@ -58,8 +58,8 @@ def sm_ringYX():
 
 def test_sm_gen(channel_types):
     tchans, echans = channel_types
-    mm_emap = {1:1,  2:5,  3:9 ,  4:13,  5:2,  6:6,  7:10,  8:14,
-               9:3, 10:7, 11:11, 12:15, 13:4, 14:8, 15:12, 16:16}
+    mm_emap = {0:0, 1:4,  2:8 ,  3:12,  4:1,  5:5,  6:9 ,  7:13,
+               8:2, 9:6, 10:10, 11:14, 12:3, 13:7, 14:11, 15:15}
 
     gen_sm = sm_gen(256, 8, tchans, echans, mm_emap)
 
@@ -73,7 +73,7 @@ def test_sm_gen(channel_types):
     assert sm_df[ eng_chans].shape == (128, 5)
     assert set(tchans).issubset(sm_df.id)
     assert set(echans).issubset(sm_df.id)
-    for mm in range(1, 17):
+    for mm in range(0, 16):
         assert sm_df[sm_df.minimodule == mm].shape[0] == 16
     # Probably need a more complete test for this
     assert all(sm_df.local_x >=   1.75)
@@ -102,7 +102,7 @@ def test_single_ring(channel_types, sm_ringYX):
 
     # Check z of time channels in row always the same.
     mask =    (ring_df.supermodule == 3)\
-            & (ring_df.minimodule.isin([1, 2, 3, 4]))\
+            & (ring_df.minimodule.isin([0, 1, 2, 3]))\
             & (ring_df.type == 'TIME')
     np.testing.assert_allclose(ring_df.Z[mask][1:], ring_df.Z[mask].iloc[0])
 

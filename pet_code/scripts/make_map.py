@@ -105,7 +105,7 @@ def sm_gen(nFEM, chan_per_mm, tchans, echans, mm_emap):
     def _sm_gen(sm_no):
         for i, (tch, ech) in enumerate(zip(tchans, echans)):
             id = tch + sm_no * nFEM
-            mm = i // chan_per_mm + 1
+            mm = i // chan_per_mm
             loc_x, loc_y = channel_sm_coordinate(i // 32, i % 32, ChannelType.TIME)
             yield id, 'TIME', mm, loc_x, loc_y
             id = ech + sm_no * nFEM
@@ -116,8 +116,8 @@ def sm_gen(nFEM, chan_per_mm, tchans, echans, mm_emap):
 
 
 def single_ring(nFEM, chan_per_mm, tchans, echans):
-    mM_energyMapping = {1:1,  2:5,  3:9 ,  4:13,  5:2,  6:6,  7:10,  8:14,
-                        9:3, 10:7, 11:11, 12:15, 13:4, 14:8, 15:12, 16:16}
+    mM_energyMapping = {0:0,  1:4,  2:8 ,  3:12,  4:1,  5:5,  6:9 ,  7:13,
+                        8:2,  9:6, 10:10, 11:14, 12:3, 13:7, 14:11, 15:15}
     sm_angle         = sm_centre_pos()
     superm_gen       = sm_gen(nFEM, chan_per_mm, tchans, echans, mM_energyMapping)
     # Hardwired, fix.
