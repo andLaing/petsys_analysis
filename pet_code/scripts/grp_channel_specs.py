@@ -24,7 +24,9 @@ import numpy             as np
 
 from scipy.signal import find_peaks
 
+from pet_code.src.fits  import curve_fit_gaus
 from pet_code.src.fits  import fit_gaussian
+from pet_code.src.fits  import gaussian
 from pet_code.src.io    import ChannelMap
 from pet_code.src.io    import read_petsys_filebyfile
 from pet_code.src.plots import ChannelEHistograms
@@ -126,18 +128,24 @@ def energy_plots(out_file, plot_source, plot_wosource):
                     p_indx = np.searchsorted(bin_edges, float(min_x), side='right') - 1
             plt.errorbar(bin_cent, hdiff, yerr=hdiff_err, label='Difference')
             plt.plot(bin_cent[peaks], hdiff[peaks], 'rv', markersize=15, label="Peak finder")
-            bcent, g_vals, fit_pars, cov = fit_gaussian(hdiff, bin_edges, yerr=np.sqrt(hdiff), cb=5, min_peak=100)
-            # mask          = (bin_cent > bin_cent[p_indx] - 5 * bin_wid) & (bin_cent < bin_cent[p_indx] + 5 * bin_wid)
-            # av_diff, wsum = np.average(bin_cent[mask], weights=hdiff[mask], returned=True)
-            # av_err        = average_error(bin_cent[mask], hdiff[mask], hdiff_err[mask], wsum)
-            # plt.axvspan(av_diff - av_err, av_diff + av_err, facecolor='#00FF00' , alpha = 0.3, label='Average diff')
-            plt.plot(bcent, g_vals, label='Gaussian fit')
+            mask = (bin_cent > bin_cent[p_indx] - 5 * bin_wid) & (bin_cent < bin_cent[p_indx] + 5 * bin_wid)
+            try:
+                p0            = [hdiff[mask].sum(), bin_cent[p_indx], 5]
+                fit_pars, cov = curve_fit_gaus(bin_cent[mask], hdiff[mask], np.sqrt(hdiff[mask]), p0)
+                # bcent, g_vals, fit_pars, cov = fit_gaussian(hdiff, bin_edges, yerr=np.sqrt(hdiff), cb=5, min_peak=100)
+                plt.plot(bin_cent, gaussian(bin_cent, *fit_pars), label='Gaussian fit')
+                av_diff = fit_pars[1]
+                av_err  = np.sqrt(cov[1, 1])
+            except RuntimeError:
+                av_diff, wsum = np.average(bin_cent[mask], weights=hdiff[mask], returned=True)
+                av_err        = average_error(bin_cent[mask], hdiff[mask], hdiff_err[mask], wsum)
+                plt.axvspan(av_diff - av_err, av_diff + av_err, facecolor='#00FF00' , alpha = 0.3, label='Average diff')
             plt.xlabel(f'Energy E channel {id}')
             plt.ylabel('Frequency per bin (au)')
             plt.legend()
 
-            # par_out.write(f'{id}\t{round(av_diff, 3)}\t{round(av_err, 3)}\n')
-            par_out.write(f'{id}\t{round(fit_pars[1], 3)}\t{round(np.sqrt(cov[1, 1]), 3)}\n')
+            par_out.write(f'{id}\t{round(av_diff, 3)}\t{round(av_err, 3)}\n')
+            # par_out.write(f'{id}\t{round(fit_pars[1], 3)}\t{round(np.sqrt(cov[1, 1]), 3)}\n')
             plt.savefig(out_file + f'Emax_ch{id}.png')
             plt.clf()
 

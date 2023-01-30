@@ -38,6 +38,11 @@ def fit_gaussian(data, bins, cb=8, min_peak=150, yerr=None):
     return bin_centres, gaussian(bin_centres, *pars), pars, pcov
 
 
+def curve_fit_gaus(x, y, yerr, p0):
+    pars, pcov = curve_fit(gaussian, x, y, sigma=yerr, p0=p0)
+    return pars, pcov
+
+
 def mean_around_max(data, bins, cb, yerr=None):
     max_indx  = np.argmax(data)
     first_bin = max(max_indx - cb, 0)
