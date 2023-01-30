@@ -115,6 +115,19 @@ def sm_gen(nFEM, chan_per_mm, tchans, echans, mm_emap):
     return _sm_gen
 
 
+def local_translation(df, sm_r, sm_half_len):
+    """
+    Translate local coordinates to coordinates
+    centred on supermodule.
+
+    Assumes y coordinate needs to be inverted.
+    """
+    coords = np.vstack((np.full(df.shape[0], sm_r),
+                         df.local_x - sm_half_len ,
+                        -df.local_y + sm_half_len ))
+    return coords.T
+
+
 def single_ring(nFEM, chan_per_mm, tchans, echans):
     mM_energyMapping = {0:0,  1:4,  2:8 ,  3:12,  4:1,  5:5,  6:9 ,  7:13,
                         8:2,  9:6, 10:10, 11:14, 12:3, 13:7, 14:11, 15:15}
@@ -132,9 +145,7 @@ def single_ring(nFEM, chan_per_mm, tchans, echans):
 
             sm_r, sm_ang     = sm_angle(sm)
             ## Translate to XYZ relative to SM centre at X = R, Y = Z = 0.
-            sm_local['X']    =  sm_r
-            sm_local['Y']    =  sm_local.local_x - SM_half_len
-            sm_local['Z']    = -sm_local.local_y + SM_half_len
+            sm_local[coords] = local_translation(sm_local, sm_r, SM_half_len)
             ## Rotate to supermodule angular position.
             sm_rot           = R.from_euler('z', sm_ang)
             sm_local[coords] = sm_local[coords].apply(sm_rot.apply, axis=1,
