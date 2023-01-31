@@ -215,6 +215,31 @@ def get_skew(flight_time, slab_map, skew=pd.Series(dtype=float), plot_output=Non
     return calc_skew
 
 
+def peak_position(hist_bins, min_stats, skew):
+    """
+    Calculate the mean position of the delta time distribution
+    corrected for theoretical difference and, optionally, skew.
+    """
+    def calculate_bias(delta_t):
+        """
+        Do the calculation for every row of delta t.
+        Assumes that the ref_ch is the same for all.
+        """
+        ref_ch    = delta_t.ref_ch.unique()[0]
+        ref_skew  = skew.get(ref_ch, 0)
+        skew_corr = skew.loc[delta_t.coinc_ch].values - ref_skew
+
+        bin_vals, bin_edges = np.histogram(delta_t.corr_dt.values + skew_corr, bins=hist_bins)
+        try:
+            *_, pars, _ = fit_gaussian(bin_vals, bin_edges, min_peak=min_stats)
+        except RuntimeError:
+            print(f'Ref channel {ref_ch} fit fail', flush=True)
+            peak_mean, *_ = mean_around_max(bin_vals, bin_edges[:-1], 6)
+            return peak_mean if peak_mean else 0
+        return pars[1]
+    return calculate_bias
+
+
 if __name__ == '__main__':
     args     = docopt(__doc__)
     ncores   = int(args['-n'       ]) # For parallelization
