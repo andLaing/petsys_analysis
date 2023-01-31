@@ -140,6 +140,7 @@ def filter_impact(min_ch):
     Make a filter to check impacts recorded
     in sufficient channels.
     """
+    print("First commit")
     def valid_impact(mod_data):
         neng = get_no_eng_channels(mod_data)
         return min_ch < neng < len(mod_data)
