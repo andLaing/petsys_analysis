@@ -14,6 +14,8 @@ from . make_map import sm_gen
 
 from . make_map import mm_edge, mm_spacing, slab_width
 
+from numpy.testing import assert_allclose
+
 
 def test_channel_sm_coordinate():
     test_chans = [(0,  0, ChannelType.TIME  ),
@@ -26,10 +28,10 @@ def test_channel_sm_coordinate():
     exp_first = (round(mm_edge * 4 - (mm_spacing + slab_width) / 2, 3),
                  round(3.5 * mm_edge, 3))
     exp_last  = (round((mm_spacing + slab_width) / 2, 3), round(mm_edge / 2, 3))
-    np.testing.assert_allclose(results[0], exp_first      )
-    np.testing.assert_allclose(results[1], exp_first[::-1])
-    np.testing.assert_allclose(results[2], exp_last       )
-    np.testing.assert_allclose(results[3], exp_last [::-1])
+    assert_allclose(results[0], exp_first      )
+    assert_allclose(results[1], exp_first[::-1])
+    assert_allclose(results[2], exp_last       )
+    assert_allclose(results[3], exp_last [::-1])
 
 
 @fixture(scope = 'module')
@@ -104,9 +106,9 @@ def test_single_ring(channel_types, sm_ringYX):
     # Approx centre of SM with means
     xyz        = ['X', 'Y', 'Z']
     sm_centres = ring_df.groupby('supermodule')[xyz].apply(np.mean)
-    np.testing.assert_allclose(sm_centres.Z,           0, atol=1e-4)
-    np.testing.assert_allclose(sm_centres.X, sm_ringYX.X, rtol=1e-5)
-    np.testing.assert_allclose(sm_centres.Y, sm_ringYX.Y, rtol=1e-5)
+    assert_allclose(sm_centres.Z,           0, atol=1e-4)
+    assert_allclose(sm_centres.X, sm_ringYX.X, rtol=1e-5)
+    assert_allclose(sm_centres.Y, sm_ringYX.Y, rtol=1e-5)
 
     # Check z of time channels in row always the same.
     mask =    (ring_df.supermodule == 3)\
