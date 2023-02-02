@@ -8,6 +8,7 @@ from .. src.util import ChannelType
 from . make_map import channel_sm_coordinate
 from . make_map import np
 from . make_map import pd
+from . make_map import R
 from . make_map import row_gen
 from . make_map import single_ring
 from . make_map import sm_gen
@@ -114,7 +115,41 @@ def test_single_ring(channel_types, sm_ringYX):
     mask =    (ring_df.supermodule == 3)\
             & (ring_df.minimodule.isin([0, 1, 2, 3]))\
             & (ring_df.type == 'TIME')
-    np.testing.assert_allclose(ring_df.Z[mask][1:], ring_df.Z[mask].iloc[0])
+    assert_allclose(ring_df.Z[mask][1:], ring_df.Z[mask].iloc[0])
+
+
+def test_single_ring_corners(TEST_DATA_DIR, channel_types, sm_ringYX):
+    corners = os.path.join(TEST_DATA_DIR, 'IMAS1R_CORNERS-Table.csv')
+    tchans, echans = channel_types
+    sm_angs = sm_ringYX.apply(lambda x: np.arctan2(x.Y, x.X), axis=1)
+
+    exp_xyz     = ['GlobalX', 'GlobalY', 'GlobalZ']
+    exp_corners = pd.read_csv(corners, sep=';', decimal=',')
+    # We're going to compare the local max and min corners
+    exp_corners = (pd.concat((exp_corners.groupby('Module').head(1),
+                              exp_corners.groupby('Module').tail(1)))
+                     .sort_values('Module').reset_index(drop=True))
+
+    nFEM    = 256
+    ring_df = single_ring(nFEM, 8, tchans, echans)
+
+    # Compare using the local_x min and max (TIME channels)
+    corn_vec   = np.array([0, (mm_spacing + slab_width) / 2, -mm_edge / 2])
+    cols       = ['X', 'Y', 'Z']
+    time_smgrp = ring_df[ring_df.type.str.contains('TIME')].groupby('supermodule')
+    min_max    = (pd.concat((time_smgrp.head(1), time_smgrp.tail(1)))
+                    .sort_values(['supermodule', 'minimodule'])
+                    .reset_index(drop=True))
+    for sm, sm_info in min_max.groupby('supermodule'):
+        to_corner = R.from_euler('z', sm_angs.at[sm]).apply(corn_vec)
+        sm_corner = exp_corners[exp_corners.Module == sm]
+        indx_min  = sm_corner.LocalX.idxmin()
+        indx_max  = sm_corner.LocalX.idxmax()
+        print('SM: ', sm, ', ', indx_min, ', ', indx_max)
+        lmax_corner = sm_info.iloc[0][cols].astype('float').values + to_corner
+        lmin_corner = sm_info.iloc[1][cols].astype('float').values - to_corner
+        assert_allclose(lmin_corner, sm_corner.loc[indx_min][exp_xyz], rtol=5e-4)
+        assert_allclose(lmax_corner, sm_corner.loc[indx_max][exp_xyz], rtol=5e-4)
 
 
 def test_row_gen(TEST_DATA_DIR, channel_types):
