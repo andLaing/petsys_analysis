@@ -26,6 +26,12 @@ from pet_code.src.util import ChannelType
 from pet_code.src.util import slab_x, slab_y, slab_z
 
 
+# Global values for module placement in mm
+mm_spacing =  0.205
+mm_edge    = 25.805
+slab_width =  3.2
+
+
 def echan_x(rc_num):
     mm_wrap = round(0.3 * (rc_num // 8), 2)
     return round(1.75 + mm_wrap + 3.2 * rc_num, 2)
@@ -65,9 +71,10 @@ def channel_sm_coordinate(mm_rowcol, ch_indx, type):
     mm_rowcol : Either row or col depending on type: TIME row, ENERGY col.
     ch_indx   : index along row/column
     """
-    mm_spacing   = 0.3 * ((31 - ch_indx) // 8)
-    local_fine   = round(1.75 + mm_spacing + 3.2 * (31 - ch_indx), 2)
-    local_coarse = round(25.9 * (3.5 - mm_rowcol), 2)
+    mm_shift     = mm_spacing * ((31 - ch_indx) // 8)
+    ch_start     = (slab_width + mm_spacing) / 2
+    local_fine   = round(ch_start + mm_shift + slab_width * (31 - ch_indx), 3)
+    local_coarse = round(mm_edge * (3.5 - mm_rowcol), 3)
     if type is ChannelType.TIME:
         # local y course, local_x fine
         return local_fine, local_coarse
@@ -134,7 +141,7 @@ def single_ring(nFEM, chan_per_mm, tchans, echans):
     sm_angle         = sm_centre_pos()
     superm_gen       = sm_gen(nFEM, chan_per_mm, tchans, echans, mM_energyMapping)
     # Hardwired, fix.
-    SM_half_len      = 103.6 / 2
+    SM_half_len      = mm_edge * 2
     coords           = ['X', 'Y', 'Z']
     def ring_gen():
         local_cols = ['id', 'type', 'minimodule', 'local_x', 'local_y']
