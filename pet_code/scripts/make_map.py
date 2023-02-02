@@ -161,6 +161,27 @@ def single_ring(nFEM, chan_per_mm, tchans, echans):
     return pd.concat((sm for sm in ring_gen()), ignore_index=True)
 
 
+def n_rings(ring_pos, nFEM, chan_per_mm, tchans, echans):
+    """
+    Generate len(ring_pos) 24 sm rings.
+
+    ring_pos : list_like
+                Axial position of centre of the rings
+    """
+    sm_per_ring  = 24
+    ids_per_ring = sm_per_ring * nFEM
+    def ring_at_z(ring_no, ring_z):
+        sm_correction     = ring_no * sm_per_ring
+        id_correction     = ring_no * ids_per_ring
+        df                = single_ring(nFEM, chan_per_mm, tchans, echans)
+        df['supermodule'] = df.supermodule + sm_correction
+        df['id']          = df.id          + id_correction
+        df['Z']           = df.Z           + ring_z
+        return df
+
+    return pd.concat((ring_at_z(i, rngz) for i, rngz in enumerate(ring_pos)))
+
+
 if __name__ == '__main__':
     args    = docopt(__doc__)
     nFEM    = int(args['-f'])
