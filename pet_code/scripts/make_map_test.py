@@ -9,6 +9,7 @@ from . make_map import channel_sm_coordinate
 from . make_map import np
 from . make_map import pd
 from . make_map import R
+from . make_map import n_rings
 from . make_map import row_gen
 from . make_map import single_ring
 from . make_map import sm_gen
@@ -162,3 +163,32 @@ def test_row_gen(TEST_DATA_DIR, channel_types):
 
     exp_map = pd.read_feather(test_map)
     pd.testing.assert_frame_equal(twoSM_map, exp_map)
+
+
+def test_n_rings(channel_types):
+    tchans, echans = channel_types
+    z_pos = [-305.5312 + i * 152.7656 for i in range(5)]
+
+    nFEM = 256
+    n_sm =  24
+    five_rings = n_rings(z_pos, nFEM, 8, tchans, echans)
+
+    cols = ['id', 'type', 'supermodule', 'minimodule',
+            'local_x', 'local_y', 'X', 'Y', 'Z']
+    assert five_rings.shape == (nFEM * n_sm * len(z_pos), len(cols))
+    assert all(hasattr(five_rings, col) for col in cols)
+    assert five_rings.supermodule.unique().shape == (       n_sm * len(z_pos),)
+    assert five_rings.id         .unique().shape == (nFEM * n_sm * len(z_pos),)
+
+    # Check some randomly chosen SMs
+    exp_cent = {  0: {'X':  406.4924, 'Y':  -53.5157, 'Z': -305.5312},
+                 27: {'X':  249.5922, 'Y': -325.2749, 'Z': -152.7656},
+                 68: {'X':  249.5922, 'Y':  325.2749, 'Z':    0.0   },
+                 78: {'X':  -53.5157, 'Y': -406.4924, 'Z':  152.7656},
+                112: {'X': -156.9002, 'Y':  378.7906, 'Z':  305.5312}}
+    sm_mask  = five_rings.supermodule.isin(exp_cent.keys())
+    sm_cols  = ['supermodule', 'X', 'Y', 'Z']
+    mean_xyz = five_rings.loc[sm_mask, sm_cols].groupby('supermodule').apply(np.mean)
+    pd.testing.assert_frame_equal(mean_xyz.drop(columns='supermodule'),
+                                  pd.DataFrame(exp_cent).T            ,
+                                  check_names=False, check_exact=False, atol=1e-4)
