@@ -2,14 +2,15 @@
 
 """Make a dataframe with mapping info for TBPET type SM and save
 
-Usage: make_map.py [-f NFEM] [-g GEOM] [-o OUT] MAPYAML
+Usage: make_map.py [-f NFEM] [-g GEOM] [-c CONF] [-o OUT] MAPYAML
 
 Arguments:
     MAPYAML  File name with time and energy channel info.
 
 Options:
     -f=NFEM  Number of channels per Supermodule [default: 256]
-    -g=GEOM  Geometry: 2SM, 1ring [default: 1ring]
+    -g=GEOM  Geometry: 2SM, 1ring, nring [default: 1ring]
+    -c=CONF  YAML with ring z position info (only used with GEOM=nring)
     -o=OUT   Path for output file [default: 1ring_map]
 """
 
@@ -179,7 +180,7 @@ def n_rings(ring_pos, nFEM, chan_per_mm, tchans, echans):
         df['Z']           = df.Z           + ring_z
         return df
 
-    return pd.concat((ring_at_z(i, rngz) for i, rngz in enumerate(ring_pos)))
+    return pd.concat((ring_at_z(i, rngz) for i, rngz in enumerate(ring_pos)), ignore_index=True)
 
 
 if __name__ == '__main__':
@@ -194,11 +195,15 @@ if __name__ == '__main__':
     with open(args['MAPYAML']) as map_buffer:
         channel_map = yaml.safe_load(map_buffer)
 
-    if geom == '2SM':
+    if   geom == '2SM'  :
         df = pd.DataFrame((row for row in row_gen(nFEM, 8, channel_map['time_channels'], channel_map['energy_channels'])),
                         columns=['id', 'type', 'supermodule', 'minimodule', 'X', 'Y', 'Z', 'PLOTP', 'recID'])
     elif geom == '1ring':
         df = single_ring(nFEM, 8, channel_map['time_channels'], channel_map['energy_channels'])
+    elif geom == 'nring':
+        with open(args['-c']) as ringZ:
+            ring_z = yaml.safe_load(ringZ)
+        df = n_rings(ring_z['Z'], nFEM, 8, channel_map['time_channels'], channel_map['energy_channels'])
     else:
         print('Geometry not recognised')
         exit()
