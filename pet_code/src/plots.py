@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import Callable, List, Union
 
 import matplotlib.pyplot as plt
 
@@ -305,6 +305,45 @@ def group_times_list(filtered_events, peaks, ref_indx):
                     chns[coinc_indx][2], chns[  ref_indx][2]]
 
     return list(filter(lambda x: x, map(get_times, filtered_events)))
+
+
+def corrected_time_difference(impact_sel: Callable[[   tuple], tuple],
+                              ref_ch    : Callable[[   tuple], int  ],
+                              energy_sel: Callable[[   float], bool ],
+                              geom_dt   : Callable[[int, int], float]):
+    """
+    Calculate the time stamp difference of the
+    two impacts corrected for the expectation
+    given the source position.
+
+    impact_select : Callable
+                    Calibration/selection function
+    ref_ch        : Callable
+                    Get which 'side' of the event
+                    contains the reference channel.
+    energy_sel    : Callable
+                    True if channel energy in
+                    expected charge range.
+    geom_dt       : Callable
+                    Calculates the geometric dt for
+                    the two channels.
+    """
+    def _correct_dt(evt):
+        sel_sms = impact_sel(evt)
+        chns    = list(map(select_max_energy, sel_sms, [ChannelType.TIME] * 2))
+        if any(ch is None for ch in chns) or not all(energy_sel(ch[3]) for ch in chns):
+            return
+        ref_indx   = ref_ch(chns)
+        coinc_indx = 0 if ref_indx == 1 else 1
+        ref_id     = chns[  ref_indx][0]
+        coinc_id   = chns[coinc_indx][0]
+        dt_geom    = geom_dt(ref_id, coinc_id)
+        if dt_geom is None:
+            # No overlap found, ignore.
+            return
+        dt_tstp    = chns[ref_indx][2] - chns[coinc_indx][2]
+        return ref_id, coinc_id, dt_tstp - dt_geom
+    return _correct_dt
 
 
 # Need to review all of this. Clearly repetition.
