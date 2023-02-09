@@ -86,8 +86,7 @@ def test_calculate_skews_nobias(TEST_DATA_DIR, TMP_OUT):
     conf       = configparser.ConfigParser()
     conf.read(test_conf)
     skews      = calculate_skews([test_file], conf, start_bias)
-    print('Checks: ', skews[skews != 0])
-    ref_chs = pd.read_feather(test_file).ref_ch.unique()
+    ref_chs    = pd.read_feather(test_file).ref_ch.unique()
     assert skews[skews != 0].shape[0] == ref_chs.shape[0]
     assert all(skews[skews != 0].index.isin(ref_chs))
     # Too much hardwiring as normal!
