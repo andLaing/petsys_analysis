@@ -1,4 +1,7 @@
-from pytest import fixture
+import os
+import configparser
+
+from pytest import approx, fixture, mark
 
 from . skew_calc import np
 from . skew_calc import pd
@@ -17,6 +20,8 @@ def deltat_df():
     return dist_mean, dist_sigma, pd.DataFrame(dt_dict)
 
 
+@mark.filterwarnings("ignore:Covariance")
+@mark.filterwarnings("ignore:divide by zero")
 def test_peak_position(deltat_df):
     hist_bins   = np.linspace(-10000, 10000, 400, endpoint=False)
     all_ids     = np.arange(768)
