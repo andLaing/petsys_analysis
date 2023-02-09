@@ -5,6 +5,7 @@ from pytest import approx, fixture, mark
 
 from . skew_calc import np
 from . skew_calc import pd
+from . skew_calc import calculate_skews
 from . skew_calc import peak_position
 from . skew_calc import process_raw_data
 
@@ -68,3 +69,28 @@ def test_process_raw_data(TEST_DATA_DIR, TMP_OUT):
     assert all(saved_dt.ref_ch  .isin(ref_chs))
     assert all(saved_dt.coinc_ch.isin(coi_chs))
     assert saved_dt.corr_dt.mean() == approx(750.84)
+
+
+@mark.filterwarnings("ignore:Covariance")
+@mark.filterwarnings("ignore:divide by zero")
+def test_calculate_skews_nobias(TEST_DATA_DIR, TMP_OUT):
+    test_file = os.path.join(TEST_DATA_DIR                                 ,
+                             '20221121_SourceSM1pos8_1000evt_coinc.feather')
+    test_conf = os.path.join(TMP_OUT      , 'skew.conf')
+
+    with open(test_conf, 'w') as conf:
+        conf.write('[filter]\nrelax_fact = 0.7\nmin_stats=10\n')
+        conf.write('hist_bins = -5000,5000,800\n')
+
+    start_bias = pd.Series(0, index=np.arange(768))
+    conf       = configparser.ConfigParser()
+    conf.read(test_conf)
+    skews      = calculate_skews([test_file], conf, start_bias)
+    print('Checks: ', skews[skews != 0])
+    ref_chs = pd.read_feather(test_file).ref_ch.unique()
+    assert skews[skews != 0].shape[0] == ref_chs.shape[0]
+    assert all(skews[skews != 0].index.isin(ref_chs))
+    # Too much hardwiring as normal!
+    exp_bias = np.array([326.666667, 364.000000, 202.222222, 681.333333,
+                         622.758621, 513.333333,  90.588235, 580.000000])
+    np.testing.assert_allclose(skews[skews != 0], exp_bias)
