@@ -28,9 +28,11 @@ from pet_code.src.util import slab_x, slab_y, slab_z
 
 
 # Global values for module placement in mm
-mm_spacing =  0.205
-mm_edge    = 25.805
-slab_width =  3.2
+mm_spacing       =  0.205
+mm_edge          = 25.805
+slab_width       =  3.2
+mM_energyMapping = {0:0,  1:4,  2:8 ,  3:12,  4:1,  5:5,  6:9 ,  7:13,
+                    8:2,  9:6, 10:10, 11:14, 12:3, 13:7, 14:11, 15:15}
 
 
 def echan_x(rc_num):
@@ -45,26 +47,19 @@ def echan_y(sm, row):
 
 
 def row_gen(nFEM, chan_per_mm, tchans, echans):
-    mM_energyMapping = {1:1,  2:5,  3:9 ,  4:13,  5:2,  6:6,  7:10,  8:14,
-                        9:3, 10:7, 11:11, 12:15, 13:4, 14:8, 15:12, 16:16}
+    superm_gen = sm_gen(nFEM, chan_per_mm, tchans, echans, mM_energyMapping)
     for i in (0, 2):
-        for j, (tch, ech) in enumerate(zip(tchans, echans)):
-            id = tch + i * nFEM
-            mm = j // chan_per_mm + 1
-            x  = slab_x(j // 32)
-            y  = slab_y(j %  32, i)
+        for j, (id, typ, mm, loc_x, loc_y) in enumerate(superm_gen(i)):
+            if typ == 'TIME':
+                ind = j // 2
+                x = slab_x(ind // 32)
+                y = slab_y(ind %  32, i)
+            else:
+                ind = j // 2
+                x = echan_x(ind % 32)
+                y = echan_y(i, ind // 32)
             z  = slab_z(i)
-            # Position for floodmap (review!)
-            pp = round(1.6 + 3.2 * (j % 32), 2)
-            # Make the recID the same as id for now
-            yield id, 'TIME', i, mm, x, y, z, pp, id
-            id = ech + i * nFEM
-            mm = mM_energyMapping[mm]
-            x  = echan_x(j % 32)
-            y  = echan_y(i, j // 32)
-            pp = round(1.6 + 3.2 * (31 - j % 32), 2)
-            # Make the recID the same as id for now
-            yield id, 'ENERGY', i, mm, x, y, z, pp, id
+            yield id, typ, i, mm, loc_x, loc_y, x, y, z
 
 
 def channel_sm_coordinate(mm_rowcol, ch_indx, type):
@@ -137,8 +132,6 @@ def local_translation(df, sm_r, sm_half_len):
 
 
 def single_ring(nFEM, chan_per_mm, tchans, echans):
-    mM_energyMapping = {0:0,  1:4,  2:8 ,  3:12,  4:1,  5:5,  6:9 ,  7:13,
-                        8:2,  9:6, 10:10, 11:14, 12:3, 13:7, 14:11, 15:15}
     sm_angle         = sm_centre_pos()
     superm_gen       = sm_gen(nFEM, chan_per_mm, tchans, echans, mM_energyMapping)
     # Hardwired, fix.
@@ -197,7 +190,7 @@ if __name__ == '__main__':
 
     if   geom == '2SM'  :
         df = pd.DataFrame((row for row in row_gen(nFEM, 8, channel_map['time_channels'], channel_map['energy_channels'])),
-                        columns=['id', 'type', 'supermodule', 'minimodule', 'X', 'Y', 'Z', 'PLOTP', 'recID'])
+                          columns=['id', 'type', 'supermodule', 'minimodule', 'local_x', 'local_y', 'X', 'Y', 'Z'])
     elif geom == '1ring':
         df = single_ring(nFEM, 8, channel_map['time_channels'], channel_map['energy_channels'])
     elif geom == 'nring':

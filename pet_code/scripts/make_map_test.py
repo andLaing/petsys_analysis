@@ -157,7 +157,7 @@ def test_row_gen(TEST_DATA_DIR, channel_types):
     test_map       = os.path.join(TEST_DATA_DIR, 'twoSM_IMAS_map.feather')
     tchans, echans = channel_types
 
-    cols = ['id', 'type', 'supermodule', 'minimodule', 'X', 'Y', 'Z', 'PLOTP', 'recID']
+    cols = ['id', 'type', 'supermodule', 'minimodule', 'local_x', 'local_y', 'X', 'Y', 'Z']
     twoSM_gen = (row for row in row_gen(256, 8, tchans, echans))
     twoSM_map = pd.DataFrame(twoSM_gen, columns=cols)
 
