@@ -228,28 +228,28 @@ def test_ChannelMap(TEST_DATA_DIR):
     with pytest.warns(UserWarning):
         ch_map = ChannelMap(test_map)
 
-    t_chans = [(  0,  5, (38.85, -79.45,   0.0   )), ( 52,  2, (12.95, -75.95,   0.0   )),
-               (200, 12, (64.75, -20.95,   0.0   )), (223, 16, (90.65, -14.55,   0.0   )),
-               (514,  6, (38.85, -27.65, 123.7971)), (567,  2, (12.95, -30.85, 123.7971)),
-               (720, 12, (64.75, -85.85, 123.7971)), (738, 16, (90.65, -92.25, 123.7971))]
+    t_chans = [(  0,  4, (38.85, -79.45,   0.0   )), ( 52,  1, (12.95, -75.95,   0.0   )),
+               (200, 11, (64.75, -20.95,   0.0   )), (223, 15, (90.65, -14.55,   0.0   )),
+               (514,  5, (38.85, -27.65, 123.7971)), (567,  1, (12.95, -30.85, 123.7971)),
+               (720, 11, (64.75, -85.85, 123.7971)), (738, 15, (90.65, -92.25, 123.7971))]
     assert all(ch_map.get_channel_type(id) is ChannelType.TIME for id, *_ in t_chans)
     assert all(ch_map.get_supermodule (id) ==  0 for id, *_    in t_chans[ :4])
     assert all(ch_map.get_supermodule (id) ==  2 for id, *_    in t_chans[4: ])
     assert all(ch_map.get_minimodule  (id) == mm for id, mm, _ in t_chans)
     assert all(np.allclose(ch_map.get_channel_position(id), pos) for id, _, pos in t_chans)
 
-    e_chans = [(  1,  6, (37.25, -64.75,   0.0   )), ( 53,  2, (24.15, -64.75,   0.0   )),
-               (201, 11, (53.55, -38.85,   0.0   )), (229, 16, (79.45, -12.95,   0.0   )),
-               (515,  6, (40.45, -38.85, 123.7971)), (572,  6, (27.65, -38.85, 123.7971)),
-               (724, 12, (56.75, -90.65, 123.7971)), (741, 16, (79.45, -90.65, 123.7971))]
+    e_chans = [(  1,  5, (37.25, -64.75,   0.0   )), ( 53,  1, (24.15, -64.75,   0.0   )),
+               (201, 10, (53.55, -38.85,   0.0   )), (229, 15, (79.45, -12.95,   0.0   )),
+               (515,  5, (40.45, -38.85, 123.7971)), (572,  5, (27.65, -38.85, 123.7971)),
+               (724, 11, (56.75, -90.65, 123.7971)), (741, 15, (79.45, -90.65, 123.7971))]
     assert all(ch_map.get_channel_type(id) is ChannelType.ENERGY for id, *_ in e_chans)
     assert all(ch_map.get_supermodule (id) ==  0 for id, *_    in e_chans[ :4])
     assert all(ch_map.get_supermodule (id) ==  2 for id, *_    in e_chans[4: ])
     assert all(ch_map.get_minimodule  (id) == mm for id, mm, _ in e_chans)
     assert all(np.allclose(ch_map.get_channel_position(id), pos) for id, _, pos in e_chans)
 
-    exp_mm5 = np.array([27, 28, 26, 24, 25, 22, 20, 23, 21, 19, 17, 18, 15, 16, 8, 0])
-    assert all(ch_map.get_minimodule_channels(0, 5) == exp_mm5)
+    exp_mm4 = np.array([27, 28, 26, 24, 25, 22, 20, 23, 21, 19, 17, 18, 15, 16, 8, 0])
+    assert all(ch_map.get_minimodule_channels(0, 4) == exp_mm4)
 
 
 def test_write_event_trace(TEST_DATA_DIR, TMP_OUT, DUMMY_SM):
