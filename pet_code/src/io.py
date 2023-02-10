@@ -261,7 +261,7 @@ class ChannelMap:
             warn('Imported map does not contain gains. Defaulting to uncalibrated.')
             self.mapping['gain'] = 1.0
         self.ch_type = self.mapping.type.to_dict()
-        self.plotp   = self.mapping.PLOTP.to_dict()
+        self.plotp   = self.mapping[['local_x', 'local_y']].to_dict('index')
 
     def get_channel_type(self, id: int) -> ChannelType:
         return self.mapping.at[id, 'type']
@@ -290,16 +290,10 @@ class ChannelMap:
         """
         Pseudo position for floodmap plotting.
         """
-        return self.mapping.at[id, 'PLOTP']
+        return self.mapping.loc[id, ['local_x', 'local_y']].values
 
     def get_channel_position(self, id: int) -> np.ndarray:
         return self.mapping.loc[id, ['X', 'Y', 'Z']].values.astype('float')
-
-    def get_reco_id(self, id: int) -> int:
-        """
-        Return id for image reconstruction
-        """
-        return self.mapping.at[id, 'recID']
 
 
 def write_event_trace(file_buffer, centroid_map, mm_map):

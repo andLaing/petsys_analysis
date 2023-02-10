@@ -64,7 +64,7 @@ def test_centroid_calculation(TEST_DATA_DIR, DUMMY_SM):
     ## DUMMY not ideal as 100% energy channels, to be improved.
     expected_eng = sum((x[3] + 0.00001)**2 for x in DUMMY_SM)
     assert time_mean == 0.0
-    assert_almost_equal(eng_mean,     43.20841, decimal=5)
+    assert_almost_equal(eng_mean,     43.51608, decimal=5)
     assert_almost_equal(tot_eng , expected_eng, decimal=5)
 
 
