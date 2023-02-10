@@ -115,15 +115,22 @@ def slab_z(sm_num):
     return 123.7971 if sm_num == 2 else 0
 
 
+def select_array_range(min_val, max_val):
+    """
+    Return a function that can select
+    arrays in an open range (minE, maxE).
+    """
+    def select_range(array_like):
+        return (array_like > min_val) & (array_like < max_val)
+    return select_range
+
+
 def select_energy_range(minE, maxE):
     """
     Return a function that can select
     energies in an open range (minE, maxE).
     """
-    def select_eng(eng_val):
-        return (eng_val > minE) & (eng_val < maxE)
-    return select_eng
-
+    return select_array_range(minE, maxE)
 
 ## Event and impact filters...
 def filter_impact(min_ch, energy_chid):

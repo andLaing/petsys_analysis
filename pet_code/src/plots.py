@@ -1,11 +1,12 @@
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 
 from . fits import fit_gaussian
 from . util import get_supermodule_eng
 from . util import np
 from . util import pd
-from . util import select_energy_range
 from . util import select_max_energy
+from . util import select_array_range
 
 def plot_settings():
     plt.rcParams[ 'lines.linewidth' ] =  2
@@ -24,7 +25,7 @@ def hist1d(axis, data, bins=200, range=(0, 300), histtype='step', label='histo')
     return pbins, weights
 
 
-def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150, brange=(0, 300), nsigma=2):
+def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150, brange=(0, 300), nsigma=2, ROI = {}, log_flag = True):
     """
     Generate the energy spectra and select the photopeak
     for each module. Optionally plot and save spectra
@@ -45,6 +46,9 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150, bran
                   Lower and upper bounds for energy histograms.
     nsigma      : int
                   Number of sigmas in peak selection.
+    ROI         : dict
+                  Dict structure with key as the ROI to draw
+                  and limits (xmin, xmax, ymin, ymax) as value. 
     return
                  List of energy selection filters.
     """
@@ -59,7 +63,8 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150, bran
             try:
                 bin_edges, bin_vals = hist1d(ax, module_xye[j+1]['energy'], range=brange, label=f'Det: {sm_label}\n mM: {j+1}')
             except KeyError:
-                print(f'No data for super module {sm_label}, mini module {j+1}, skipping')
+                if log_flag:
+                    print(f'No data for super module {sm_label}, mini module {j+1}, skipping')
                 photo_peak.append(lambda x: False)
                 continue
             try:
@@ -68,7 +73,7 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150, bran
             except RuntimeError:
                 minE, maxE = 0, 300
             eng_arr = np.array(module_xye[j+1]['energy'])
-            photo_peak.append(select_energy_range(minE, maxE))
+            photo_peak.append(select_array_range(minE, maxE))
             ax.plot(bcent, gvals, label=f'fit $\mu$ = {round(pars[1], 3)},  $\sigma$ = {round(pars[2], 3)}')
             ax.set_xlabel('Energy (au)')
             ## Filters for floodmaps
@@ -85,13 +90,20 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150, bran
         out_name = plot_output.replace(".ldat","_EnergyModuleSMod" + str(sm_label) + ".png")
         fig.savefig(out_name)
         plt.clf()
-        plt.hist2d(xfilt, yfilt, bins = 500, range=[[0, 104], [0, 104]], cmap="Reds", cmax=250)
+        plt.hist2d(xfilt, yfilt, bins = 500, range=[[0, 104], [0, 104]], cmap="Greys", cmax=250)        
         plt.xlabel('X position (pixelated) [mm]')
         plt.ylabel('Y position (monolithic) [mm]')
         plt.colorbar()
         plt.tight_layout()
-        out_name = plot_output.replace(".ldat","_FloodModule" + str(sm_label) + ".png")
-        plt.savefig(out_name)
+        out_name_wo_ROI = plot_output.replace(".ldat","_FloodModule" + str(sm_label) + ".png")
+        plt.savefig(out_name_wo_ROI)
+        if bool(ROI):
+            currentAxis = plt.gca()
+            for mm in ROI:
+                for slab in ROI[mm]:                
+                    currentAxis.add_patch(Rectangle((slab[0], slab[2]), slab[1] - slab[0], slab[3] - slab[2], fill=None, alpha=1, edgecolor='green', linewidth=1))
+            out_name_w_ROI = plot_output.replace(".ldat","_FloodModuleROI" + str(sm_label) + ".png")
+            plt.savefig(out_name_w_ROI)
         plt.clf()
     else:
         for j in range(1, 17):
@@ -106,7 +118,7 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150, bran
                 minE, maxE = pars[1] - nsigma * pars[2], pars[1] + nsigma * pars[2]
             except RuntimeError:
                 minE, maxE = 0, 300
-            photo_peak.append(select_energy_range(minE, maxE))
+            photo_peak.append(select_array_range(minE, maxE))
     return photo_peak
 
 
@@ -144,7 +156,7 @@ def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150, bins=np.arange
             except RuntimeError:
                 print(f'Failed fit, slab {slab}')
                 minE, maxE = -1, 0
-            photo_peak[slab] = select_energy_range(minE, maxE)
+            photo_peak[slab] = select_array_range(minE, maxE)
             plt.axvspan(minE, maxE, facecolor='#00FF00' , alpha = 0.3, label='Selected range')
             plt.legend()
             plt.savefig(plot_output.replace('.ldat', f'_slab{slab}Spec.png'))
@@ -162,7 +174,8 @@ def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150, bins=np.arange
                     minE, maxE = pars[1] - 2 * pars[2], pars[1] + 2 * pars[2]
             except RuntimeError:
                 minE, maxE = -1, 0
-            photo_peak[slab] = select_energy_range(minE, maxE)
+            photo_peak[slab] = select_array_range(minE, maxE)
+    print("Check spread: mean = ", np.mean(mus), ", std = ", np.std(mus, ddof=1), ", ratio = ", np.std(mus, ddof=1) / np.mean(mus))
     return photo_peak
 
 
