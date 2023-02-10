@@ -125,6 +125,13 @@ def select_array_range(min_val, max_val):
     return select_range
 
 
+def select_energy_range(minE, maxE):
+    """
+    Return a function that can select
+    energies in an open range (minE, maxE).
+    """
+    return select_array_range(minE, maxE)
+
 ## Event and impact filters...
 def filter_impact(min_ch, energy_chid):
     """

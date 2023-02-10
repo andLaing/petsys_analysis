@@ -25,7 +25,7 @@ from colorama import Fore, Style
 
 
 from pet_code.src.io    import read_petsys_filebyfile
-from pet_code.src.io    import read_ymlmapping
+from pet_code.src.io    import read_ymlmapping_tbval
 from pet_code.src.plots import mm_energy_spectra
 from pet_code.src.util  import calibrate_energies
 from pet_code.src.util  import centroid_calculation
@@ -56,9 +56,9 @@ def sm_slab_specs(sm):
     mm_compression = {}
     for mm in sm:        
             #if mm == 4: 
-            x_array          = np.array(sm[mm]["x"])
-            y_array          = np.array(sm[mm]["y"])
-            e_array          = np.array(sm[mm]["energy"])
+            x_array          = np.asarray(sm[mm]["x"])
+            y_array          = np.asarray(sm[mm]["y"])
+            e_array          = np.asarray(sm[mm]["energy"])
             """
             fig = plt.figure(8)
             plt.hist(x_array, bins = 250, range = [0, 108]) 
@@ -192,7 +192,7 @@ if __name__ == '__main__':
     nsigma    = conf.getint('output', 'nsigma', fallback=2)
     singles_flag = conf.get('filter', 'singles', fallback='False')
 
-    time_ch, eng_ch, mm_map, centroid_map, slab_map, tb_val_mapping = read_ymlmapping(map_file)
+    time_ch, eng_ch, mm_map, centroid_map, slab_map, tb_val_mapping = read_ymlmapping_tbval(map_file)
     filt_type = conf.get('filter', 'type', fallback='Impacts')
     # Should improve with an enum or something
     if 'Impacts'  in filt_type:
@@ -213,45 +213,44 @@ if __name__ == '__main__':
     else:
         cal_func = lambda x: x
         out_cal  = "WoCal"
+    ## Should we be filtering the events with multiple mini-modules in one sm?
+    c_calc     = centroid_calculation(centroid_map)
+    # ## Must be a better way but...
+    if conf.getboolean('filter', 'sel_max_mm'):
+        def wrap_mmsel(eng_ch):
+            def sel(sm):
+                return select_module(sm, eng_ch)
+            return sel
+        msel = wrap_mmsel(eng_ch)
+    else:
+        msel = lambda x: x
+    pet_reader = read_petsys_filebyfile(mm_map, evt_select, singles = singles_flag)        
     end_r      = time.time()
+    out_dir = conf.get('output', 'out_dir')
+    png_dir = out_dir + "/pngs"
+    txt_dir = out_dir + "/txts"
+    if not os.path.isdir(out_dir):
+        os.makedirs(out_dir)                    
+        os.makedirs(png_dir)
+        os.makedirs(txt_dir)
     for f_in in infiles:
-        out_dir = conf.get('output', 'out_dir')
-        png_dir = out_dir + "/pngs"
-        txt_dir = out_dir + "/txts"
-        if not os.path.isdir(out_dir):
-            os.makedirs(out_dir)                    
-            os.makedirs(png_dir)
-            os.makedirs(txt_dir)
+        f_in_name           = f_in.split(os.sep)[-1]
+        f_in_name_split     = f_in_name.split(".")
+        f_in_cal_name       = [".".join(f_in_name_split[0:-1]) + out_cal, f_in_name_split[-1]]  
+        out_base            = os.path.join(out_dir, ".".join(f_in_cal_name))      
+        out_base_png        = os.path.join(png_dir, ".".join(f_in_cal_name))
+        out_base_txt        = os.path.join(txt_dir, ".".join(f_in_cal_name))
         
-        f_in_name       = f_in.split(os.sep)[-1]
-        f_in_name_split = f_in_name.split(".")
-        f_in_cal_name   = [".".join(f_in_name_split[0:-1]) + out_cal, f_in_name_split[-1]]  
-        out_base        = os.path.join(out_dir, ".".join(f_in_cal_name))      
-        out_base_png    = os.path.join(png_dir, ".".join(f_in_cal_name))
-        out_base_txt    = os.path.join(txt_dir, ".".join(f_in_cal_name))
-        
-        start           = time.time()
+        start               = time.time()
         print("Reading file: {}...".format(f_in))
-        pet_reader      = read_petsys_filebyfile(f_in, mm_map, evt_select, singles = singles_flag)        
-        filtered_events = [cal_func(tpl) for tpl in pet_reader()]
-
-        end_r           = time.time()
+        filtered_events = list(map(cal_func, pet_reader(f_in)))
+        end_r               = time.time()
         print("Time eNlapsed reading: {} s".format(int(end_r - start)))
         #print("length check: ", len(filtered_events))
-        start           = time.time()
-        ## Should we be filtering the events with multiple mini-modules in one sm?
-        c_calc          = centroid_calculation(centroid_map)
-        # ## Must be a better way but...
-        if conf.getboolean('filter', 'sel_max_mm'):
-            def wrap_mmsel(eng_ch):
-                def sel(sm):
-                    return select_module(sm, eng_ch)
-                return sel
-            msel = wrap_mmsel(eng_ch)
-        else:
-            msel = lambda x: x
+        start               = time.time()
+       
         #print(filtered_events[0])
-        missing_channels = check_all_channels(filtered_events, eng_ch, tb_val_mapping)
+        missing_channels    = check_all_channels(filtered_events, eng_ch, tb_val_mapping)
 
         mod_dicts           = mm_energy_centroids(filtered_events, c_calc, eng_ch, mod_sel=msel)
         
