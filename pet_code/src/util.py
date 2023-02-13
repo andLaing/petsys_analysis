@@ -1,8 +1,8 @@
 import numpy  as np
 import pandas as pd
 
-from enum      import auto, Enum
-from itertools import repeat
+from enum   import auto, Enum
+from typing import Callable
 
 from scipy.constants import c as c_vac
 
@@ -328,4 +328,32 @@ def calibrate_energies(type_ids, time_cal, eng_cal, sep='\t'):
         return event
     return apply_calibration
 
+
+def bar_source_dt(bar_xy: np.ndarray, bar_r: float, slab_pos: Callable) -> Callable:
+    """
+    Define an axially infinite bar of radius bar_r centred on
+    bar_xy so that geometric dt can be predicted.
+    """
+    c_mm_per_ps = c_vac * 1000 / 1e12
+    c_corr = np.square(bar_xy).sum() - bar_r**2
+    def geom_dt(ref_id, coinc_id):
+        ref_pos   = slab_pos(  ref_id)
+        coinc_pos = slab_pos(coinc_id)
+        dir_norm  = np.linalg.norm(coinc_pos - ref_pos)
+        dir       = (coinc_pos - ref_pos) / dir_norm
+
+        a = np.square(dir[:2]).sum()
+        b = 2 * (dir[0] * (ref_pos[0] - bar_xy[0]) + dir[1] * (ref_pos[1] - bar_xy[1]))
+        c = ref_pos[0] * (ref_pos[0] - 2 * bar_xy[0]) + ref_pos[1] * (ref_pos[1] - 2 * bar_xy[1]) + c_corr
+
+        determ = b**2 - 4 * a * c
+        if determ < 0:
+            return
+
+        t1    = 0.5 * (-b + np.sqrt(determ)) / a
+        t2    = 0.5 * (-b - np.sqrt(determ)) / a
+        med_t = (t1 + t2) / 2
+        dt    = (2 * med_t  - dir_norm) / c_mm_per_ps
+        return dt
+    return geom_dt
 
