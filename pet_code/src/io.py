@@ -4,6 +4,7 @@ import yaml
 import numpy  as np
 import pandas as pd
 
+from functools import lru_cache
 from itertools import chain, islice, repeat
 from warnings  import warn
 
@@ -296,12 +297,13 @@ class ChannelMap:
     def get_gains(self, ids: Union[List, Tuple, np.ndarray]) -> np.ndarray:
         return self.mapping.loc[ids, 'gain'].values
 
-    def get_plot_position(self, id: int) -> float:
+    def get_plot_position(self, id: int) -> np.ndarray:
         """
         Pseudo position for floodmap plotting.
         """
         return self.mapping.loc[id, ['local_x', 'local_y']].values
 
+    @lru_cache
     def get_channel_position(self, id: int) -> np.ndarray:
         return self.mapping.loc[id, ['X', 'Y', 'Z']].values.astype('float')
 
