@@ -2,7 +2,7 @@
 
 """Calculate the skew for each channel in a two super module set-up
 
-Usage: skew_calc.py (--conf CONFFILE) [-n NCORE] [--it NITER] [--firstit FITER] INFILES ...
+Usage: skew_calc.py (--conf CONFFILE) [-n NCORE] [--it NITER] [--firstit FITER] [-r] INFILES ...
 
 Arguments:
     INFILES File(s) to be processed.
@@ -14,6 +14,7 @@ Options:
     -n=NCORE         Number of cores for processing [default: 2]
     --it=NITER       Number of iterations over data [default: 3]
     --firstit=FITRE  Iteration at which to start    [default: 0]
+    -r               Recalculate from 0 assuming dt files available.
 """
 
 import os
@@ -371,10 +372,11 @@ if __name__ == '__main__':
     else:
         all_ids     = pd.read_feather(conf.get('mapping', 'map_file')).id
         skew_values = pd.Series(0, index=all_ids.sort_values())
-        bin_proc    = process_raw_data(conf)
-        # Possible to parallelize here?
-        input_files = list(bin_proc(input_files))
-        print('Binary processing complete')
+        if not args['-r']:
+            bin_proc    = process_raw_data(conf)
+            # Possible to parallelize here?
+            input_files = list(bin_proc(input_files))
+            print('Binary processing complete')
 
     # start iterations (will need to do monitor plots using i for iteration):
     for i in range(first_it, total_iter):
