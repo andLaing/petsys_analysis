@@ -2,7 +2,7 @@ import numpy  as np
 import pandas as pd
 
 from enum   import auto, Enum
-from typing import Callable
+from typing import List, Callable, Union
 
 from scipy.constants import c as c_vac
 
@@ -211,7 +211,7 @@ def shift_to_centres(bin_low_edge):
     return bin_low_edge[:-1] + np.diff(bin_low_edge) * 0.5
 
 
-def time_of_flight(source_pos):
+def time_of_flight(source_pos: np.ndarray):
     """
     Function to calculate time of flight
     for a gamma emitted from source_pos.
@@ -219,13 +219,13 @@ def time_of_flight(source_pos):
                 source position (x, y, z) in mm.
     """
     c_mm_per_ps = c_vac * 1000 / 1e12
-    def flight_time(slab_pos):
+    def flight_time(slab_pos: Union[List, np.ndarray]):
         """
         Get the time of flight from source to
         the given slab position in mm.
         return flight time in ps
         """
-        distance = np.linalg.norm(np.array(slab_pos) - source_pos)        
+        distance = np.linalg.norm(np.asarray(slab_pos) - source_pos)        
         return distance / c_mm_per_ps
     return flight_time
 
