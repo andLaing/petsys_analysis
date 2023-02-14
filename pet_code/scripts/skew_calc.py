@@ -46,6 +46,7 @@ from pet_code.src.plots    import corrected_time_difference
 from pet_code.src.util     import ChannelType
 from pet_code.src.util     import calibrate_energies
 # from pet_code.src.util     import centroid_calculation
+from pet_code.src.util     import bar_source_dt
 from pet_code.src.util     import time_of_flight
 from pet_code.src.util     import select_energy_range
 from pet_code.src.util     import select_module
@@ -127,6 +128,28 @@ def geom_loc_2sm(file_name, ch_map):
         return flight_time(ref_pos) - flight_time(coinc_pos)
     # Return the index and mm number too. Specific to 2SM so not ideal.
     return SM_indx, mM_num, find_indx, geom_dt
+
+
+def geom_loc_bar(file_name, ch_map):
+    """
+    Get functions for the reference index
+    and geometric dt for setups with bar source.
+    """
+    # Need a lookup for bar_xy position
+    bar_xy = np.array([280, 280])
+    bar_r  = 10#mm
+    # Need a lookup for SM/MM groups of interest
+    # 'single ring' fixed pos for now
+    SM_no = (0,)
+    mms   = (0, 1, 4, 5, 8, 9, 12, 13)
+    ids   = np.concatenate([ch_map.get_minimodule_channels(*v)
+                            for v in np.vstack(np.stack(np.meshgrid(SM_no, mms)).T)])
+    s_ids = set(filter(lambda x: ch_map.get_channel_type(x) is ChannelType.TIME, ids))
+    def find_indx(evt):
+        return 0 if evt[0][0] in s_ids else 1
+
+    geom_dt = bar_source_dt(bar_xy, bar_r, ch_map.get_channel_position)
+    return ids, find_indx, geom_dt
 
 
 # def read_and_select(file_list, config):
@@ -266,13 +289,15 @@ def process_raw_data(config):
     eselect  = select_energy_range(*elimits)
 
     setup    = config.get('mapping', 'setup', fallback='2SM')
-    if setup == '2SM':
+    if   setup == '2SM'      :
         geom_func = geom_loc_2sm
         sm1_minch, sm2_minch = tuple(map(int, config.get('filter', 'min_channels').split(',')))
         evt_filt  = partial(filter_impacts_specific_mod    ,
                             mm_map  = ch_map.get_minimodule,
                             min_sm1 = sm1_minch            ,
                             min_sm2 = sm2_minch            )
+    # elif setup == 'barSource':
+    #     geom_func = partial
     else:
         print(f'Setup {setup} not available')
         exit()
