@@ -273,6 +273,7 @@ class ChannelMap:
             self.mapping['gain'] = 1.0
         self.ch_type = self.mapping.type.to_dict()
         self.plotp   = self.mapping[['local_x', 'local_y']].to_dict('index')
+        self.minimod = self.mapping.minimodule.to_dict()
 
     def get_channel_type(self, id: int) -> ChannelType:
         return self.mapping.at[id, 'type']
@@ -285,7 +286,8 @@ class ChannelMap:
         return self.mapping.at[id, 'supermodule']
 
     def get_minimodule(self, id: int) -> int:
-        return self.mapping.at[id, 'minimodule']
+        # return self.mapping.at[id, 'minimodule']
+        return self.minimod[id]
 
     def get_minimodule_channels(self, sm: int, mm: int) -> np.ndarray:
         mask = (self.mapping.supermodule == sm) & (self.mapping.minimodule == mm)
