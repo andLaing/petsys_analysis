@@ -76,9 +76,12 @@ if __name__ == '__main__':
     out_dir    = conf.get('output', 'out_dir')
     if not os.path.isdir(out_dir):
         os.makedirs(out_dir)
-    nsigma = conf.getint('output', 'nsigma', fallback=2)
+    nsigma     = conf.getint('output', 'nsigma', fallback=2)
     out_base   = os.path.join(out_dir, conf.get('output', 'out_file', fallback=infile.split('/')[-1]))#'test_floods/' + file_list[0].split('/')[-1]
-    photo_peak = list(map(mm_energy_spectra, mod_dicts, [1, 2], repeat(out_base), repeat(100), repeat((0, 300)), repeat(nsigma)))
+    sm_setup   = 'ebrain' if 'brain' in map_file else 'tbpet'
+    plotter    = mm_energy_spectra(sm_setup, out_base, 100, nsigma=nsigma)
+    # photo_peak = list(map(mm_energy_spectra, mod_dicts, [1, 2], repeat(out_base), repeat(100), repeat((0, 300)), repeat(nsigma)))
+    photo_peak = list(map(plotter, mod_dicts, [1, 2]))
     end_p = time.time()
     print("Time enlapsed plotting: {} s".format(int(end_p - end_r)))
             
