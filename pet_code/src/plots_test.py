@@ -31,7 +31,9 @@ def test_mm_energy_spectra_noplots():
     gen_stats = 10000
     mm_e = {i: {'energy': np.random.normal(100 + 2 * i, 5, gen_stats)} for i in range(1, 17)}
 
-    exclusions = mm_energy_spectra(mm_e, 0, min_peak=100)
+    eplots     = mm_energy_spectra(min_peak=100)
+    # exclusions = mm_energy_spectra(mm_e, 0, min_peak=100)
+    exclusions = eplots(mm_e, 0)
 
     assert isinstance(exclusions, list)
     assert len(exclusions) == 16
@@ -55,7 +57,9 @@ def test_mm_energy_spectra_plots(TMP_OUT):
             for i in range(1, 17)                                          }
 
     out_base = os.path.join(TMP_OUT, 'testplots.ldat')
-    _        = mm_energy_spectra(mm_e, 0, min_peak=100, plot_output=out_base)
+    eplots   = mm_energy_spectra(min_peak=100, plot_output=out_base)
+    # _        = mm_energy_spectra(mm_e, 0, min_peak=100, plot_output=out_base)
+    _        = eplots(mm_e, 0)
 
     # mM energy spectra plots created?
     spec_plot  = out_base.replace('.ldat', '_EnergyModuleSMod0.png')
