@@ -42,6 +42,7 @@ def slab_plots(out_file, plot_source, plot_wosource, min_stats):
     with open(out_file + 'timeSlabPeaks.txt', 'w') as par_out:
         par_out.write('ID\tMU\tMU_ERR\tSIG\tSIG_ERR\n')
         for id, s_vals in plot_source.tdist.items():
+            min_indx = 0
             try:
                 ns_vals = plot_wosource.tdist[id]
             except KeyError:
@@ -62,16 +63,16 @@ def slab_plots(out_file, plot_source, plot_wosource, min_stats):
                     refit = refit_slab(out_file, id, bin_edges, s_vals, ns_vals, diff_data, bin_errs)
                     if refit is None:
                         continue
-                    bcent, g_vals, fit_pars, cov = refit
+                    bcent, min_indx, g_vals, fit_pars, cov = refit
             except RuntimeError:
                 refit = refit_slab(out_file, id, bin_edges, s_vals, ns_vals, diff_data, bin_errs)
                 if refit is None:
                     continue
-                bcent, g_vals, fit_pars, cov = refit
+                bcent, min_indx, g_vals, fit_pars, cov = refit
             mu_err  = np.sqrt(cov[1, 1])
             sig_err = np.sqrt(cov[2, 2])
             par_out.write(f'{id}\t{round(fit_pars[1], 3)}\t{round(mu_err, 3)}\t{round(fit_pars[2], 3)}\t{round(sig_err, 3)}\n')
-            plt.errorbar(bcent, diff_data, yerr=bin_errs, label='distribution')
+            plt.errorbar(bcent, diff_data[min_indx:], yerr=bin_errs[min_indx:], label='distribution')
             plt.plot(bcent, g_vals, label=f'Gaussian fit $\mu = {round(fit_pars[1], 2)}, \sigma = {round(fit_pars[2], 2)}$')
             plt.legend()
             plt.xlabel(f'Energy time channel {id}')
@@ -96,9 +97,9 @@ def refit_slab(out_file, id, bin_edges, source, nosource, diff_data, yerr):
             fail_plot(out_file, id, bin_edges, source, nosource, np.sqrt(source + nosource))
             return None
     else:
-        fail_plot(out_file, id, bin_edges, source, nosource, bin_errs)
+        fail_plot(out_file, id, bin_edges, source, nosource, yerr)
         return None
-    return bcent, g_vals, fit_pars, cov
+    return bcent, indx, g_vals, fit_pars, cov
 
 
 def energy_plots(out_file, plot_source, plot_wosource):
