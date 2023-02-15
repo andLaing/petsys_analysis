@@ -213,33 +213,43 @@ def read_ymlmapping_brain(mapping_file):
     FEM_num_ch = 256
     no_sm      =   4
     for sm in range(no_sm):
-        mM_num   = 1
-        slab_num = 1
-        half     = 0
-        r_num    = 0
-        c_num    = 0
+        mM_num      = 1
+        slab_num    = 1
+        half        = 0
+        r_num       = 0
+        c_num       = 0
+        rc_num      = 0
+        change_flag = False
         for tch, ech in zip(channel_map["time_channels"], channel_map["energy_channels"]):
             absolut_tch = tch + sm * FEM_num_ch
             absolut_ech = ech + sm * FEM_num_ch
-            ALLSM_time_ch  .append(absolut_tch)
-            ALLSM_energy_ch.append(absolut_ech)
+            ALLSM_time_ch  .add(absolut_tch)
+            ALLSM_energy_ch.add(absolut_ech)
 
             mM_mapping[absolut_tch] = mM_num            
             mM_mapping[absolut_ech] = mM_num
             if   half == 0:
-                centroid_mapping[absolut_tch] = (0, round(1.6 + 3.2 *       c_num , 2))
-                centroid_mapping[absolut_ech] = (1, round(1.6 + 3.2 *       r_num , 2))
-            elif half == 1:
-                centroid_mapping[absolut_tch] = (0, round(1.6 + 3.2 * (15 - c_num), 2))
-                centroid_mapping[absolut_ech] = (1, round(1.6 + 3.2 * (63 - r_num), 2))
-            r_num += 1
-            c_num += 1
+                centroid_mapping[absolut_tch] = (0, round(1.6 + 3.2 *        c_num , 2))
+                centroid_mapping[absolut_ech] = (1, round(1.6 + 3.2 *        r_num , 2))
+            elif half == 1 and not change_flag:
+                centroid_mapping[absolut_tch] = (0, round(1.6 + 3.2 * (15 -  c_num), 2))
+                centroid_mapping[absolut_ech] = (1, round(1.6 + 3.2 * (31 - rc_num), 2))
+            elif half == 1 and     change_flag:
+                centroid_mapping[absolut_tch] = (0, round(1.6 + 3.2 * (15 -  c_num), 2))
+                centroid_mapping[absolut_ech] = (1, round(1.6 + 3.2 * (63 - rc_num), 2))
+            r_num  += 1
+            c_num  += 1
+            rc_num += 1
             if slab_num %  8 == 0:
                 mM_num += 1  
                 c_num   = 0              
             if slab_num % 64 == 0:
-                half  = 1
-                r_num = 0
+                half   = 1
+                r_num  = 0
+                rc_num = 0
+            if slab_num % 32 == 0 and half == 1 and rc_num != 0:
+                rc_num      = 0
+                change_flag = True
             slab_num += 1
             ## Need to add physical positions!
     return ALLSM_time_ch, ALLSM_energy_ch, mM_mapping, centroid_mapping, slab_positions
