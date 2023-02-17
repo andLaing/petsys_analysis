@@ -2,10 +2,10 @@
 
 """Calculate and save mini-module level energy spectra and floodmaps
 
-Usage: flood_maps.py (--conf CONFFILE) INFILE
+Usage: flood_maps.py (--conf CONFFILE) INFILES ...
 
 Arguments:
-    INFILE  File name to be analysed
+    INFILES  File name(s) to be analysed
 
 Required:
     --conf=CONFFILE  Configuration file for run.
@@ -38,7 +38,7 @@ if __name__ == '__main__':
     
     start    = time.time()
     map_file = conf.get('mapping', 'map_file')#'pet_code/test_data/SM_mapping_corrected.yaml' # shouldn't be hardwired
-    infile   = args['INFILE']
+    infiles  = args['INFILES']
 
     # time_ch, eng_ch, mm_map, centroid_map, slab_map = read_ymlmapping(map_file)
     chan_map  = ChannelMap(map_file)
@@ -69,25 +69,37 @@ if __name__ == '__main__':
     nsigma   = conf.getint('output', 'nsigma', fallback=2)
     sm_setup = 'ebrain' if 'brain' in map_file else 'tbpet'
     mm_ecent = mm_energy_centroids(c_calc, chan_map.get_minimodule, mod_sel=max_sel)
+    try:
+        out_form = conf.get('output', 'out_file')
+    except configparser.NoOptionError:
+        out_form = None
 
     pet_reader = read_petsys_filebyfile(chan_map.ch_type, evt_select)
     end_sec    = time.time()
     print(f'Time elapsed in setups: {end_sec - start} s')
     start_sec  = end_sec
-    filtered_events = list(map(cal_func, pet_reader(infile)))
-    end_sec         = time.time()
-    print(f'Time enlapsed reading: {end_sec - start_sec} s')
-    print("length check: ", len(filtered_events))
-    start_sec       = end_sec
+    for fn in infiles:
+        print(f'Reading file {fn}')
+        filtered_events = list(map(cal_func, pet_reader(fn)))
+        end_sec         = time.time()
+        print(f'Time enlapsed reading: {end_sec - start_sec} s')
+        print("length check: ", len(filtered_events))
 
-    mod_dicts = mm_ecent(filtered_events)
+        start_sec = end_sec
+        mod_dicts = mm_ecent(filtered_events)
 
-    out_form = conf.get('output', 'out_file', fallback=infile.split('/')[-1])
-    out_base = os.path.join(out_dir, out_form)
-    plotter  = mm_energy_spectra(sm_setup, out_base, 100, nsigma=nsigma)
-    photo_peak = list(map(plotter, mod_dicts, [1, 2]))
-    end_p = time.time()
-    print("Time enlapsed plotting: {} s".format(int(end_p - start_sec)))
+        cal     = 'cal' if time_cal else 'noCal'
+        set_end = f'_{cal}_filt{filt_type}.ldat'
+        if out_form is None:
+            fbase    = fn.split('/')[-1]
+            out_base = os.path.join(out_dir, fbase.replace('.ldat', set_end))
+        else:
+            fbase    = out_form + fn.split('/')[-1].replace('.ldat', set_end)
+            out_base = os.path.join(out_dir, fbase)
+        plotter  = mm_energy_spectra(sm_setup, out_base, 100, nsigma=nsigma)
+        photo_peak = list(map(plotter, mod_dicts, [1, 2]))
+        end_p = time.time()
+        print("Time enlapsed plotting: {} s".format(int(end_p - start_sec)))
             
 
 
