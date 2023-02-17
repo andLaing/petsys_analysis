@@ -58,7 +58,7 @@ def mm_energy_spectra(setup='tbpet', plot_output=None, min_peak=150, brange=(0, 
         ncol  = 2
         psize = (20, 15)
         flbins  = 500
-        flrange = [[0, 52], [0, 104]]
+        flrange = [[0, 52], [0, 208]]
     elif plot_output:
         print('Setup not found, defaulting to tbpet')
         nrow    = 4
