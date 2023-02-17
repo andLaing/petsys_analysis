@@ -89,7 +89,7 @@ def mm_energy_spectra(setup='tbpet', plot_output=None, min_peak=150, brange=(0, 
                     minE, maxE = pars[1] - nsigma * pars[2], pars[1] + nsigma * pars[2]
                 except RuntimeError:
                     minE, maxE = 0, 300
-                eng_arr = np.array(module_xye[j+1]['energy'])
+                eng_arr = np.array(module_xye[j]['energy'])
                 photo_peak.append(select_energy_range(minE, maxE))
                 ax.plot(bcent, gvals, label=f'fit $\mu$ = {round(pars[1], 3)},  $\sigma$ = {round(pars[2], 3)}')
                 ax.set_xlabel('Energy (au)')
@@ -98,11 +98,11 @@ def mm_energy_spectra(setup='tbpet', plot_output=None, min_peak=150, brange=(0, 
                 ax.legend()
                 ## Filter the positions
                 if xfilt is not None:
-                    xfilt = np.hstack((xfilt, np.array(module_xye[j+1]['x'])[photo_peak[-1](eng_arr)]))
-                    yfilt = np.hstack((yfilt, np.array(module_xye[j+1]['y'])[photo_peak[-1](eng_arr)]))
+                    xfilt = np.hstack((xfilt, np.array(module_xye[j]['x'])[photo_peak[-1](eng_arr)]))
+                    yfilt = np.hstack((yfilt, np.array(module_xye[j]['y'])[photo_peak[-1](eng_arr)]))
                 else:
-                    xfilt = np.array(module_xye[j+1]['x'])[photo_peak[-1](eng_arr)]
-                    yfilt = np.array(module_xye[j+1]['y'])[photo_peak[-1](eng_arr)]
+                    xfilt = np.array(module_xye[j]['x'])[photo_peak[-1](eng_arr)]
+                    yfilt = np.array(module_xye[j]['y'])[photo_peak[-1](eng_arr)]
             ## Temporary for tests.
             out_name = plot_output.replace(".ldat","_EnergyModuleSMod" + str(sm_label) + ".png")
             fig.savefig(out_name)
