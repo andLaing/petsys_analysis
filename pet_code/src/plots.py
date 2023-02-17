@@ -48,18 +48,24 @@ def mm_energy_spectra(setup='tbpet', plot_output=None, min_peak=150, brange=(0, 
                  List of energy selection filters.
     """
     if   plot_output and setup == 'tbpet' :
-        nrow  = 4
-        ncol  = 4
-        psize = (15, 15)
+        nrow    = 4
+        ncol    = 4
+        psize   = (15, 15)
+        flbins  = 500
+        flrange = [[0, 104], [0, 104]]
     elif plot_output and setup == 'ebrain':
         nrow  = 8
         ncol  = 2
-        psize = (20, 8)
+        psize = (20, 15)
+        flbins  = 500
+        flrange = [[0, 52], [0, 104]]
     elif plot_output:
         print('Setup not found, defaulting to tbpet')
-        nrow  = 4
-        ncol  = 4
-        psize = (15, 15)
+        nrow    = 4
+        ncol    = 4
+        psize   = (15, 15)
+        flbins  = 500
+        flrange = [[0, 104], [0, 104]]
     def _make_plot(module_xye, sm_label):
         """
         module_xye  : Dict
@@ -79,7 +85,7 @@ def mm_energy_spectra(setup='tbpet', plot_output=None, min_peak=150, brange=(0, 
                 ## mmini-module numbers start at 1
                 try:
                     bin_edges, bin_vals = hist1d(ax, module_xye[j]['energy'],
-                                                 range=brange, label=f'Det: {sm_label}\n mM: {j+1}')
+                                                 range=brange, label=f'Det: {sm_label}\n mM: {j}')
                 except KeyError:
                     print(f'No data for super module {sm_label}, mini module {j}, skipping')
                     photo_peak.append(lambda x: False)
@@ -107,7 +113,7 @@ def mm_energy_spectra(setup='tbpet', plot_output=None, min_peak=150, brange=(0, 
             out_name = plot_output.replace(".ldat","_EnergyModuleSMod" + str(sm_label) + ".png")
             fig.savefig(out_name)
             plt.clf()
-            plt.hist2d(xfilt, yfilt, bins = 500, range=[[0, 104], [0, 104]], cmap="Reds", cmax=250)
+            plt.hist2d(xfilt, yfilt, bins=flbins, range=flrange, cmap="Reds", cmax=250)
             plt.xlabel('X position (pixelated) [mm]')
             plt.ylabel('Y position (monolithic) [mm]')
             plt.colorbar()
@@ -120,7 +126,7 @@ def mm_energy_spectra(setup='tbpet', plot_output=None, min_peak=150, brange=(0, 
                 try:
                     bin_vals, bin_edges = np.histogram(module_xye[j]['energy'], bins=200, range=brange)
                 except KeyError:
-                    print(f'No data for super module {sm_label}, mini module {j+1}, skipping')
+                    print(f'No data for super module {sm_label}, mini module {j}, skipping')
                     photo_peak.append(lambda x: False)
                     continue
                 try:
