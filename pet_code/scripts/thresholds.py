@@ -63,7 +63,7 @@ if __name__ == '__main__':
     plt.show()
 
     ## Energy channels
-    engCh  = pd.read_csv(eng_name, sep='\t ').set_index('ID')['MU']
+    engCh  = pd.read_csv(eng_name, sep='\t').set_index('ID')['MU']
     eng_mu = np.mean(engCh)
     print(f'Energy mu average value = {eng_mu}')
     EEbin_wid   = round(eng_mu / (eng_Edefault + 0.5), 2)
