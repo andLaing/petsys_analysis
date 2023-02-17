@@ -55,7 +55,6 @@ def brain_map(nFEM, chan_per_mm, tchans, echans):
             mm    = j // chan_per_mm
             ## Will need to add corrections for spacing.
             half  =  j // chan_per_col
-            # row   = (j %  chan_per_col) // chan_per_mm
             if half == 1:
                 tindx    = 15 - j % chan_per_mm
                 half_sec = (j - chan_per_col) // chan_per_sec
@@ -68,7 +67,6 @@ def brain_map(nFEM, chan_per_mm, tchans, echans):
                 tindx    = j % chan_per_mm
                 eindx    = j % chan_per_col
                 row      = (j %  chan_per_col) // chan_per_mm
-            # indx  = j % chan_per_mm if half == 0 else 15 - j % chan_per_mm
             loc_x = round(1.6 + 3.2 * tindx, 3)
             loc_y = round(mm_edge * (0.5 + row), 3)
             z     = 0 if i == 0 else 10#dummy
@@ -76,11 +74,6 @@ def brain_map(nFEM, chan_per_mm, tchans, echans):
             yield id, 'TIME', i, mm, loc_x, loc_y, loc_x, loc_y, z
             id    = ech + i * nFEM
             loc_x = round(mm_edge * (0.5 + (j // chan_per_col)), 3)
-            # if half == 1:
-            #     half_sec = (j - chan_per_col) // chan_per_sec
-            #     indx = 31 - j % chan_per_sec if half_sec == 0 else 63 - j % chan_per_sec
-            # else:
-            #     indx = j % chan_per_col
             loc_y = round(1.6 + 3.2 * eindx, 3)
             yield id, 'ENERGY', i, mm, loc_x, loc_y, loc_x, loc_y, z
 
