@@ -15,17 +15,16 @@ import os
 import configparser
 
 from docopt    import docopt
-from itertools import repeat
 
 from pet_code.src.io    import ChannelMap
 from pet_code.src.io    import read_petsys_filebyfile
-from pet_code.src.io    import read_ymlmapping
 from pet_code.src.plots import mm_energy_spectra
 from pet_code.src.util  import calibrate_energies
 from pet_code.src.util  import centroid_calculation
 from pet_code.src.util  import filter_event_by_impacts
 from pet_code.src.util  import filter_event_by_impacts_noneg
 from pet_code.src.util  import filter_impacts_one_minimod
+from pet_code.src.util  import filter_impacts_specific_mod
 from pet_code.src.util  import mm_energy_centroids
 from pet_code.src.util  import select_module
 
@@ -37,22 +36,26 @@ if __name__ == '__main__':
     conf.read(args['--conf'])
     
     start    = time.time()
-    map_file = conf.get('mapping', 'map_file')#'pet_code/test_data/SM_mapping_corrected.yaml' # shouldn't be hardwired
+    map_file = conf.get('mapping', 'map_file')
     infiles  = args['INFILES']
 
-    # time_ch, eng_ch, mm_map, centroid_map, slab_map = read_ymlmapping(map_file)
     chan_map  = ChannelMap(map_file)
     filt_type = conf.get('filter', 'type', fallback='Impacts')
     # Should improve with an enum or something
-    if 'Impacts'  in filt_type:
+    if 'Impacts'    in filt_type:
         min_chan   = tuple(map(int, conf.get('filter', 'min_channels').split(',')))
         evt_select = filter_event_by_impacts(*min_chan)
-    elif 'OneMod' in filt_type:
+    elif 'OneMod'   in filt_type:
         min_chan   = tuple(map(int, conf.get('filter', 'min_channels').split(',')))
         evt_select = filter_impacts_one_minimod(*min_chan, chan_map.get_minimodule)
-    elif 'NoNeg'  in filt_type:
+    elif 'NoNeg'    in filt_type:
         min_chan   = tuple(map(int, conf.get('filter', 'min_channels').split(',')))
         evt_select = filter_event_by_impacts_noneg(*min_chan)
+    elif 'Specific' in filt_type:
+        sm_num     = conf.getint('filter', 'sm_indx')
+        mm_num     = conf.getint('filter', 'mm_num')
+        min_chan   = map(int, conf.get('filter', 'min_channels').split(','))
+        evt_select = filter_impacts_specific_mod(sm_num, mm_num, chan_map.get_minimodule, *min_chan)
     else:
         print('No valid filter found, fallback to 4, 4 minimum energy channels')
         evt_select = filter_event_by_impacts(4, 4)
