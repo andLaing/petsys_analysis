@@ -46,6 +46,38 @@ def echan_y(sm, row):
     return round(-25.9 * (0.5 + row % 4), 2)
 
 
+def brain_map(nFEM, chan_per_mm, tchans, echans):
+    chan_per_sec = 4 * chan_per_mm
+    chan_per_col = 8 * chan_per_mm
+    for i in (0, 2):
+        for j, (tch, ech) in enumerate(zip(tchans, echans)):
+            id    = tch + i * nFEM
+            mm    = j // chan_per_mm
+            ## Will need to add corrections for spacing.
+            half  =  j // chan_per_col
+            if half == 1:
+                tindx    = 15 - j % chan_per_mm
+                half_sec = (j - chan_per_col) // chan_per_sec
+                eindx    = 31 - j %  chan_per_sec if half_sec == 0 else 63 - j %  chan_per_sec
+                if half_sec == 0:
+                    row = 3 - j // chan_per_mm +  8
+                else:
+                    row = 7 - j // chan_per_mm + 12
+            else:
+                tindx    = j % chan_per_mm
+                eindx    = j % chan_per_col
+                row      = (j %  chan_per_col) // chan_per_mm
+            loc_x = round(1.6 + 3.2 * tindx, 3)
+            loc_y = round(mm_edge * (0.5 + row), 3)
+            z     = 0 if i == 0 else 10#dummy
+            # Will need i dependent rotation for true global xyz
+            yield id, 'TIME', i, mm, loc_x, loc_y, loc_x, loc_y, z
+            id    = ech + i * nFEM
+            loc_x = round(mm_edge * (0.5 + (j // chan_per_col)), 3)
+            loc_y = round(1.6 + 3.2 * eindx, 3)
+            yield id, 'ENERGY', i, mm, loc_x, loc_y, loc_x, loc_y, z
+
+
 def row_gen(nFEM, chan_per_mm, tchans, echans):
     superm_gen = sm_gen(nFEM, chan_per_mm, tchans, echans, mM_energyMapping)
     for i in (0, 2):
@@ -189,7 +221,7 @@ if __name__ == '__main__':
         channel_map = yaml.safe_load(map_buffer)
 
     if   geom == '2SM'  :
-        df = pd.DataFrame((row for row in row_gen(nFEM, 8, channel_map['time_channels'], channel_map['energy_channels'])),
+        df = pd.DataFrame(row_gen(nFEM, 8, channel_map['time_channels'], channel_map['energy_channels']),
                           columns=['id', 'type', 'supermodule', 'minimodule', 'local_x', 'local_y', 'X', 'Y', 'Z'])
     elif geom == '1ring':
         df = single_ring(nFEM, 8, channel_map['time_channels'], channel_map['energy_channels'])
@@ -197,6 +229,9 @@ if __name__ == '__main__':
         with open(args['-c']) as ringZ:
             ring_z = yaml.safe_load(ringZ)
         df = n_rings(ring_z['Z'], nFEM, 8, channel_map['time_channels'], channel_map['energy_channels'])
+    elif geom == 'brain':
+        df = pd.DataFrame(brain_map(nFEM, 8, channel_map['time_channels'], channel_map['energy_channels']),
+                          columns=['id', 'type', 'supermodule', 'minimodule', 'local_x', 'local_y', 'X', 'Y', 'Z'])
     else:
         print('Geometry not recognised')
         exit()

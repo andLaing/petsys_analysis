@@ -27,18 +27,14 @@ def hist1d(axis, data, bins=200, range=(0, 300), histtype='step', label='histo')
     return pbins, weights
 
 
-def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150, brange=(0, 300), nsigma=2):
+def mm_energy_spectra(setup='tbpet', plot_output=None, min_peak=150, brange=(0, 300), nsigma=2):
     """
     Generate the energy spectra and select the photopeak
     for each module. Optionally plot and save spectra
     and floodmaps.
 
-    module_xye  : Dict
-                  Supermodule xyz lists for each mm
-                  key is mm number (1--),
-    sm_label    : int
-                  A label for the plots of which SM
-                  is being processed.
+    setup       : str
+                  Name of the setup: tbpet, ebrain.
     plot_output : None or String
                   If not None, the output base name for
                   the plots. When None, no plots made.
@@ -51,66 +47,96 @@ def mm_energy_spectra(module_xye, sm_label, plot_output=None, min_peak=150, bran
     return
                  List of energy selection filters.
     """
-    photo_peak = []
-    if plot_output:
-        plot_settings()
-        fig, axes = plt.subplots(nrows=4, ncols=4, figsize=(15, 15))
-        xfilt = None
-        yfilt = None
-        for j, ax in enumerate(axes.flatten()):
-            ## mmini-module numbers start at 1
-            try:
-                bin_edges, bin_vals = hist1d(ax, module_xye[j+1]['energy'], range=brange, label=f'Det: {sm_label}\n mM: {j+1}')
-            except KeyError:
-                print(f'No data for super module {sm_label}, mini module {j+1}, skipping')
-                photo_peak.append(lambda x: False)
-                continue
-            try:
-                bcent, gvals, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
-                minE, maxE = pars[1] - nsigma * pars[2], pars[1] + nsigma * pars[2]
-            except RuntimeError:
-                minE, maxE = 0, 300
-            eng_arr = np.array(module_xye[j+1]['energy'])
-            photo_peak.append(select_energy_range(minE, maxE))
-            ax.plot(bcent, gvals, label=f'fit $\mu$ = {round(pars[1], 3)},  $\sigma$ = {round(pars[2], 3)}')
-            ax.set_xlabel('Energy (au)')
-            ## Filters for floodmaps
-            ax.axvspan(minE, maxE, facecolor='#00FF00' , alpha = 0.3, label='Selected range')
-            ax.legend()
-            ## Filter the positions
-            if xfilt is not None:
-                xfilt = np.hstack((xfilt, np.array(module_xye[j+1]['x'])[photo_peak[-1](eng_arr)]))
-                yfilt = np.hstack((yfilt, np.array(module_xye[j+1]['y'])[photo_peak[-1](eng_arr)]))
-            else:
-                xfilt = np.array(module_xye[j+1]['x'])[photo_peak[-1](eng_arr)]
-                yfilt = np.array(module_xye[j+1]['y'])[photo_peak[-1](eng_arr)]
-        ## Temporary for tests.
-        out_name = plot_output.replace(".ldat","_EnergyModuleSMod" + str(sm_label) + ".png")
-        fig.savefig(out_name)
-        plt.clf()
-        plt.hist2d(xfilt, yfilt, bins = 500, range=[[0, 104], [0, 104]], cmap="Reds", cmax=250)
-        plt.xlabel('X position (pixelated) [mm]')
-        plt.ylabel('Y position (monolithic) [mm]')
-        plt.colorbar()
-        plt.tight_layout()
-        out_name = plot_output.replace(".ldat","_FloodModule" + str(sm_label) + ".png")
-        plt.savefig(out_name)
-        plt.clf()
-    else:
-        for j in range(1, 17):
-            try:
-                bin_vals, bin_edges = np.histogram(module_xye[j]['energy'], bins=200, range=brange)
-            except KeyError:
-                print(f'No data for super module {sm_label}, mini module {j+1}, skipping')
-                photo_peak.append(lambda x: False)
-                continue
-            try:
-                *_, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
-                minE, maxE = pars[1] - nsigma * pars[2], pars[1] + nsigma * pars[2]
-            except RuntimeError:
-                minE, maxE = 0, 300
-            photo_peak.append(select_energy_range(minE, maxE))
-    return photo_peak
+    if   plot_output and setup == 'tbpet' :
+        nrow    = 4
+        ncol    = 4
+        psize   = (15, 15)
+        flbins  = 500
+        flrange = [[0, 104], [0, 104]]
+    elif plot_output and setup == 'ebrain':
+        nrow  = 8
+        ncol  = 2
+        psize = (20, 15)
+        flbins  = 500
+        flrange = [[0, 52], [0, 208]]
+    elif plot_output:
+        print('Setup not found, defaulting to tbpet')
+        nrow    = 4
+        ncol    = 4
+        psize   = (15, 15)
+        flbins  = 500
+        flrange = [[0, 104], [0, 104]]
+    def _make_plot(module_xye, sm_label):
+        """
+        module_xye  : Dict
+                      Supermodule xyz lists for each mm
+                      key is mm number (1--),
+        sm_label    : int
+                      A label for the plots of which SM
+                      is being processed.
+        """
+        photo_peak = []
+        if plot_output:
+            plot_settings()
+            fig, axes = plt.subplots(nrows=nrow, ncols=ncol, figsize=psize)
+            xfilt     = None
+            yfilt     = None
+            for j, ax in enumerate(axes.flatten()):
+                ## mmini-module numbers start at 1
+                try:
+                    bin_edges, bin_vals = hist1d(ax, module_xye[j]['energy'],
+                                                 range=brange, label=f'Det: {sm_label}\n mM: {j}')
+                except KeyError:
+                    print(f'No data for super module {sm_label}, mini module {j}, skipping')
+                    photo_peak.append(lambda x: False)
+                    continue
+                try:
+                    bcent, gvals, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
+                    minE, maxE = pars[1] - nsigma * pars[2], pars[1] + nsigma * pars[2]
+                    ax.plot(bcent, gvals, label=f'fit $\mu$ = {round(pars[1], 3)},  $\sigma$ = {round(pars[2], 3)}')
+                except RuntimeError:
+                    minE, maxE = 0, 300
+                eng_arr = np.array(module_xye[j]['energy'])
+                photo_peak.append(select_energy_range(minE, maxE))
+                ax.set_xlabel('Energy (au)')
+                ## Filters for floodmaps
+                ax.axvspan(minE, maxE, facecolor='#00FF00' , alpha = 0.3, label='Selected range')
+                ax.legend()
+                ## Filter the positions
+                if xfilt is not None:
+                    xfilt = np.hstack((xfilt, np.array(module_xye[j]['x'])[photo_peak[-1](eng_arr)]))
+                    yfilt = np.hstack((yfilt, np.array(module_xye[j]['y'])[photo_peak[-1](eng_arr)]))
+                else:
+                    xfilt = np.array(module_xye[j]['x'])[photo_peak[-1](eng_arr)]
+                    yfilt = np.array(module_xye[j]['y'])[photo_peak[-1](eng_arr)]
+            ## Temporary for tests.
+            out_name = plot_output.replace(".ldat","_EnergyModuleSMod" + str(sm_label) + ".png")
+            fig.savefig(out_name)
+            plt.clf()
+            plt.hist2d(xfilt, yfilt, bins=flbins, range=flrange, cmap="Reds", cmax=250)
+            plt.xlabel('X position (pixelated) [mm]')
+            plt.ylabel('Y position (monolithic) [mm]')
+            plt.colorbar()
+            plt.tight_layout()
+            out_name = plot_output.replace(".ldat","_FloodModule" + str(sm_label) + ".png")
+            plt.savefig(out_name)
+            plt.clf()
+        else:
+            for j in range(1, 17):
+                try:
+                    bin_vals, bin_edges = np.histogram(module_xye[j]['energy'], bins=200, range=brange)
+                except KeyError:
+                    print(f'No data for super module {sm_label}, mini module {j}, skipping')
+                    photo_peak.append(lambda x: False)
+                    continue
+                try:
+                    *_, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
+                    minE, maxE = pars[1] - nsigma * pars[2], pars[1] + nsigma * pars[2]
+                except RuntimeError:
+                    minE, maxE = 0, 300
+                photo_peak.append(select_energy_range(minE, maxE))
+        return photo_peak
+    return _make_plot
 
 
 def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150, bins=np.arange(9, 25, 0.2)):

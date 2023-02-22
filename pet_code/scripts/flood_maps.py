@@ -2,10 +2,10 @@
 
 """Calculate and save mini-module level energy spectra and floodmaps
 
-Usage: flood_maps.py (--conf CONFFILE) INFILE
+Usage: flood_maps.py (--conf CONFFILE) INFILES ...
 
 Arguments:
-    INFILE  File name to be analysed
+    INFILES  File name(s) to be analysed
 
 Required:
     --conf=CONFFILE  Configuration file for run.
@@ -38,7 +38,7 @@ if __name__ == '__main__':
     
     start    = time.time()
     map_file = conf.get('mapping', 'map_file')#'pet_code/test_data/SM_mapping_corrected.yaml' # shouldn't be hardwired
-    infile   = args['INFILE']
+    infiles  = args['INFILES']
 
     # time_ch, eng_ch, mm_map, centroid_map, slab_map = read_ymlmapping(map_file)
     chan_map  = ChannelMap(map_file)
@@ -61,26 +61,45 @@ if __name__ == '__main__':
     eng_cal  = conf.get('calibration', 'energy_channels', fallback='')
     cal_func = calibrate_energies(chan_map.get_chantype_ids, time_cal, eng_cal)
 
-    pet_reader      = read_petsys_filebyfile(chan_map.ch_type, evt_select)
-    filtered_events = list(map(cal_func, pet_reader(infile)))
-    end_r           = time.time()
-    print("Time enlapsed reading: {} s".format(int(end_r - start)))
-    print("length check: ", len(filtered_events))
-    ## Should we be filtering the events with multiple mini-modules in one sm?
-    # c_calc = centroid_calculation(chan_map.get_plot_position)
-    c_calc = centroid_calculation(chan_map.plotp)
-    # ## Must be a better way but...
-    max_sel   = select_module(chan_map.get_minimodule) if conf.getboolean('filter', 'sel_max_mm') else lambda x: x
-    mod_dicts = mm_energy_centroids(filtered_events, c_calc, chan_map.get_minimodule, mod_sel=max_sel)
-
-    out_dir    = conf.get('output', 'out_dir')
+    c_calc   = centroid_calculation(chan_map.plotp)
+    max_sel  = select_module(chan_map.get_minimodule) if conf.getboolean('filter', 'sel_max_mm') else lambda x: x
+    out_dir  = conf.get('output', 'out_dir')
     if not os.path.isdir(out_dir):
         os.makedirs(out_dir)
-    nsigma = conf.getint('output', 'nsigma', fallback=2)
-    out_base   = os.path.join(out_dir, conf.get('output', 'out_file', fallback=infile.split('/')[-1]))#'test_floods/' + file_list[0].split('/')[-1]
-    photo_peak = list(map(mm_energy_spectra, mod_dicts, [1, 2], repeat(out_base), repeat(100), repeat((0, 300)), repeat(nsigma)))
-    end_p = time.time()
-    print("Time enlapsed plotting: {} s".format(int(end_p - end_r)))
+    nsigma   = conf.getint('output', 'nsigma', fallback=2)
+    sm_setup = 'ebrain' if 'brain' in map_file else 'tbpet'
+    mm_ecent = mm_energy_centroids(c_calc, chan_map.get_minimodule, mod_sel=max_sel)
+    try:
+        out_form = conf.get('output', 'out_file')
+    except configparser.NoOptionError:
+        out_form = None
+
+    pet_reader = read_petsys_filebyfile(chan_map.ch_type, evt_select)
+    end_sec    = time.time()
+    print(f'Time elapsed in setups: {end_sec - start} s')
+    start_sec  = end_sec
+    for fn in infiles:
+        print(f'Reading file {fn}')
+        filtered_events = list(map(cal_func, pet_reader(fn)))
+        end_sec         = time.time()
+        print(f'Time enlapsed reading: {end_sec - start_sec} s')
+        print("length check: ", len(filtered_events))
+
+        start_sec = end_sec
+        mod_dicts = mm_ecent(filtered_events)
+
+        cal     = 'cal' if time_cal else 'noCal'
+        set_end = f'_{cal}_filt{filt_type}.ldat'
+        if out_form is None:
+            fbase    = fn.split('/')[-1]
+            out_base = os.path.join(out_dir, fbase.replace('.ldat', set_end))
+        else:
+            fbase    = out_form + fn.split('/')[-1].replace('.ldat', set_end)
+            out_base = os.path.join(out_dir, fbase)
+        plotter  = mm_energy_spectra(sm_setup, out_base, 100, nsigma=nsigma)
+        photo_peak = list(map(plotter, mod_dicts, [1, 2]))
+        end_p = time.time()
+        print("Time enlapsed plotting: {} s".format(int(end_p - start_sec)))
             
 
 

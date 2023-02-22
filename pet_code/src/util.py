@@ -359,25 +359,27 @@ def time_of_flight(source_pos):
     return flight_time
 
 
-def mm_energy_centroids(events, c_calc, mm_map, mod_sel=lambda sm: sm):
+def mm_energy_centroids(c_calc, mm_map, mod_sel=lambda sm: sm):
     """
     Calculate centroid and energy for
     mini modules per event assuming
     one mini module per SM per event.
     """
-    mod_dicts = [{}, {}]
-    for evt in events:
-        sel_evt = tuple(map(mod_sel, evt))
-        for i, ((x, y, _), (_, eng)) in enumerate(zip(map(c_calc, sel_evt), map(get_supermodule_eng, sel_evt))):
-            if evt[i]:
-                mm = mm_map(evt[i][0][0])
-                try:
-                    mod_dicts[i][mm]['x'].append(x)
-                    mod_dicts[i][mm]['y'].append(y)
-                    mod_dicts[i][mm]['energy'].append(eng)
-                except KeyError:
-                    mod_dicts[i][mm] = {'x': [x], 'y': [y], 'energy': [eng]}
-    return mod_dicts
+    def _mm_ecentroids(events):
+        mod_dicts = [{}, {}]
+        for evt in events:
+            sel_evt = tuple(map(mod_sel, evt))
+            for i, ((x, y, _), (_, eng)) in enumerate(zip(map(c_calc, sel_evt), map(get_supermodule_eng, sel_evt))):
+                if evt[i]:
+                    mm = mm_map(evt[i][0][0])
+                    try:
+                        mod_dicts[i][mm]['x'].append(x)
+                        mod_dicts[i][mm]['y'].append(y)
+                        mod_dicts[i][mm]['energy'].append(eng)
+                    except KeyError:
+                        mod_dicts[i][mm] = {'x': [x], 'y': [y], 'energy': [eng]}
+        return mod_dicts
+    return _mm_ecentroids
 
 
 def all_mm_energy_centroids(events, c_calc, eng_ch):
@@ -421,7 +423,7 @@ def slab_energy_centroids(events, c_calc, time_ch):
     return slab_dicts
 
 
-def calibrate_energies(type_ids, time_cal, eng_cal):
+def calibrate_energies(type_ids, time_cal, eng_cal, sep='\t'):
     """
     Equalize the energy for the channels
     given the peak positions in a file (for now)
@@ -435,13 +437,13 @@ def calibrate_energies(type_ids, time_cal, eng_cal):
     if time_cal:
         # Need to fix file format to remove space
         # time calibrated relative to 511 keV peak
-        tcal    = pd.read_csv(time_cal, sep='\t ').set_index('ID')['MU'].apply(lambda x: 511 / x)
+        tcal    = pd.read_csv(time_cal, sep=sep).set_index('ID')['MU'].apply(lambda x: 511 / x)
     else:
         tcal    = pd.Series(1, index=type_ids(ChannelType.TIME))
     if eng_cal:
         # Need to fix file format to remove space
         # Energy channels calibrated relative to mean. Maybe unstable between calibrations, review.
-        ecal    = pd.read_csv(eng_cal, sep='\t ').set_index('ID')['MU']
+        ecal    = pd.read_csv(eng_cal, sep=sep).set_index('ID')['MU']
         mu_mean = np.mean(ecal)
         ecal    = ecal.apply(lambda x: mu_mean / x)
     else:
