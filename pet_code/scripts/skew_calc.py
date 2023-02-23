@@ -112,9 +112,9 @@ def read_and_select(file_list, config):
      centroid_map, slab_map) = read_ymlmapping(config.get('mapping', 'map_file'))
     outdir                   = config.get('output', 'out_dir')
 
-    sm1_minch, sm2_minch = tuple(map(int, config.get('filter', 'min_channels').split(',')))
-    relax                = config.getfloat('filter', 'relax_fact')
-    c_calc               = centroid_calculation(centroid_map)
+    sm_minch = config.getint('filter', 'min_channels')
+    relax    = config.getfloat('filter', 'relax_fact')
+    c_calc   = centroid_calculation(centroid_map)
 
     time_cal = config.get('calibration',   'time_channels', fallback='')
     eng_cal  = config.get('calibration', 'energy_channels', fallback='')
@@ -130,7 +130,7 @@ def read_and_select(file_list, config):
     for fn in file_list:
         print(f'Processing file {fn}', flush=True)
         sm_num, mm_num, source_pos = get_references(fn)
-        evt_filter = filter_impacts_specific_mod(sm_num, mm_num, eng_ch, sm1_minch, sm2_minch)
+        evt_filter = filter_impacts_specific_mod(sm_num, mm_num, eng_ch, sm_minch)
         out_base   = os.path.join(outdir, fn.split('/')[-1])
         skew_calc  = get_skew(time_of_flight(source_pos), slab_map, plot_output=out_base)
 

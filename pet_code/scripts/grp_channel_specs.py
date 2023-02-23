@@ -170,8 +170,8 @@ def channel_plots(config, infiles):
     map_file = config.get('mapping', 'map_file')
     chan_map = ChannelMap(map_file)
 
-    min_chan  = tuple(map(int, config.get('filter', 'min_channels').split(',')))
-    filt      = filter_event_by_impacts(*min_chan, singles=True)
+    min_chan  = config.getint('filter', 'min_channels')
+    filt      = filter_event_by_impacts(min_chan, singles=True)
 
     esum_bins = np.arange(*tuple(map(float, config.get('output', 'esum_binning', fallback='0,300,1.5').split(','))))
     tbins     = np.arange(*tuple(map(float, config.get('output',     'tbinning', fallback='5,30,0.2') .split(','))))

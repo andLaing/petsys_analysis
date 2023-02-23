@@ -58,8 +58,8 @@ if __name__ == '__main__':
 
     time_ch, eng_ch, mm_map, centroid_map, _ = read_ymlmapping(map_file)
 
-    min_chan   = tuple(map(int, conf.get('filter', 'min_channels').split(',')))
-    evt_filter = filter_event_by_impacts_noneg(eng_ch, *min_chan)
+    min_chan   = conf.getint('filter', 'min_channels')
+    evt_filter = filter_event_by_impacts_noneg(eng_ch, min_chan)
 
     out_fldr = conf.get('output',  'out_dir', fallback='')
     out_name = conf.get('output', 'out_name', fallback='all_impacts')
