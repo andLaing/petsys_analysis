@@ -2,9 +2,9 @@ import sys
 
 import numpy as np
 
-from pet_code.src.io   import read_petsys_filebyfile
-from pet_code.src.io   import read_ymlmapping
-from pet_code.src.util import filter_impact
+from pet_code.src.filters import filter_impact
+from pet_code.src.io      import read_petsys_filebyfile
+from pet_code.src.io      import read_ymlmapping
 
 def filter_minch(min_ch, eng_ch):
     filt = filter_impact(min_ch, eng_ch)

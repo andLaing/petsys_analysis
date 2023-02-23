@@ -24,17 +24,17 @@ import numpy             as np
 
 from scipy.signal import find_peaks
 
-from pet_code.src.fits  import curve_fit_fn
-from pet_code.src.fits  import fit_gaussian
-from pet_code.src.fits  import lorentzian
-from pet_code.src.fits  import gaussian
-from pet_code.src.io    import ChannelMap
-from pet_code.src.io    import read_petsys_filebyfile
-from pet_code.src.plots import ChannelEHistograms
-from pet_code.src.util  import ChannelType
-from pet_code.src.util  import filter_event_by_impacts
-from pet_code.src.util  import select_mod_wrapper
-from pet_code.src.util  import shift_to_centres
+from pet_code.src.filters  import filter_event_by_impacts
+from pet_code.src.fits     import curve_fit_fn
+from pet_code.src.fits     import fit_gaussian
+from pet_code.src.fits     import lorentzian
+from pet_code.src.fits     import gaussian
+from pet_code.src.io       import ChannelMap
+from pet_code.src.io       import read_petsys_filebyfile
+from pet_code.src.plots    import ChannelEHistograms
+from pet_code.src.util     import ChannelType
+from pet_code.src.util     import select_mod_wrapper
+from pet_code.src.util     import shift_to_centres
 
 
 def slab_plots(out_file, plot_source, plot_wosource, min_stats):

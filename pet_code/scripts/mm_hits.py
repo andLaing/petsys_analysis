@@ -16,11 +16,11 @@ import configparser
 
 from docopt import docopt
 
-from pet_code.src.io   import read_petsys_filebyfile, read_ymlmapping
-from pet_code.src.io   import write_event_trace
-from pet_code.src.util import calibrate_energies
-from pet_code.src.util import filter_event_by_impacts_noneg
-from pet_code.src.util import select_module
+from pet_code.src.filters import filter_event_by_impacts_noneg
+from pet_code.src.io      import read_petsys_filebyfile, read_ymlmapping
+from pet_code.src.io      import write_event_trace
+from pet_code.src.util    import calibrate_energies
+from pet_code.src.util    import select_module
 
 
 # Is there a better way?

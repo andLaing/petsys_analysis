@@ -4,10 +4,10 @@ import sys
 import matplotlib.pyplot as plt
 import numpy             as np
 
-from pet_code.src.io   import read_petsys_filebyfile
-from pet_code.src.io   import read_ymlmapping
-from pet_code.src.util import filter_impact
-from pet_code.src.util import shift_to_centres
+from pet_code.src.filters import filter_impact
+from pet_code.src.io      import read_petsys_filebyfile
+from pet_code.src.io      import read_ymlmapping
+from pet_code.src.util    import shift_to_centres
 
 
 def channel_engs():

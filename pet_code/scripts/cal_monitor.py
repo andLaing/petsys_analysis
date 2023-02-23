@@ -20,13 +20,13 @@ from collections import Counter
 import matplotlib.pyplot as plt
 import numpy             as np
 
-from pet_code.src.fits import fit_gaussian
-from pet_code.src.io   import read_petsys_filebyfile
-from pet_code.src.io   import read_ymlmapping
-from pet_code.src.util import calibrate_energies
-from pet_code.src.util import filter_event_by_impacts
-from pet_code.src.util import select_module
-from pet_code.src.util import shift_to_centres
+from pet_code.src.filters import filter_event_by_impacts
+from pet_code.src.fits    import fit_gaussian
+from pet_code.src.io      import read_petsys_filebyfile
+from pet_code.src.io      import read_ymlmapping
+from pet_code.src.util    import calibrate_energies
+from pet_code.src.util    import select_module
+from pet_code.src.util    import shift_to_centres
 
 
 # Candidate to be the ChannelCal used in general

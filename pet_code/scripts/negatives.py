@@ -2,11 +2,11 @@ import sys
 
 import numpy as np
 
-from pet_code.src.io   import read_petsys_filebyfile
-from pet_code.src.io   import read_ymlmapping
-from pet_code.src.util import ChannelType
-from pet_code.src.util import filter_event_by_impacts
-from pet_code.src.util import select_max_energy
+from pet_code.src.filters import filter_event_by_impacts
+from pet_code.src.io      import read_petsys_filebyfile
+from pet_code.src.io      import read_ymlmapping
+from pet_code.src.util    import ChannelType
+from pet_code.src.util    import select_max_energy
 
 
 def print_info(all_channels, neg_channels, time_ch, eng_ch):

@@ -31,17 +31,17 @@ import matplotlib.pyplot as plt
 # import multiprocessing as mp
 from multiprocessing import cpu_count, get_context
 
-from pet_code.src.fits  import fit_gaussian
-from pet_code.src.fits  import mean_around_max
-from pet_code.src.io    import read_petsys_filebyfile
-from pet_code.src.io    import read_ymlmapping
-from pet_code.src.plots import group_times_list
-from pet_code.src.plots import slab_energy_spectra
-from pet_code.src.util  import calibrate_energies
-from pet_code.src.util  import centroid_calculation
-from pet_code.src.util  import time_of_flight
-from pet_code.src.util  import filter_impacts_specific_mod
-from pet_code.src.util  import slab_energy_centroids
+from pet_code.src.filters  import filter_impacts_specific_mod
+from pet_code.src.fits     import fit_gaussian
+from pet_code.src.fits     import mean_around_max
+from pet_code.src.io       import read_petsys_filebyfile
+from pet_code.src.io       import read_ymlmapping
+from pet_code.src.plots    import group_times_list
+from pet_code.src.plots    import slab_energy_spectra
+from pet_code.src.util     import calibrate_energies
+from pet_code.src.util     import centroid_calculation
+from pet_code.src.util     import time_of_flight
+from pet_code.src.util     import slab_energy_centroids
 
 
 # Source positions. Improve!!

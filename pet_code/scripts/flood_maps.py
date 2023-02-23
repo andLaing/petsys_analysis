@@ -17,17 +17,17 @@ import configparser
 from docopt    import docopt
 from itertools import repeat
 
-from pet_code.src.io    import ChannelMap
-from pet_code.src.io    import read_petsys_filebyfile
-from pet_code.src.io    import read_ymlmapping
-from pet_code.src.plots import mm_energy_spectra
-from pet_code.src.util  import calibrate_energies
-from pet_code.src.util  import centroid_calculation
-from pet_code.src.util  import filter_event_by_impacts
-from pet_code.src.util  import filter_event_by_impacts_noneg
-from pet_code.src.util  import filter_impacts_one_minimod
-from pet_code.src.util  import mm_energy_centroids
-from pet_code.src.util  import select_module
+from pet_code.src.filters  import filter_event_by_impacts
+from pet_code.src.filters  import filter_event_by_impacts_noneg
+from pet_code.src.filters  import filter_impacts_one_minimod
+from pet_code.src.io       import ChannelMap
+from pet_code.src.io       import read_petsys_filebyfile
+from pet_code.src.io       import read_ymlmapping
+from pet_code.src.plots    import mm_energy_spectra
+from pet_code.src.util     import calibrate_energies
+from pet_code.src.util     import centroid_calculation
+from pet_code.src.util     import mm_energy_centroids
+from pet_code.src.util     import select_module
 
 
 import time
