@@ -108,20 +108,6 @@ def filter_impacts_specific_mod(sm_num, mm_num, mm_map, min_sm):
     return valid_event
 
 
-def filter_impacts_mmgroup(mm_sm1, mm_sm2, mm_map, min_sm1, min_sm2):
-    """
-    Only use events with mini-modules within
-    specific groups.
-    """
-    sm1_filter = filter_impact(min_sm1)
-    sm2_filter = filter_impact(min_sm2)
-    def valid_event(sm1, sm2):
-        sm1_grp = (mm_map(id) in mm_sm1 for id, *_ in sm1)
-        sm2_grp = (mm_map(id) in mm_sm2 for id, *_ in sm2)
-        return all(sm1_grp) and all(sm2_grp) and sm1_filter(sm1) and sm2_filter
-    return valid_event
-
-
 def filter_negatives(sm):
     """
     Return true if all energies
