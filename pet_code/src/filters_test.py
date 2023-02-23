@@ -14,6 +14,7 @@ from . filters import filter_channel_list
 from . filters import filter_module_list
 from . filters import filter_impacts_specific_mod
 from . filters import filter_event_by_impacts_noneg
+from . filters import filter_max_sm
 
 from . util_test import enum_dummy
 
@@ -92,3 +93,15 @@ def test_filter_event_by_impacts_noneg(DUMMY_EVT):
     dummy_with_enum = tuple(map(enum_dummy, DUMMY_EVT))
 
     assert evt_select(*dummy_with_enum)
+
+
+@mark.filterwarnings("ignore:Imported map")
+def test_filter_max_sm(TEST_DATA_DIR, DUMMY_EVT):
+    map_file = os.path.join(TEST_DATA_DIR, 'twoSM_IMAS_map.feather')
+    chan_map = ChannelMap(map_file)
+
+    evt_select_valid   = filter_max_sm(2, chan_map.get_supermodule)
+    evt_select_invalid = filter_max_sm(1, chan_map.get_supermodule)
+
+    assert     evt_select_valid  (*DUMMY_EVT)
+    assert not evt_select_invalid(*DUMMY_EVT)

@@ -132,3 +132,16 @@ def filter_event_by_impacts_noneg(min_sm, singles=False):
         return ch1_filter(sm1) and ch2_filter(sm2) and\
             filter_negatives(sm1) and filter_negatives(sm2)
     return valid_event
+
+
+def filter_max_sm(max_sm, sm_map):
+    """
+    Filter event with more than
+    max_sm supermodules present.
+    Only valid for coinc mode.
+    """
+    vec_sm_map = np.vectorize(sm_map)
+    def valid_event(sm1, sm2):
+        all_ids = np.vstack((sm1, sm2))[:, 0].astype('int')
+        return np.unique(vec_sm_map(all_ids)).shape[0] <= max_sm
+    return valid_event
