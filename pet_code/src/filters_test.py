@@ -24,7 +24,7 @@ def test_filter_multihit(TEST_DATA_DIR, DUMMY_SM):
 
 
 def test_filter_event_by_impacts(DUMMY_EVT):
-    evt_select      = filter_event_by_impacts(5, 4)
+    evt_select      = filter_event_by_impacts(4)
     dummy_with_enum = tuple(map(enum_dummy, DUMMY_EVT))
     assert evt_select(*dummy_with_enum)
 

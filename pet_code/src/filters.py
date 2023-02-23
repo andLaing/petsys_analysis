@@ -7,7 +7,6 @@ def filter_impact(min_ch):
     Make a filter to check impacts recorded
     in sufficient channels.
     """
-    print("First commit")
     def valid_impact(mod_data):
         neng = get_no_eng_channels(mod_data)
         return min_ch < neng < len(mod_data)
@@ -23,17 +22,17 @@ def filter_multihit(sm, mm_map):
     return n_mm == 1
 
 
-def filter_event_by_impacts(min_sm1, min_sm2, singles=False):
+def filter_event_by_impacts(min_sm, singles=False):
     """
     Event filter based on the minimum energy channel
     hist for each of the two super modules in coincidence.
     """
-    m1_filter = filter_impact(min_sm1)
-    m2_filter = lambda x: True
-    if not singles:
-        m2_filter = filter_impact(min_sm2)
+    nch1_filter = filter_impact(min_sm)
+    nch2_filter = nch1_filter
+    if singles:
+        nch2_filter = lambda x: True
     def valid_event(sm1, sm2):
-        return m1_filter(sm1) and m2_filter(sm2)
+        return nch1_filter(sm1) and nch2_filter(sm2)
     return valid_event
 
 
