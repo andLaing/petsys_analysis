@@ -75,6 +75,17 @@ def filter_specific_mm(sm_num, mm_num, mm_map):
     return valid_event
 
 
+def filter_channel_list(valid_channels: np.ndarray):
+    """
+    Filter event based on one of the impacts
+    having channels in the valid list.
+    """
+    def valid_event(sm1, sm2):
+        return any(imp[0] in valid_channels for imp in sm1) or\
+               any(imp[0] in valid_channels for imp in sm2)
+    return valid_event
+
+
 def filter_impacts_specific_mod(sm_num, mm_num, mm_map, min_sm1, min_sm2):
     """
     Combines requirements of impacts, specific mm and

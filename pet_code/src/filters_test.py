@@ -7,6 +7,7 @@ from . filters import filter_impact
 from . filters import filter_impacts_one_minimod
 from . filters import filter_multihit
 from . filters import filter_one_minimod
+from . filters import filter_channel_list
 
 from . util_test import enum_dummy
 
@@ -43,3 +44,13 @@ def test_filter_impacts_one_minimod(TEST_DATA_DIR, DUMMY_EVT):
     evt_select = filter_impacts_one_minimod(4, lambda id: mm_map[id])
     dummy_with_enum = tuple(map(enum_dummy, DUMMY_EVT))
     assert not evt_select(*dummy_with_enum)
+
+
+def test_filter_channel_list(DUMMY_EVT):
+    test_valid_channels   = {64, 112, 697, 699}
+    test_invalid_channels = { 1,   2,   3}
+    evt_select_valid      = filter_channel_list(test_valid_channels)
+    evt_select_invalid    = filter_channel_list(test_invalid_channels)
+
+    assert     evt_select_valid  (*DUMMY_EVT)
+    assert not evt_select_invalid(*DUMMY_EVT)
