@@ -118,17 +118,17 @@ def filter_negatives(sm):
     return all(np.asarray(sm)[:, 3] > 0)
 
 
-def filter_event_by_impacts_noneg(min_sm1, min_sm2, singles=False):
+def filter_event_by_impacts_noneg(min_sm, singles=False):
     """
     Event filter based on the minimum number of energy channels
     for each of the two super modules in coincidence filtering any
     events with negative signals.
     """
-    m1_filter = filter_impact(min_sm1)
-    m2_filter = lambda x: True
-    if not singles:
-        m2_filter = filter_impact(min_sm2)
+    ch1_filter = filter_impact(min_sm)
+    ch2_filter = ch1_filter
+    if singles:
+        ch2_filter = lambda x: True
     def valid_event(sm1, sm2):
-        return m1_filter(sm1) and m2_filter(sm2) and\
+        return ch1_filter(sm1) and ch2_filter(sm2) and\
             filter_negatives(sm1) and filter_negatives(sm2)
     return valid_event
