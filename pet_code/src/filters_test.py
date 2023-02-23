@@ -1,6 +1,9 @@
 import os
 
+from pytest    import mark
+
 from . io      import read_ymlmapping
+from . io      import ChannelMap
 
 from . filters import filter_event_by_impacts
 from . filters import filter_impact
@@ -8,6 +11,7 @@ from . filters import filter_impacts_one_minimod
 from . filters import filter_multihit
 from . filters import filter_one_minimod
 from . filters import filter_channel_list
+from . filters import filter_module_list
 
 from . util_test import enum_dummy
 
@@ -51,6 +55,21 @@ def test_filter_channel_list(DUMMY_EVT):
     test_invalid_channels = { 1,   2,   3}
     evt_select_valid      = filter_channel_list(test_valid_channels)
     evt_select_invalid    = filter_channel_list(test_invalid_channels)
+
+    assert     evt_select_valid  (*DUMMY_EVT)
+    assert not evt_select_invalid(*DUMMY_EVT)
+
+
+@mark.filterwarnings("ignore:Imported map")
+def test_filter_module_list(TEST_DATA_DIR, DUMMY_EVT):
+    map_file = os.path.join(TEST_DATA_DIR, 'twoSM_IMAS_map.feather')
+    chan_map = ChannelMap(map_file)
+
+    smMm_valid         = (0), (5, 6)
+    smMm_invalid       = (2), (3, 4)
+    mod_ids            = chan_map.get_minimodule_channels
+    evt_select_valid   = filter_module_list(mod_ids, *smMm_valid  )
+    evt_select_invalid = filter_module_list(mod_ids, *smMm_invalid)
 
     assert     evt_select_valid  (*DUMMY_EVT)
     assert not evt_select_invalid(*DUMMY_EVT)

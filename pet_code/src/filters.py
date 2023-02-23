@@ -86,6 +86,15 @@ def filter_channel_list(valid_channels: np.ndarray):
     return valid_event
 
 
+def filter_module_list(smMm_to_id, valid_sm, valid_mm):
+    """
+    Filter event based on list of
+    valid supermodules and minimodules.
+    """
+    valid_ids = np.concatenate([smMm_to_id(*v) for v in np.vstack(np.stack(np.meshgrid(valid_sm, valid_mm)).T)])
+    return filter_channel_list(valid_ids)
+
+
 def filter_impacts_specific_mod(sm_num, mm_num, mm_map, min_sm1, min_sm2):
     """
     Combines requirements of impacts, specific mm and
