@@ -40,6 +40,6 @@ def test_filter_impacts_one_minimod(TEST_DATA_DIR, DUMMY_EVT):
     test_yml           = os.path.join(TEST_DATA_DIR, "SM_mapping.yaml")
     _, _, mm_map, *_ = read_ymlmapping(test_yml)
 
-    evt_select = filter_impacts_one_minimod(5, 4, lambda id: mm_map[id])
+    evt_select = filter_impacts_one_minimod(4, lambda id: mm_map[id])
     dummy_with_enum = tuple(map(enum_dummy, DUMMY_EVT))
     assert not evt_select(*dummy_with_enum)

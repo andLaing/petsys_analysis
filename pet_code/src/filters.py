@@ -46,20 +46,20 @@ def filter_one_minimod(sm1, sm2, mm_map, singles=False):
     return filter_multihit(sm1, mm_map) and filter_multihit(sm2, mm_map)
 
 
-def filter_impacts_one_minimod(min_sm1, min_sm2, mm_map, singles=False):
+def filter_impacts_one_minimod(min_sm, mm_map, singles=False):
     """
     Event filter based on the minimum energy channel
     hist for each of the two super modules in coincidence
     with additional filter requiring only one mini module
     per super module.
     """
-    m1_filter = filter_impact(min_sm1)
-    m2_filter = lambda x: True
-    if not singles:
-        m2_filter = filter_impact(min_sm2)
+    nch1_filter = filter_impact(min_sm)
+    nch2_filter = nch1_filter
+    if singles:
+        nch2_filter = lambda x: True
     def valid_event(sm1, sm2):
         one_mm = filter_one_minimod(sm1, sm2, mm_map, singles)
-        return one_mm and m1_filter(sm1) and m2_filter(sm2)
+        return one_mm and nch1_filter(sm1) and nch2_filter(sm2)
     return valid_event
 
 
