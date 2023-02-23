@@ -95,17 +95,16 @@ def filter_module_list(smMm_to_id, valid_sm, valid_mm):
     return filter_channel_list(valid_ids)
 
 
-def filter_impacts_specific_mod(sm_num, mm_num, mm_map, min_sm1, min_sm2):
+def filter_impacts_specific_mod(sm_num, mm_num, mm_map, min_sm):
     """
     Combines requirements of impacts, specific mm and
     that only one module hit in both sm.
     """
     sel_mm    = filter_specific_mm(sm_num, mm_num, mm_map)
-    m1_filter = filter_impact(min_sm1)
-    m2_filter = filter_impact(min_sm2)
+    ch_filter = filter_impact(min_sm)
     def valid_event(sm1, sm2):
         return sel_mm(sm1, sm2) and filter_one_minimod(sm1, sm2)\
-                and m1_filter(sm1) and m2_filter(sm2)
+                and ch_filter(sm1) and ch_filter(sm2)
     return valid_event
 
 

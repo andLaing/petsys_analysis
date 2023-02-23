@@ -12,6 +12,7 @@ from . filters import filter_multihit
 from . filters import filter_one_minimod
 from . filters import filter_channel_list
 from . filters import filter_module_list
+from . filters import filter_impacts_specific_mod
 
 from . util_test import enum_dummy
 
@@ -73,3 +74,13 @@ def test_filter_module_list(TEST_DATA_DIR, DUMMY_EVT):
 
     assert     evt_select_valid  (*DUMMY_EVT)
     assert not evt_select_invalid(*DUMMY_EVT)
+
+
+@mark.filterwarnings("ignore:Imported map")
+def test_filter_impacts_specific_mod(TEST_DATA_DIR, DUMMY_EVT):
+    map_file = os.path.join(TEST_DATA_DIR, 'twoSM_IMAS_map.feather')
+    chan_map = ChannelMap(map_file)
+
+    evt_select = filter_impacts_specific_mod(0, 11, chan_map.get_minimodule, 4)
+
+    assert not evt_select(*DUMMY_EVT)
