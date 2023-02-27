@@ -7,6 +7,7 @@ from . io   import read_ymlmapping
 from . io   import ChannelMap
 from . util import c_vac
 from . util import np
+from . util import bar_source_dt
 from . util import ChannelType
 from . util import centroid_calculation
 from . util import get_no_eng_channels
@@ -73,3 +74,21 @@ def test_time_of_flight(TEST_DATA_DIR):
     max_time     = max_distance / c_vac
 
     assert all(np.fromiter(map(flight_time, slab_mapping.values()), float) < max_time * 1e12)
+
+
+def test_bar_source_dt():
+    bar_r    = 10#mm
+    bar_xy   = np.array([280, 280])
+    slab_pos = {1: np.array([ 290,  290,    0]),
+                2: np.array([-290, -290,    0]),
+                3: np.array([-290, -290, -100]),
+                4: np.array([ 291, -289,    0])}
+
+    geom_dt = bar_source_dt(bar_xy, bar_r, lambda x: slab_pos[x])
+    dts     = tuple(geom_dt(1, id) for id in range(2, 5))
+    assert np.count_nonzero(dts) == 2
+    assert dts[2] is None
+    c_vac_ps = c_vac * 1000 / 1e12
+    exp_dt   = [-560 * np.sqrt(2) / c_vac_ps,
+                (2 * 14.2468471 - np.linalg.norm(slab_pos[3] - slab_pos[1])) / c_vac_ps]
+    np.testing.assert_allclose(dts[:2], exp_dt)

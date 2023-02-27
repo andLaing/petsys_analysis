@@ -333,10 +333,17 @@ def bar_source_dt(bar_xy: np.ndarray, bar_r: float, slab_pos: Callable) -> Calla
     """
     Define an axially infinite bar of radius bar_r centred on
     bar_xy so that geometric dt can be predicted.
+
+    bar_xy : np.ndarray
+             XY postion of bar transverse centre
+    bar_r  : float
+             Radius of bar
+    slab_pos : Callable
+               Function returning pos
     """
     c_mm_per_ps = c_vac * 1000 / 1e12
     c_corr = np.square(bar_xy).sum() - bar_r**2
-    def geom_dt(ref_id, coinc_id):
+    def geom_dt(ref_id: int, coinc_id: int) -> float:
         ref_pos   = slab_pos(  ref_id)
         coinc_pos = slab_pos(coinc_id)
         dir_norm  = np.linalg.norm(coinc_pos - ref_pos)
