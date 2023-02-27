@@ -64,7 +64,7 @@ def test_process_raw_data(TEST_DATA_DIR, TMP_OUT):
     assert saved_dt.shape == (183, len(exp_cols))
 
     map_df  = pd.read_feather(mapfile)
-    ref_chs = map_df[(map_df.supermodule == 0) & (map_df.minimodule == 15)].id
+    ref_chs = map_df[(map_df.supermodule == 0) & (map_df.minimodule == 14)].id
     coi_chs = map_df[ map_df.supermodule == 2 ].id
     assert all(saved_dt.ref_ch  .isin(ref_chs))
     assert all(saved_dt.coinc_ch.isin(coi_chs))
