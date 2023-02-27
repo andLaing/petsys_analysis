@@ -322,7 +322,7 @@ def write_event_trace(file_buffer, sm_map, mm_lookup):#centroid_map, mm_map):
         mm_channels = sm_map[sm_map.minimodule == mini_mod].index
         for imp in mm_trace:
             en_t      = 0 if imp[1] is ChannelType.TIME else 1
-            indx  = np.argwhere(mm_channels == imp[0])[0][0] // 2
+            indx      = np.argwhere(mm_channels == imp[0])[0][0] // 2
             # en_t, pos = centroid_map[imp[0]]
             # indx      = slab_indx(pos)
             channels[indx + 8 * en_t] = imp[3]
