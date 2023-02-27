@@ -20,13 +20,13 @@ from collections import Counter
 import matplotlib.pyplot as plt
 import numpy             as np
 
-from pet_code.src.fits import fit_gaussian
-from pet_code.src.io   import read_petsys_filebyfile
-from pet_code.src.io   import read_ymlmapping
-from pet_code.src.util import calibrate_energies
-from pet_code.src.util import filter_event_by_impacts
-from pet_code.src.util import select_module
-from pet_code.src.util import shift_to_centres
+from pet_code.src.filters import filter_event_by_impacts
+from pet_code.src.fits    import fit_gaussian
+from pet_code.src.io      import read_petsys_filebyfile
+from pet_code.src.io      import read_ymlmapping
+from pet_code.src.util    import calibrate_energies
+from pet_code.src.util    import select_module
+from pet_code.src.util    import shift_to_centres
 
 
 # Candidate to be the ChannelCal used in general
@@ -91,9 +91,9 @@ if __name__ == '__main__':
     map_file = conf.get('mapping', 'map_file')
     time_ch, eng_ch, mm_map, *_ = read_ymlmapping(map_file)
 
-    min_chan   = tuple(map(int, conf.get('filter', 'min_channels').split(',')))
+    min_chan   = conf.getint('filter', 'min_channels')
     singles    = 'coinc' not in infiles[0]
-    evt_filter = filter_event_by_impacts(eng_ch, *min_chan, singles=singles)
+    evt_filter = filter_event_by_impacts(eng_ch, min_chan, singles=singles)
 
     time_cal = conf.get('calibration',   'time_channels', fallback='')
     eng_cal  = conf.get('calibration', 'energy_channels', fallback='')

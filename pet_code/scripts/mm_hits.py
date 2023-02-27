@@ -16,11 +16,11 @@ import configparser
 
 from docopt import docopt
 
-from pet_code.src.io   import read_petsys_filebyfile, read_ymlmapping
-from pet_code.src.io   import write_event_trace
-from pet_code.src.util import calibrate_energies
-from pet_code.src.util import filter_event_by_impacts_noneg
-from pet_code.src.util import select_module
+from pet_code.src.filters import filter_event_by_impacts_noneg
+from pet_code.src.io      import read_petsys_filebyfile, read_ymlmapping
+from pet_code.src.io      import write_event_trace
+from pet_code.src.util    import calibrate_energies
+from pet_code.src.util    import select_module
 
 
 # Is there a better way?
@@ -58,8 +58,8 @@ if __name__ == '__main__':
 
     time_ch, eng_ch, mm_map, centroid_map, _ = read_ymlmapping(map_file)
 
-    min_chan   = tuple(map(int, conf.get('filter', 'min_channels').split(',')))
-    evt_filter = filter_event_by_impacts_noneg(eng_ch, *min_chan)
+    min_chan   = conf.getint('filter', 'min_channels')
+    evt_filter = filter_event_by_impacts_noneg(eng_ch, min_chan)
 
     out_fldr = conf.get('output',  'out_dir', fallback='')
     out_name = conf.get('output', 'out_name', fallback='all_impacts')

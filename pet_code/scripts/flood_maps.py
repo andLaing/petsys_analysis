@@ -17,17 +17,17 @@ import configparser
 from docopt    import docopt
 from itertools import repeat
 
-from pet_code.src.io    import ChannelMap
-from pet_code.src.io    import read_petsys_filebyfile
-from pet_code.src.io    import read_ymlmapping
-from pet_code.src.plots import mm_energy_spectra
-from pet_code.src.util  import calibrate_energies
-from pet_code.src.util  import centroid_calculation
-from pet_code.src.util  import filter_event_by_impacts
-from pet_code.src.util  import filter_event_by_impacts_noneg
-from pet_code.src.util  import filter_impacts_one_minimod
-from pet_code.src.util  import mm_energy_centroids
-from pet_code.src.util  import select_module
+from pet_code.src.filters  import filter_event_by_impacts
+from pet_code.src.filters  import filter_event_by_impacts_noneg
+from pet_code.src.filters  import filter_impacts_one_minimod
+from pet_code.src.io       import ChannelMap
+from pet_code.src.io       import read_petsys_filebyfile
+from pet_code.src.io       import read_ymlmapping
+from pet_code.src.plots    import mm_energy_spectra
+from pet_code.src.util     import calibrate_energies
+from pet_code.src.util     import centroid_calculation
+from pet_code.src.util     import mm_energy_centroids
+from pet_code.src.util     import select_module
 
 
 import time
@@ -45,17 +45,17 @@ if __name__ == '__main__':
     filt_type = conf.get('filter', 'type', fallback='Impacts')
     # Should improve with an enum or something
     if 'Impacts'  in filt_type:
-        min_chan   = tuple(map(int, conf.get('filter', 'min_channels').split(',')))
-        evt_select = filter_event_by_impacts(*min_chan)
+        min_chan   = conf.getint('filter', 'min_channels')
+        evt_select = filter_event_by_impacts(min_chan)
     elif 'OneMod' in filt_type:
-        min_chan   = tuple(map(int, conf.get('filter', 'min_channels').split(',')))
-        evt_select = filter_impacts_one_minimod(*min_chan, chan_map.get_minimodule)
+        min_chan   = conf.getint('filter', 'min_channels')
+        evt_select = filter_impacts_one_minimod(min_chan, chan_map.get_minimodule)
     elif 'NoNeg'  in filt_type:
-        min_chan   = tuple(map(int, conf.get('filter', 'min_channels').split(',')))
-        evt_select = filter_event_by_impacts_noneg(*min_chan)
+        min_chan   = conf.getint('filter', 'min_channels')
+        evt_select = filter_event_by_impacts_noneg(min_chan)
     else:
-        print('No valid filter found, fallback to 4, 4 minimum energy channels')
-        evt_select = filter_event_by_impacts(4, 4)
+        print('No valid filter found, fallback to 4 minimum energy channels')
+        evt_select = filter_event_by_impacts(4)
 
     time_cal = conf.get('calibration',   'time_channels', fallback='')
     eng_cal  = conf.get('calibration', 'energy_channels', fallback='')

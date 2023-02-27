@@ -19,7 +19,7 @@ def cal_conf(TEST_DATA_DIR, TMP_OUT):
     mapfile = os.path.join(TEST_DATA_DIR, 'twoSM_IMAS_map.feather')
 
     with open(config, 'w') as conf:
-        conf.write('[filter]\nmin_channels = 4,4\nmin_stats = 200\n')
+        conf.write('[filter]\nmin_channels = 4\nmin_stats = 200\n')
         conf.write(f'[mapping]\nmap_file = {mapfile}\n')
         conf.write('[output]\nesum_binning = 0,200,1.5\ntbinning = 2,24,0.1\nebinning = 2,24,0.2')
 

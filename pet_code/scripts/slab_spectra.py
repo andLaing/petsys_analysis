@@ -20,15 +20,15 @@ from itertools import repeat
 import matplotlib.pyplot as plt
 import numpy  as np
 
-from pet_code.src.io    import read_petsys_filebyfile
-from pet_code.src.io    import read_ymlmapping
-from pet_code.src.plots import slab_energy_spectra
-from pet_code.src.util  import calibrate_energies
-from pet_code.src.util  import centroid_calculation
-from pet_code.src.util  import filter_event_by_impacts
-from pet_code.src.util  import filter_impacts_one_minimod
-from pet_code.src.util  import filter_impacts_specific_mod
-from pet_code.src.util  import slab_energy_centroids
+from pet_code.src.filters  import filter_event_by_impacts
+from pet_code.src.filters  import filter_impacts_one_minimod
+from pet_code.src.filters  import filter_impacts_specific_mod
+from pet_code.src.io       import read_petsys_filebyfile
+from pet_code.src.io       import read_ymlmapping
+from pet_code.src.plots    import slab_energy_spectra
+from pet_code.src.util     import calibrate_energies
+from pet_code.src.util     import centroid_calculation
+from pet_code.src.util     import slab_energy_centroids
 
 if __name__ == '__main__':
     args   = docopt(__doc__)
@@ -42,20 +42,20 @@ if __name__ == '__main__':
     filt_type = conf.get('filter', 'type', fallback='Impacts')
     # Should improve with an enum or something
     if 'Impacts'    in filt_type:
-        min_chan   = tuple(map(int, conf.get('filter', 'min_channels').split(',')))
-        evt_select = filter_event_by_impacts(eng_ch, *min_chan)
+        min_chan   = conf.getint('filter', 'min_channels')
+        evt_select = filter_event_by_impacts(eng_ch, min_chan)
     elif 'OneMod'   in filt_type:
-        min_chan   = tuple(map(int, conf.get('filter', 'min_channels').split(',')))
-        evt_select = filter_impacts_one_minimod(eng_ch, *min_chan)
+        min_chan   = conf.getint('filter', 'min_channels')
+        evt_select = filter_impacts_one_minimod(eng_ch, min_chan)
     elif 'Specific' in filt_type:
-        min_chan   = tuple(map(int, conf.get('filter', 'min_channels').split(',')))
+        min_chan   = conf.getint('filter', 'min_channels')
         # Still needs to be improved, re: index not obvious maybe
         ref_indx   = conf.getint('filter', 'supermod_indx')
         mm_num     = conf.getint('filter',   'mini_module')
-        evt_select = filter_impacts_specific_mod(ref_indx, mm_num, eng_ch, *min_chan)
+        evt_select = filter_impacts_specific_mod(ref_indx, mm_num, eng_ch, min_chan)
     else:
         print('No valid filter found, fallback to 4, 4 minimum energy channels')
-        evt_select = filter_event_by_impacts(eng_ch, 4, 4)
+        evt_select = filter_event_by_impacts(eng_ch, 4)
 
     time_cal = conf.get('calibration',   'time_channels', fallback='')
     eng_cal  = conf.get('calibration', 'energy_channels', fallback='')

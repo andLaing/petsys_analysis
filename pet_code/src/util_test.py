@@ -1,6 +1,6 @@
 import os
 
-from pytest        import mark
+from pytest        import mark, fixture
 from numpy.testing import assert_almost_equal
 
 from . io   import read_ymlmapping
@@ -9,11 +9,6 @@ from . util import c_vac
 from . util import np
 from . util import ChannelType
 from . util import centroid_calculation
-from . util import filter_event_by_impacts
-from . util import filter_impact
-from . util import filter_impacts_one_minimod
-from . util import filter_multihit
-from . util import filter_one_minimod
 from . util import get_no_eng_channels
 from . util import get_absolute_id
 from . util import get_electronics_nums
@@ -21,18 +16,18 @@ from . util import get_supermodule_eng
 from . util import time_of_flight
 
 
-def _enum_dummy(SM):
+def enum_dummy(SM):
     return list(map(lambda imp: [imp[0], ChannelType[imp[1]], imp[2], imp[3]], SM))
 
 
 def test_get_no_eng_channels(DUMMY_SM):
-    n_eng = get_no_eng_channels(_enum_dummy(DUMMY_SM))
+    n_eng = get_no_eng_channels(enum_dummy(DUMMY_SM))
     assert n_eng == len(DUMMY_SM)
 
 
 def test_get_supermodule_eng(DUMMY_SM):
     expected_eng   = sum(x[3] for x in DUMMY_SM)
-    n_eng, tot_eng = get_supermodule_eng(_enum_dummy(DUMMY_SM))
+    n_eng, tot_eng = get_supermodule_eng(enum_dummy(DUMMY_SM))
     assert n_eng == len(DUMMY_SM)
     assert_almost_equal(tot_eng, expected_eng, decimal=5)
 
@@ -59,47 +54,13 @@ def test_centroid_calculation(TEST_DATA_DIR, DUMMY_SM):
     channel_map  = ChannelMap(test_mapping)
 
     centroid                     = centroid_calculation(channel_map.plotp)
-    time_mean, eng_mean, tot_eng = centroid(_enum_dummy(DUMMY_SM))
+    time_mean, eng_mean, tot_eng = centroid(enum_dummy(DUMMY_SM))
 
     ## DUMMY not ideal as 100% energy channels, to be improved.
     expected_eng = sum((x[3] + 0.00001)**2 for x in DUMMY_SM)
     assert time_mean == 0.0
     assert_almost_equal(eng_mean,     43.51608, decimal=5)
     assert_almost_equal(tot_eng , expected_eng, decimal=5)
-
-
-def test_filter_impact(DUMMY_SM):
-    impact_filter = filter_impact(4)
-    ## The dummy event is all energy so not expected to pass. Improve test?
-    assert not impact_filter(_enum_dummy(DUMMY_SM))
-
-
-def test_filter_multihit(TEST_DATA_DIR, DUMMY_SM):
-    test_yml           = os.path.join(TEST_DATA_DIR, "SM_mapping.yaml")
-    _, _, mm_map, *_ = read_ymlmapping(test_yml)
-    assert filter_multihit(DUMMY_SM, lambda id: mm_map[id])
-
-
-def test_filter_event_by_impacts(DUMMY_EVT):
-    evt_select      = filter_event_by_impacts(5, 4)
-    dummy_with_enum = tuple(map(_enum_dummy, DUMMY_EVT))
-    assert evt_select(*dummy_with_enum)
-
-
-def test_filter_one_minimod(TEST_DATA_DIR, DUMMY_EVT):
-    test_yml           = os.path.join(TEST_DATA_DIR, "SM_mapping.yaml")
-    _, _, mm_map, *_ = read_ymlmapping(test_yml)
-    dummy_with_enum = tuple(map(_enum_dummy, DUMMY_EVT))
-    assert not filter_one_minimod(*dummy_with_enum, lambda id: mm_map[id])
-
-
-def test_filter_impacts_one_minimod(TEST_DATA_DIR, DUMMY_EVT):
-    test_yml           = os.path.join(TEST_DATA_DIR, "SM_mapping.yaml")
-    _, _, mm_map, *_ = read_ymlmapping(test_yml)
-
-    evt_select = filter_impacts_one_minimod(5, 4, lambda id: mm_map[id])
-    dummy_with_enum = tuple(map(_enum_dummy, DUMMY_EVT))
-    assert not evt_select(*dummy_with_enum)
 
 
 def test_time_of_flight(TEST_DATA_DIR):

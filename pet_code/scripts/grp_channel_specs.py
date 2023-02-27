@@ -24,17 +24,17 @@ import numpy             as np
 
 from scipy.signal import find_peaks
 
-from pet_code.src.fits  import curve_fit_fn
-from pet_code.src.fits  import fit_gaussian
-from pet_code.src.fits  import lorentzian
-from pet_code.src.fits  import gaussian
-from pet_code.src.io    import ChannelMap
-from pet_code.src.io    import read_petsys_filebyfile
-from pet_code.src.plots import ChannelEHistograms
-from pet_code.src.util  import ChannelType
-from pet_code.src.util  import filter_event_by_impacts
-from pet_code.src.util  import select_mod_wrapper
-from pet_code.src.util  import shift_to_centres
+from pet_code.src.filters  import filter_event_by_impacts
+from pet_code.src.fits     import curve_fit_fn
+from pet_code.src.fits     import fit_gaussian
+from pet_code.src.fits     import lorentzian
+from pet_code.src.fits     import gaussian
+from pet_code.src.io       import ChannelMap
+from pet_code.src.io       import read_petsys_filebyfile
+from pet_code.src.plots    import ChannelEHistograms
+from pet_code.src.util     import ChannelType
+from pet_code.src.util     import select_mod_wrapper
+from pet_code.src.util     import shift_to_centres
 
 
 def slab_plots(out_file, plot_source, plot_wosource, min_stats):
@@ -170,8 +170,8 @@ def channel_plots(config, infiles):
     map_file = config.get('mapping', 'map_file')
     chan_map = ChannelMap(map_file)
 
-    min_chan  = tuple(map(int, config.get('filter', 'min_channels').split(',')))
-    filt      = filter_event_by_impacts(*min_chan, singles=True)
+    min_chan  = config.getint('filter', 'min_channels')
+    filt      = filter_event_by_impacts(min_chan, singles=True)
 
     esum_bins = np.arange(*tuple(map(float, config.get('output', 'esum_binning', fallback='0,300,1.5').split(','))))
     tbins     = np.arange(*tuple(map(float, config.get('output',     'tbinning', fallback='5,30,0.2') .split(','))))
