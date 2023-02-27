@@ -26,6 +26,8 @@ from itertools import repeat
 import numpy  as np
 import pandas as pd
 
+from functools import partial
+
 import matplotlib.pyplot as plt
 
 # import multiprocessing as mp
@@ -34,13 +36,17 @@ from multiprocessing import cpu_count, get_context
 from pet_code.src.filters  import filter_impacts_specific_mod
 from pet_code.src.fits     import fit_gaussian
 from pet_code.src.fits     import mean_around_max
+from pet_code.src.io       import ChannelMap
 from pet_code.src.io       import read_petsys_filebyfile
 from pet_code.src.io       import read_ymlmapping
+from pet_code.src.plots    import corrected_time_difference
 from pet_code.src.plots    import group_times_list
 from pet_code.src.plots    import slab_energy_spectra
 from pet_code.src.util     import calibrate_energies
 from pet_code.src.util     import centroid_calculation
 from pet_code.src.util     import time_of_flight
+from pet_code.src.util     import select_energy_range
+from pet_code.src.util     import select_module
 from pet_code.src.util     import slab_energy_centroids
 
 
@@ -213,6 +219,83 @@ def get_skew(flight_time, slab_map, skew=pd.Series(dtype=float), plot_output=Non
             return peak_mean if peak_mean else 0
         return pars[1]
     return calc_skew
+
+
+def process_raw_data(config):
+    """
+    Read the binaries corresponding to file_list,
+    filter selecting events in the slab spectra
+    limits, calculate geometrically corrected deltaT
+    and output to feather files.
+    """
+    ch_map = ChannelMap(config.get('mapping', 'map_file'))
+
+    ## This needs to be improved. In principle it can be in the map.
+    time_cal = config.get('calibration',   'time_channels', fallback='')
+    eng_cal  = config.get('calibration', 'energy_channels', fallback='')
+    cal_func = calibrate_energies(ch_map.get_chantype_ids, time_cal, eng_cal)
+    sel_mod  = select_module(ch_map.get_minimodule)
+    def cal_and_select(evt):
+        cal_evt = cal_func(evt)
+        return tuple(map(sel_mod, cal_evt))
+
+    elimits  = map(float, config.get('filter', 'elimits').split(','))
+    eselect  = select_energy_range(*elimits)
+
+    setup    = config.get('mapping', 'setup', fallback='2SM')
+    if setup == '2SM':
+        geom_func = geom_loc_2sm
+        sm1_minch, sm2_minch = tuple(map(int, config.get('filter', 'min_channels').split(',')))
+        evt_filt  = partial(filter_impacts_specific_mod    ,
+                            mm_map  = ch_map.get_minimodule,
+                            min_sm1 = sm1_minch            ,
+                            min_sm2 = sm2_minch            )
+    else:
+        print(f'Setup {setup} not available')
+        exit()
+
+    ## Need filter options and position options for general usage.
+    #
+    df_cols    = ['ref_ch', 'coinc_ch', 'corr_dt']
+    dt_calc    = partial(corrected_time_difference  ,
+                         impact_sel = cal_and_select,
+                         energy_sel = eselect       )
+    pet_reader = partial(read_petsys_filebyfile, type_dict=ch_map.ch_type)
+    outdir     = config.get('output', 'out_dir')
+    def _process(file_list):
+        for fn in file_list:
+            sm_no, mm_no, ref_ch, geom_dt = geom_func(fn, ch_map)
+            ## Specific filter depends on source position.
+            # Not ideal, should be easier with filter update.
+            filt   = evt_filt(sm_num=sm_no, mm_num=mm_no)
+            dt_gen = map(dt_calc(ref_ch=ref_ch, geom_dt=geom_dt),
+                         pet_reader(sm_filter=filt)(fn)         )
+            evt_df = pd.DataFrame(filter(lambda x: x, dt_gen), columns=df_cols)
+
+            out_base   = fn.split(os.sep)[-1].replace('.ldat', '.feather')
+            feath_name = os.path.join(outdir, out_base)
+            evt_df.to_feather(feath_name)
+            yield feath_name
+    return _process
+
+
+def calculate_skews(file_list, config, skew_values):
+    """
+    Read files with channel numbers and calculated
+    delta_t - delta_t_geom and calculate the bias
+    correcting for any known skew.
+    Want monitor plots with iteration number?
+    """
+    corr_skews = skew_values.copy()
+    rel_fact   = config.getfloat('filter', 'relax_fact')
+    min_stats  = config.getint  ('filter',  'min_stats')
+    hist_bins  = map(float, config.get('filter',  'hist_bins').split(','))
+    bias_calc  = peak_position(np.arange(*hist_bins), min_stats, skew_values)
+    for fn in file_list:
+        dt_df      = pd.read_feather(fn)
+        biases     = dt_df.groupby('ref_ch', group_keys=False).apply(bias_calc)
+        corr_skews = corr_skews.add(rel_fact * biases, fill_value=0.0)
+    return corr_skews
 
 
 def peak_position(hist_bins, min_stats, skew):
