@@ -310,7 +310,7 @@ class ChannelMap:
         return self.mapping.loc[id, ['X', 'Y', 'Z']].values.astype('float')
 
 
-def write_event_trace(file_buffer, centroid_map, mm_map):
+def write_event_trace(file_buffer, sm_map, mm_lookup):#centroid_map, mm_map):
     """
     Writer for text output of mini-module
     information as tab separated list of:
@@ -318,11 +318,15 @@ def write_event_trace(file_buffer, centroid_map, mm_map):
     """
     def write_minimod(mm_trace):
         channels = np.zeros(16)
+        mini_mod    = mm_lookup(mm_trace[0][0])
+        mm_channels = sm_map[sm_map.minimodule == mini_mod].index
         for imp in mm_trace:
-            en_t, pos = centroid_map[imp[0]]
-            indx      = slab_indx(pos)
+            en_t      = 0 if imp[1] is ChannelType.TIME else 1
+            indx  = np.argwhere(mm_channels == imp[0])[0][0] // 2
+            # en_t, pos = centroid_map[imp[0]]
+            # indx      = slab_indx(pos)
             channels[indx + 8 * en_t] = imp[3]
         file_buffer.write('\t'.join("{:.6f}".format(round(val, 6)) for val in channels))
-        file_buffer.write('\t' + str(mm_map(mm_trace[0][0])) + '\n')
+        file_buffer.write('\t' + str(mini_mod) + '\n')
     return write_minimod
         

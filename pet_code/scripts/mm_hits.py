@@ -16,6 +16,7 @@ import configparser
 
 from docopt import docopt
 
+from pet_code.src.io      import ChannelMap
 from pet_code.src.filters import filter_event_by_impacts_noneg
 from pet_code.src.io      import read_petsys_filebyfile, read_ymlmapping
 from pet_code.src.io      import write_event_trace
@@ -49,27 +50,28 @@ if __name__ == '__main__':
 
     map_file   = conf.get   ('mapping',   'map_file')
     control_sm = conf.getint('mapping', 'control_sm')
-    valid_sm   = {1, 3}
+    valid_sm   = {0, 2}
     if control_sm not in valid_sm:
-        print("Invalid control super module. Use 1 or 3")
+        print("Invalid control super module. Use 0 or 2")
         exit()
-    control_indx = 0 if control_sm == 3 else 1
+    control_indx = 0 if control_sm == 2 else 1
     file_list  = args['INFILE']
 
-    time_ch, eng_ch, mm_map, centroid_map, _ = read_ymlmapping(map_file)
+    chan_map = ChannelMap(map_file)
+    # time_ch, eng_ch, mm_map, centroid_map, _ = read_ymlmapping(map_file)
 
     min_chan   = conf.getint('filter', 'min_channels')
-    evt_filter = filter_event_by_impacts_noneg(eng_ch, min_chan)
+    evt_filter = filter_event_by_impacts_noneg(min_chan)
 
     out_fldr = conf.get('output',  'out_dir', fallback='')
     out_name = conf.get('output', 'out_name', fallback='all_impacts')
 
     time_cal = conf.get('calibration',   'time_channels', fallback='')
     eng_cal  = conf.get('calibration', 'energy_channels', fallback='')
-    cal_func = calibrate_energies(time_ch, eng_ch, time_cal, eng_cal)
+    cal_func = calibrate_energies(chan_map.get_chantype_ids, time_cal, eng_cal)
 
-    mm_check = 0
-    all_evt  = 0
+    # mm_check = 0
+    # all_evt  = 0
     for fn in file_list:
         in_parts = os.path.normpath(fn).split(os.sep)
         if out_fldr:
@@ -81,15 +83,18 @@ if __name__ == '__main__':
         out_file = out_dir + in_parts[-1].replace('.ldat', '_NN.txt')
 
         # Need to protect from overwrite? Will add output folder when using docopt/config or both
+        sm_map = chan_map.mapping[chan_map.mapping.supermodule == control_sm]
+        mod_select = select_module(chan_map.get_minimodule)
         with open(out_file, 'w') as tout:
-            sort_writer = sort_and_write_mm(write_event_trace(tout, centroid_map), control_indx)
-            reader      = read_petsys_filebyfile(mm_map, evt_filter)
+            # sort_writer = sort_and_write_mm(write_event_trace(tout, centroid_map), control_indx)
+            sort_writer = sort_and_write_mm(write_event_trace(tout, sm_map, chan_map.get_minimodule), control_indx)
+            reader      = read_petsys_filebyfile(chan_map.ch_type, evt_filter)
             for evt in reader(fn):
-                all_evt += 1
-                sel_mods = tuple(map(select_module, cal_func(evt), [eng_ch]*2))
-                n_mm     = len(set(x[1] for x in sel_mods[control_indx]))
-                if n_mm > 1:
-                    mm_check += 1
+                # all_evt += 1
+                sel_mods = tuple(map(mod_select, cal_func(evt)))
+                # n_mm     = len(set(x[1] for x in sel_mods[control_indx]))
+                # if n_mm > 1:
+                #     mm_check += 1
                 sort_writer(sel_mods)
-    print("Proportion of events with multihit in sm (highest charge MM selected): ", mm_check / all_evt)
+    # print("Proportion of events with multihit in sm (highest charge MM selected): ", mm_check / all_evt)
 
