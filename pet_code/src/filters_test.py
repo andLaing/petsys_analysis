@@ -4,6 +4,7 @@ from pytest    import mark
 
 from . io      import read_ymlmapping
 from . io      import ChannelMap
+from . util    import ChannelType
 
 from . filters import filter_event_by_impacts
 from . filters import filter_impact
@@ -13,6 +14,7 @@ from . filters import filter_one_minimod
 from . filters import filter_channel_list
 from . filters import filter_module_list
 from . filters import filter_impacts_specific_mod
+from . filters import filter_negatives
 from . filters import filter_event_by_impacts_noneg
 from . filters import filter_max_sm
 from . filters import filter_max_coin_event
@@ -87,6 +89,12 @@ def test_filter_impacts_specific_mod(TEST_DATA_DIR, DUMMY_EVT):
     evt_select = filter_impacts_specific_mod(0, 11, chan_map.get_minimodule, 4)
 
     assert not evt_select(*DUMMY_EVT)
+
+
+def test_filter_negatives():
+    dummy_negs = [[1, ChannelType.TIME, 1, -2], [2, ChannelType.ENERGY, 2, 3]]
+
+    assert not filter_negatives(dummy_negs)
 
 
 def test_filter_event_by_impacts_noneg(DUMMY_EVT):
