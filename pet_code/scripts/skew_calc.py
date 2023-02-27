@@ -132,7 +132,6 @@ def read_and_select(file_list, config):
     all_skews = pd.Series(dtype=float)
     relax = config.getfloat('filter', 'relax_fact')
 
-    evt_reader = read_petsys_filebyfile(mm_map, evt_filter)
     for fn in file_list:
         print(f'Processing file {fn}', flush=True)
         sm_num, mm_num, source_pos = get_references(fn)
