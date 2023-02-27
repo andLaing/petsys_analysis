@@ -42,6 +42,7 @@ from pet_code.src.io       import read_ymlmapping
 from pet_code.src.plots    import corrected_time_difference
 from pet_code.src.plots    import group_times_list
 from pet_code.src.plots    import slab_energy_spectra
+from pet_code.src.util     import ChannelType
 from pet_code.src.util     import calibrate_energies
 from pet_code.src.util     import centroid_calculation
 from pet_code.src.util     import time_of_flight
@@ -104,6 +105,27 @@ def get_references(file_name):
     mM_num, s_pos   = source_position(SM_lab, source_posNo)
     # return SM_indx, mM_num, source_position(SM_lab, mM_num)#[38.4, 38.4, 22.5986]
     return SM_indx, mM_num, s_pos
+
+
+def geom_loc_2sm(file_name, ch_map):
+    """
+    Get functions for the reference index
+    and geometric dt for the 2 SM setup.
+    REVIEW, a lot of inversion to adapt!
+    """
+    SM_indx, mM_num, s_pos = get_references(file_name)
+    mm_channels = ch_map.get_minimodule_channels(2 if SM_indx == 0 else 0, mM_num)
+    valid_ids   = set(filter(lambda x: ch_map.get_channel_type(x) is ChannelType, mm_channels))
+    def find_indx(evt):
+        return 0 if evt[0][0] in valid_ids else 1
+
+    flight_time = time_of_flight(s_pos)
+    def geom_dt(ref_id, coinc_id):
+        ref_pos   = ch_map.get_channel_position(  ref_id)
+        coinc_pos = ch_map.get_channel_position(coinc_id)
+        return flight_time(ref_pos) - flight_time(coinc_pos)
+    # Return the index and mm number too. Specific to 2SM so not ideal.
+    return SM_indx, mM_num, find_indx, geom_dt
 
 
 def read_and_select(file_list, config):
