@@ -92,7 +92,8 @@ if __name__ == '__main__':
             reader      = read_petsys_filebyfile(chan_map.ch_type, evt_filter)
             for evt in reader(fn):
                 # all_evt += 1
-                sel_mods = tuple(map(mod_select, cal_func(evt)))
+                # sel_mods = tuple(map(mod_select, cal_func(evt)))
+                sel_mods = mod_select(cal_func(evt)[control_indx])
                 # n_mm     = len(set(x[1] for x in sel_mods[control_indx]))
                 # if n_mm > 1:
                 #     mm_check += 1
