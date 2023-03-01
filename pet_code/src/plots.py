@@ -444,10 +444,10 @@ class ChannelEHistograms:
         Time channel energy plots for all occurences and
         energy sums for each minimodule.
         """
-        for imps, (sm, mm) in zip(evt, sms):
+        for imps, sm_mm in zip(evt, sms):
             # time channels
             for imp in filter(lambda i: i[1] is ChannelType.TIME, imps):
                 self.fill_time_channel(imp)
 
-            self.fill_esum(imps, int(str(sm) + '000' + str(mm).zfill(2)))
+            self.fill_esum(imps, sm_mm)
 
