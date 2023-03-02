@@ -53,7 +53,7 @@ def test_process_raw_data(TEST_DATA_DIR, TMP_OUT):
     source_file = os.path.join(TEST_DATA_DIR, 'twoSM_skewSource_pos.yaml')
 
     with open(test_conf, 'w') as conf:
-        conf.write(f'[mapping]\nmap_file = {mapfile}\nsetup = 2SM\n')
+        conf.write(f'[mapping]\nmap_file = {mapfile}\nsetup = 2SM\nSM_NO_CORR = -1\n')
         conf.write(f'source_pos = {source_file}\n')
         conf.write( '[filter]\nmin_channels = 4\nelimits = 5,15\n')
         conf.write(f'[output]\nout_dir = {TMP_OUT}')
@@ -113,7 +113,7 @@ def test_geom_loc_point(TEST_DATA_DIR):
     ch_map = ChannelMap(map_file)
     with open(source_file) as sfile:
         source_yml = yaml.safe_load(sfile)
-    chan_list, find_indx, geom_dt = geom_loc_point(test_file, ch_map, source_yml)
+    chan_list, find_indx, geom_dt = geom_loc_point(test_file, ch_map, source_yml, -1)
 
     exp_chans = (245, 243, 242, 233, 240, 238, 241, 239,
                  253, 250, 251, 248, 249, 246, 247, 244)

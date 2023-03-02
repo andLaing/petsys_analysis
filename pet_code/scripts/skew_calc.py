@@ -58,31 +58,30 @@ def source_position(pos_conf):
     return _source_position
 
 
-def get_references(file_name, source_p):
+def get_references(file_name, source_p, correct=0):
     """
     Extract supermodule and minimodule
     numbers for reference channels and
     the source position.
-    DUMMY!
+    correct allows backward compatibility for old numbering
     """
-    # Get them from the filename?
-    # Source pos from some saved lookup!
     file_name_parts = file_name.split(os.sep)[-1].split('_')
     SM_lab          = int(file_name_parts[1][ 8:9])
-    SM_indx         = 0 if SM_lab == 3 else 1
     source_posNo    = int(file_name_parts[1][12: ])
     mM_num, s_pos   = source_p(SM_lab, source_posNo)
-    return SM_indx, mM_num, s_pos
+    return SM_lab + correct, mM_num, s_pos
 
 
-def geom_loc_point(file_name, ch_map, source_yml):
+def geom_loc_point(file_name, ch_map, source_yml, corr_sm_no=0):
     """
     Get functions for the reference index
     and geometric dt for the 2 SM setup.
     REVIEW, a lot of inversion to adapt!
     """
-    SM_indx, mM_num, s_pos = get_references(file_name, source_position(source_yml))
-    mm_channels = ch_map.get_minimodule_channels(2 if SM_indx == 0 else 0, mM_num)
+    (SM_lab,
+     mM_num,
+     s_pos ) = get_references(file_name, source_position(source_yml), corr_sm_no)
+    mm_channels = ch_map.get_minimodule_channels(SM_lab, mM_num)
     valid_ids   = set(filter(lambda x: ch_map.get_channel_type(x) is ChannelType.TIME, mm_channels))
     def find_indx(evt):
         return 0 if evt[0][0] in valid_ids else 1
@@ -143,11 +142,14 @@ def process_raw_data(file_list, config, ch_map):
                        min_ch = minch                ,
                        mm_map = ch_map.get_minimodule)
     if   setup == '2SM'      :
+        ## For backwards compatibility.
+        correct_sm = config.getint('mapping', 'SM_NO_CORR', fallback=0)
         with open(config.get('mapping', 'source_pos')) as s_yml:
             yml_positions = yaml.safe_load(s_yml)
             geom_func     = partial(geom_loc_point            ,
                                     ch_map     = ch_map       ,
-                                    source_yml = yml_positions)
+                                    source_yml = yml_positions,
+                                    corr_sm_no = correct_sm   )
     elif setup == 'barSource':
         with open(config.get('mapping', 'source_pos')) as s_yml:
             yml_positions = yaml.safe_load(s_yml)
