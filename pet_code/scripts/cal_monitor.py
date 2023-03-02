@@ -35,7 +35,7 @@ def cal_and_sel(cal_func, sel_func):
     return _cal_and_sel
 
 
-def output_slab_plots(histos, cal_name, out_dir):
+def output_time_plots(histos, cal_name, out_dir):
     """
     Make the energy plots for timeslabs.
     """
@@ -52,7 +52,7 @@ def output_slab_plots(histos, cal_name, out_dir):
             sig_vals.append(fit_pars[2])
         except RuntimeError:
             print(f'Fit failed for channel {id}')
-            plt.errorbar(histos.edges[htype], dist, yerr=np.sqrt(dist))
+            plt.errorbar(histos.edges[htype][:-1], dist, yerr=np.sqrt(dist))
             plt.show()
             plt.clf()
     
@@ -93,8 +93,8 @@ def output_energy_plots(histos, cal_name, out_dir, setup, no_super):
     psize    = (20, 15) if 'brain' in setup else (15, 15)
     all_eng  = np.zeros(histos.nbin_sum, int)
 
-    mu_vals  = {}
-    sig_vals = {}
+    mu_vals  = []
+    sig_vals = []
     fig_ax   = [plt.subplots(nrows=fig_rows, ncols=fig_cols, figsize=psize)
                 for _ in range(no_super)]
     for id, dist in histos.sum_dist.items():
@@ -110,8 +110,8 @@ def output_energy_plots(histos, cal_name, out_dir, setup, no_super):
         fig_ax[sm][1].flatten()[mm].set_xlabel(f'mM {mm} energy sum (au)')
         fig_ax[sm][1].flatten()[mm].set_ylabel('AU')
         fig_ax[sm][1].flatten()[mm].legend()
-        mu_vals [id] = pars[1]
-        sig_vals[id] = pars[2]
+        mu_vals .append(pars[1])
+        sig_vals.append(pars[2])
     for i, (fig, _) in enumerate(fig_ax):
         out_name = os.path.join(out_dir, fn.split('/')[-1].replace('.ldat', f'{cal_name}_MMEngs_sm{i}.png'))
         fig.savefig(out_name)
@@ -184,8 +184,9 @@ if __name__ == '__main__':
         plotter = ChannelEHistograms(tbins, ebins, ebins)
         for evt in map(cal_sel, reader(fn)):
             sm_mm = tuple(map(lambda i: (chan_map.get_supermodule(i[0][0]),
-                                         chan_map.get_minimodule (i[0][0])), evt))
+                                         chan_map.get_minimodule (i[0][0])),
+                              filter(lambda j: j, evt)                     ))
             plotter.add_all_energies(evt, sm_mm)
 
-        output_slab_plots  (plotter, cal_name, out_dir)
+        output_time_plots  (plotter, cal_name, out_dir)
         output_energy_plots(plotter, cal_name, out_dir, map_file, num_sm)
