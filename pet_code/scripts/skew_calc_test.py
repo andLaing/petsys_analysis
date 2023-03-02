@@ -53,7 +53,8 @@ def test_process_raw_data(TEST_DATA_DIR, TMP_OUT):
     source_file = os.path.join(TEST_DATA_DIR, 'twoSM_skewSource_pos.yaml')
 
     with open(test_conf, 'w') as conf:
-        conf.write(f'[mapping]\nmap_file = {mapfile}\nsetup = 2SM\nSM_NO_CORR = -1\n')
+        conf.write(f'[mapping]\nmap_file = {mapfile}\nsetup = pointSource\n')
+        conf.write('SM_NO_CORR = -1\n')
         conf.write(f'source_pos = {source_file}\n')
         conf.write( '[filter]\nmin_channels = 4\nelimits = 5,15\n')
         conf.write(f'[output]\nout_dir = {TMP_OUT}')

@@ -141,7 +141,7 @@ def process_raw_data(file_list, config, ch_map):
     evt_filt = partial(filter_impacts_channel_list   ,
                        min_ch = minch                ,
                        mm_map = ch_map.get_minimodule)
-    if   setup == '2SM'      :
+    if   setup == 'pointSource':
         ## For backwards compatibility.
         correct_sm = config.getint('mapping', 'SM_NO_CORR', fallback=0)
         with open(config.get('mapping', 'source_pos')) as s_yml:
@@ -150,7 +150,7 @@ def process_raw_data(file_list, config, ch_map):
                                     ch_map     = ch_map       ,
                                     source_yml = yml_positions,
                                     corr_sm_no = correct_sm   )
-    elif setup == 'barSource':
+    elif setup == 'barSource'  :
         with open(config.get('mapping', 'source_pos')) as s_yml:
             yml_positions = yaml.safe_load(s_yml)
             geom_func     = partial(geom_loc_bar              ,
