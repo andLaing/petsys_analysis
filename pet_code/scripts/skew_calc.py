@@ -75,7 +75,7 @@ def get_references(file_name, source_p):
     return SM_indx, mM_num, s_pos
 
 
-def geom_loc_2sm(file_name, ch_map, source_yml):
+def geom_loc_point(file_name, ch_map, source_yml):
     """
     Get functions for the reference index
     and geometric dt for the 2 SM setup.
@@ -145,7 +145,7 @@ def process_raw_data(file_list, config, ch_map):
     if   setup == '2SM'      :
         with open(config.get('mapping', 'source_pos')) as s_yml:
             yml_positions = yaml.safe_load(s_yml)
-            geom_func     = partial(geom_loc_2sm              ,
+            geom_func     = partial(geom_loc_point            ,
                                     ch_map     = ch_map       ,
                                     source_yml = yml_positions)
     elif setup == 'barSource':

@@ -10,7 +10,7 @@ from .. src.io   import ChannelMap
 from . skew_calc import np
 from . skew_calc import pd
 from . skew_calc import calculate_skews
-from . skew_calc import geom_loc_2sm
+from . skew_calc import geom_loc_point
 from . skew_calc import geom_loc_bar
 from . skew_calc import peak_position
 from . skew_calc import process_raw_data
@@ -104,7 +104,7 @@ def test_calculate_skews_nobias(TEST_DATA_DIR, TMP_OUT):
 
 
 @mark.filterwarnings("ignore:Imported map")
-def test_geom_loc_2sm(TEST_DATA_DIR):
+def test_geom_loc_point(TEST_DATA_DIR):
     test_file   = os.path.join(TEST_DATA_DIR                              ,
                                '20221121_SourceSM1pos8_1000evt_coinc.ldat')
     map_file    = os.path.join(TEST_DATA_DIR, 'twoSM_IMAS_map.feather')
@@ -113,7 +113,7 @@ def test_geom_loc_2sm(TEST_DATA_DIR):
     ch_map = ChannelMap(map_file)
     with open(source_file) as sfile:
         source_yml = yaml.safe_load(sfile)
-    chan_list, find_indx, geom_dt = geom_loc_2sm(test_file, ch_map, source_yml)
+    chan_list, find_indx, geom_dt = geom_loc_point(test_file, ch_map, source_yml)
 
     exp_chans = (245, 243, 242, 233, 240, 238, 241, 239,
                  253, 250, 251, 248, 249, 246, 247, 244)
