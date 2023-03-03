@@ -19,8 +19,9 @@ Options:
 
 import os
 import configparser
+import yaml
 
-from docopt    import docopt
+from docopt import docopt
 
 import numpy  as np
 import pandas as pd
@@ -31,6 +32,33 @@ from functools import partial
 
 # import multiprocessing as mp
 from multiprocessing import cpu_count, get_context
+
+from pet_code.src.filters import filter_impacts_channel_list
+from pet_code.src.fits    import fit_gaussian
+from pet_code.src.fits    import mean_around_max
+from pet_code.src.io      import ChannelMap
+from pet_code.src.io      import read_petsys_filebyfile
+from pet_code.src.plots   import corrected_time_difference
+from pet_code.src.util    import ChannelType
+from pet_code.src.util    import bar_source_dt
+from pet_code.src.util    import calibrate_energies
+from pet_code.src.util    import time_of_flight
+from pet_code.src.util    import get_absolute_id
+from pet_code.src.util    import get_electronics_nums
+from pet_code.src.util    import select_energy_range
+from pet_code.src.util    import select_module
+
+
+def source_position(pos_conf):
+    pos_to_mm  = pos_conf[ 'pos_to_mm']
+    source_pos = pos_conf['source_pos']
+    def _source_position(sm_num, pos_num):
+        mm = pos_to_mm[sm_num][pos_num]
+        return mm, np.asarray(source_pos[sm_num][mm])
+    return _source_position
+
+
+def get_references(file_name, source_p):
     """
     Extract supermodule and minimodule
     numbers for reference channels and
@@ -47,13 +75,13 @@ from multiprocessing import cpu_count, get_context
     return SM_indx, mM_num, s_pos
 
 
-def geom_loc_2sm(file_name, ch_map):
+def geom_loc_2sm(file_name, ch_map, source_yml):
     """
     Get functions for the reference index
     and geometric dt for the 2 SM setup.
     REVIEW, a lot of inversion to adapt!
     """
-    SM_indx, mM_num, s_pos = get_references(file_name)
+    SM_indx, mM_num, s_pos = get_references(file_name, source_position(source_yml))
     mm_channels = ch_map.get_minimodule_channels(2 if SM_indx == 0 else 0, mM_num)
     valid_ids   = set(filter(lambda x: ch_map.get_channel_type(x) is ChannelType.TIME, mm_channels))
     def find_indx(evt):
@@ -64,25 +92,25 @@ def geom_loc_2sm(file_name, ch_map):
         ref_pos   = ch_map.get_channel_position(  ref_id)
         coinc_pos = ch_map.get_channel_position(coinc_id)
         return flight_time(ref_pos) - flight_time(coinc_pos)
-    # Return the index and mm number too. Specific to 2SM so not ideal.
-    return SM_indx, mM_num, find_indx, geom_dt
+    return mm_channels, find_indx, geom_dt
 
 
-def geom_loc_bar(file_name, ch_map):
+def geom_loc_bar(file_name, ch_map, source_yml):
     """
     Get functions for the reference index
     and geometric dt for setups with bar source.
     """
+    file_label  = 'SourcePos'#Assume this is followed by position number.
+    source_indx = file_name.find(file_label)
+    source_pnum = int(file_name[source_indx + len(file_label):].split('_')[0])
     # Need a lookup for bar_xy position
-    bar_xy = np.array([280, 280])
-    bar_r  = 10#mm
-    # Need a lookup for SM/MM groups of interest
-    # 'single ring' fixed pos for now
-    SM_no = (0,)
-    mms   = (0, 1, 4, 5, 8, 9, 12, 13)
-    ids   = np.concatenate([ch_map.get_minimodule_channels(*v)
-                            for v in np.vstack(np.stack(np.meshgrid(SM_no, mms)).T)])
-    s_ids = set(filter(lambda x: ch_map.get_channel_type(x) is ChannelType.TIME, ids))
+    bar_xy = np.asarray(source_yml['bar_xy'][source_pnum])
+    bar_r  =            source_yml['bar_r' ]#mm
+    SM_no  =            source_yml['ref_SM'][source_pnum]
+    mms    =            source_yml['ref_MM'][source_pnum]
+    ids    = np.concatenate([ch_map.get_minimodule_channels(*v)
+                             for v in np.vstack(np.stack(np.meshgrid(SM_no, mms)).T)])
+    s_ids  = set(filter(lambda x: ch_map.get_channel_type(x) is ChannelType.TIME, ids))
     def find_indx(evt):
         return 0 if evt[0][0] in s_ids else 1
 
@@ -223,9 +251,13 @@ if __name__ == '__main__':
     total_iter  = first_it + niter
     out_skew    = input_files[0].split(os.sep)[-1].split('_')[0] + f'_skew_{total_iter}iter.txt'
     skew_file   = os.path.join(outdir, out_skew)
+    elec_cols   = ['#portID', 'slaveID', 'chipID', 'channelID']
     if first_it != 0:
         # Probably want to update formats?
-        skew_values = pd.read_csv(skew_file).set_index('id')['Skew']
+        skew_vals       = pd.read_csv(skew_file, sep='\t')
+        skew_vals['id'] = skew_vals.apply(lambda r: get_absolute_id(*r[elec_cols]),
+                                          axis=1).astype('int')
+        skew_vals       = skew_vals.set_index('id')['tOffset (ps)']
         # Let's not overwrite existing outputs.
         skew_file = skew_file.replace('.txt', '_recalc.txt')
     else:
@@ -245,11 +277,11 @@ if __name__ == '__main__':
     # start iterations (will need to do monitor plots using i for iteration):
     for i in range(first_it, total_iter):
         print(f'Starting iteration {i}')
-        skew_values = calculate_skews(input_files, conf, skew_values)
+        skew_vals = calculate_skews(input_files, conf, skew_vals)
 
     ## Save the skew values, change to format expected for PETsys?
     print('Requested iterations complete, output text file.')
-    skew_values = skew_values.reset_index().rename(columns={'index': 'id', 0: 'Skew'})
-    skew_values.to_csv(skew_file)
-
-
+    val_col              = ['tOffset (ps)']
+    skew_vals            = skew_vals.reset_index().rename(columns={'index': 'id', 0: val_col[0]})
+    skew_vals[elec_cols] = np.row_stack(skew_vals.id.map(get_electronics_nums))
+    skew_vals[elec_cols + val_col].round(3).to_csv(skew_file, sep='\t')
