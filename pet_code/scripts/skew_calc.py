@@ -30,6 +30,7 @@ from functools import partial
 # import matplotlib.pyplot as plt
 
 # import multiprocessing as mp
+from multiprocessing import cpu_count, get_context
     """
     Extract supermodule and minimodule
     numbers for reference channels and
@@ -89,15 +90,13 @@ def geom_loc_bar(file_name, ch_map):
     return ids, find_indx, geom_dt
 
 
-def process_raw_data(config):
+def process_raw_data(file_list, config, ch_map):
     """
     Read the binaries corresponding to file_list,
     filter selecting events in the slab spectra
     limits, calculate geometrically corrected deltaT
     and output to feather files.
     """
-    ch_map = ChannelMap(config.get('mapping', 'map_file'))
-
     ## This needs to be improved. In principle it can be in the map.
     time_cal = config.get('calibration',   'time_channels', fallback='')
     eng_cal  = config.get('calibration', 'energy_channels', fallback='')
@@ -111,42 +110,48 @@ def process_raw_data(config):
     eselect  = select_energy_range(*elimits)
 
     setup    = config.get('mapping', 'setup', fallback='2SM')
+    minch    = config.getint('filter', 'min_channels')
+    evt_filt = partial(filter_impacts_channel_list   ,
+                       min_ch = minch                ,
+                       mm_map = ch_map.get_minimodule)
     if   setup == '2SM'      :
-        geom_func = geom_loc_2sm
-        sm1_minch, sm2_minch = tuple(map(int, config.get('filter', 'min_channels').split(',')))
-        evt_filt  = partial(filter_impacts_specific_mod    ,
-                            mm_map  = ch_map.get_minimodule,
-                            min_sm1 = sm1_minch            ,
-                            min_sm2 = sm2_minch            )
-    # elif setup == 'barSource':
-    #     geom_func = partial
+        with open(config.get('mapping', 'source_pos')) as s_yml:
+            yml_positions = yaml.safe_load(s_yml)
+            geom_func     = partial(geom_loc_2sm              ,
+                                    ch_map     = ch_map       ,
+                                    source_yml = yml_positions)
+    elif setup == 'barSource':
+        with open(config.get('mapping', 'source_pos')) as s_yml:
+            yml_positions = yaml.safe_load(s_yml)
+            geom_func     = partial(geom_loc_bar              ,
+                                    ch_map     = ch_map       ,
+                                    source_yml = yml_positions)
     else:
         print(f'Setup {setup} not available')
         exit()
 
     ## Need filter options and position options for general usage.
     #
-    df_cols    = ['ref_ch', 'coinc_ch', 'corr_dt']
-    dt_calc    = partial(corrected_time_difference  ,
-                         impact_sel = cal_and_select,
-                         energy_sel = eselect       )
-    pet_reader = partial(read_petsys_filebyfile, type_dict=ch_map.ch_type)
-    outdir     = config.get('output', 'out_dir')
-    def _process(file_list):
-        for fn in file_list:
-            sm_no, mm_no, ref_ch, geom_dt = geom_func(fn, ch_map)
-            ## Specific filter depends on source position.
-            # Not ideal, should be easier with filter update.
-            filt   = evt_filt(sm_num=sm_no, mm_num=mm_no)
-            dt_gen = map(dt_calc(ref_ch=ref_ch, geom_dt=geom_dt),
-                         pet_reader(sm_filter=filt)(fn)         )
-            evt_df = pd.DataFrame(filter(lambda x: x, dt_gen), columns=df_cols)
+    df_cols      = ['ref_ch', 'coinc_ch', 'corr_dt']
+    dt_calc      = partial(corrected_time_difference  ,
+                           impact_sel = cal_and_select,
+                           energy_sel = eselect       )
+    pet_reader   = partial(read_petsys_filebyfile, type_dict=ch_map.ch_type)
+    outdir       = config.get('output', 'out_dir')
+    dt_filenames = []
+    for fn in file_list:
+        channel_list, ref_ch, geom_dt = geom_func(file_name=fn)
+        ## Specific filter depends on source position.
+        filt   = evt_filt(valid_channels=channel_list)
+        dt_gen = map(dt_calc(ref_ch=ref_ch, geom_dt=geom_dt),
+                     pet_reader(sm_filter=filt)(fn)         )
+        evt_df = pd.DataFrame(filter(lambda x: x, dt_gen), columns=df_cols)
 
-            out_base   = fn.split(os.sep)[-1].replace('.ldat', '.feather')
-            feath_name = os.path.join(outdir, out_base)
-            evt_df.to_feather(feath_name)
-            yield feath_name
-    return _process
+        out_base   = fn.split(os.sep)[-1].replace('.ldat', '.feather')
+        feath_name = os.path.join(outdir, out_base)
+        evt_df.to_feather(feath_name)
+        dt_filenames.append(feath_name)
+    return dt_filenames
 
 
 def calculate_skews(file_list, config, skew_values):
@@ -202,6 +207,13 @@ if __name__ == '__main__':
     conf   = configparser.ConfigParser()
     conf.read(args['--conf'])
 
+    # ncpu = mp.cpu_count()
+    ncpu = cpu_count()
+    if ncores > ncpu:
+        print(f'Too many cores requested ({ncores}), only {ncpu} available.')
+        print('Will use half available cores.')
+        ncores = ncpu // 2
+
     # Try without glob...
     input_files = args['INFILES']
     outdir      = conf.get('output', 'out_dir')
@@ -217,12 +229,17 @@ if __name__ == '__main__':
         # Let's not overwrite existing outputs.
         skew_file = skew_file.replace('.txt', '_recalc.txt')
     else:
-        all_ids     = pd.read_feather(conf.get('mapping', 'map_file')).id
-        skew_values = pd.Series(0, index=all_ids.sort_values())
+        ch_map    = ChannelMap(conf.get('mapping', 'map_file'))
+        all_ids   = ch_map.mapping.index
+        skew_vals = pd.Series(0                            ,
+                              index = all_ids.sort_values(),
+                              name  = 'tOffset (ps)'       )
         if not args['-r']:
-            bin_proc    = process_raw_data(conf)
-            # Possible to parallelize here?
-            input_files = list(bin_proc(input_files))
+            chunks = [(file_set, conf, ch_map)
+                      for file_set in np.array_split(input_files, ncores)]
+            with get_context('spawn').Pool(ncores) as p:
+                filename_chunks = p.starmap(process_raw_data, chunks)
+            input_files = np.concatenate(filename_chunks)
             print('Binary processing complete')
 
     # start iterations (will need to do monitor plots using i for iteration):
