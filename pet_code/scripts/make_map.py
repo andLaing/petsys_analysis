@@ -2,7 +2,7 @@
 
 """Make a dataframe with mapping info for TBPET type SM and save
 
-Usage: make_map.py [-f NFEM] [-g GEOM] [-c CONF] [-o OUT] MAPYAML
+Usage: make_map.py [-f NFEM] [-g GEOM] [-o OUT] MAPYAML
 
 Arguments:
     MAPYAML  File name with time and energy channel info.
@@ -10,7 +10,6 @@ Arguments:
 Options:
     -f=NFEM  Number of channels per Supermodule [default: 256]
     -g=GEOM  Geometry: 2SM, 1ring, nring [default: 1ring]
-    -c=CONF  YAML with ring z position info (only used with GEOM=nring)
     -o=OUT   Path for output file [default: 1ring_map]
 """
 
@@ -79,7 +78,8 @@ def brain_map(nFEM, chan_per_mm, tchans, echans):
 
 
 def row_gen(nFEM, chan_per_mm, tchans, echans):
-    superm_gen = sm_gen(nFEM, chan_per_mm, tchans, echans, mM_energyMapping)
+    superm_gen = sm_gen(nFEM, chan_per_mm, tchans, echans,
+                        mM_energyMapping, {0: [0, 0], 2: [0, 2]})
     for i in (0, 2):
         for j, (id, typ, mm, loc_x, loc_y) in enumerate(superm_gen(i)):
             if typ == 'TIME':
@@ -109,41 +109,40 @@ def channel_sm_coordinate(mm_rowcol, ch_indx, type):
     return local_coarse, local_fine
 
 
-def sm_centre_pos():
+def sm_centre_pos(SM_r, SM_yx):
     """
     Gives polar angle position (and r; fixed)
     for the centres of the SMs.
     Currently set for ring positions of 
     center inner face of TBPET supermodules.
+    SM_r  : Radius of ring
+    SM_yx : YX values of the SM centres.
     """
-    SM_r  = 410.0
-    # This shouldn't be hardwired!!
-    # Note order Y, X for easy use with arctan2
-    SM_yx = { 0: ( -53.5157,  406.4924),  1: (-156.9002,  378.7906),
-              2: (-249.5922,  325.2749),  3: (-325.2749,  249.5922),
-              4: (-378.7906,  156.9002),  5: (-406.4924,   53.5157),
-              6: (-406.4924,  -53.5157),  7: (-378.7906, -156.9002),
-              8: (-325.2749, -249.5922),  9: (-249.5922, -325.2749),
-             10: (-156.9002, -378.7906), 11: ( -53.5157, -406.4924),
-             12: (  53.5157, -406.4924), 13: ( 156.9002, -378.7906),
-             14: ( 249.5922, -325.2749), 15: ( 325.2749, -249.5922),
-             16: ( 378.7906, -156.9002), 17: ( 406.4924,  -53.5157),
-             18: ( 406.4924,   53.5157), 19: ( 378.7906,  156.9002),
-             20: ( 325.2749,  249.5922), 21: ( 249.5922,  325.2749),
-             22: ( 156.9002,  378.7906), 23: (  53.5157,  406.4924)}
     def get_rtheta(SM):
         return SM_r, np.arctan2(*SM_yx[SM])
     return get_rtheta
 
 
-def sm_gen(nFEM, chan_per_mm, tchans, echans, mm_emap):
+def sm_gen(nFEM, chan_per_mm, tchans, echans, mm_emap, sm_to_febport):
+    """
+    Generate local coordinates with electronics ids for
+    supermodules.
+    nFEM          : Channels per Supermodule (FEM)
+    chan_per_mm   : Channels per minimodule
+    tchans        : Time channel ids at FEM level
+    echans        : Energy channel ids at FEM level
+    mm_emap       : time minimodule to energy minimodule
+    sm_to_febport : Dict with [slaveID, FEBport] for each supermodule
+    """
     def _sm_gen(sm_no):
+        slaveID, febport = sm_to_febport[sm_no]
+        sm_min_chan      = 4096 * slaveID + nFEM * febport
         for i, (tch, ech) in enumerate(zip(tchans, echans)):
-            id = tch + sm_no * nFEM
+            id = tch + sm_min_chan#sm_no * nFEM
             mm = i // chan_per_mm
             loc_x, loc_y = channel_sm_coordinate(i // 32, i % 32, ChannelType.TIME)
             yield id, 'TIME', mm, loc_x, loc_y
-            id = ech + sm_no * nFEM
+            id = ech + sm_min_chan#sm_no * nFEM
             mm = mm_emap[mm]
             loc_x, loc_y = channel_sm_coordinate(i // 32, i % 32, ChannelType.ENERGY)
             yield id, 'ENERGY', mm, loc_x, loc_y
@@ -163,20 +162,28 @@ def local_translation(df, sm_r, sm_half_len):
     return coords.T
 
 
-def single_ring(nFEM, chan_per_mm, tchans, echans):
-    sm_angle         = sm_centre_pos()
-    superm_gen       = sm_gen(nFEM, chan_per_mm, tchans, echans, mM_energyMapping)
+def single_ring(nFEM       ,
+                chan_per_mm,
+                tchans     ,
+                echans     ,
+                ring_r     ,
+                ring_yx    ,
+                sm_feb     ,
+                first_sm=0 ):
+    sm_angle    = sm_centre_pos(ring_r, ring_yx)
+    superm_gen  = sm_gen(nFEM, chan_per_mm, tchans, echans, mM_energyMapping, sm_feb)
     # Hardwired, fix.
-    SM_half_len      = mm_edge * 2
-    coords           = ['X', 'Y', 'Z']
+    SM_half_len = mm_edge * 2
+    coords      = ['X', 'Y', 'Z']
+    sm_per_ring = 24
     def ring_gen():
         local_cols = ['id', 'type', 'minimodule', 'local_x', 'local_y']
-        for sm in range(24):
+        for sm in range(first_sm, first_sm + sm_per_ring):
             sm_local                = pd.DataFrame((ch for ch in superm_gen(sm)),
                                                     columns = local_cols        )
             sm_local['supermodule'] = sm
 
-            sm_r, sm_ang     = sm_angle(sm)
+            sm_r, sm_ang     = sm_angle(sm % sm_per_ring)
             ## Translate to XYZ relative to SM centre at X = R, Y = Z = 0.
             sm_local[coords] = local_translation(sm_local, sm_r, SM_half_len)
             ## Rotate to supermodule angular position.
@@ -187,7 +194,14 @@ def single_ring(nFEM, chan_per_mm, tchans, echans):
     return pd.concat((sm for sm in ring_gen()), ignore_index=True)
 
 
-def n_rings(ring_pos, nFEM, chan_per_mm, tchans, echans):
+def n_rings(ring_pos   ,
+            nFEM       ,
+            chan_per_mm,
+            tchans     ,
+            echans     ,
+            ring_r     ,
+            ring_yx    ,
+            sm_feb     ):
     """
     Generate len(ring_pos) 24 sm rings.
 
@@ -195,14 +209,11 @@ def n_rings(ring_pos, nFEM, chan_per_mm, tchans, echans):
                 Axial position of centre of the rings
     """
     sm_per_ring  = 24
-    ids_per_ring = sm_per_ring * nFEM
     def ring_at_z(ring_no, ring_z):
-        sm_correction     = ring_no * sm_per_ring
-        id_correction     = ring_no * ids_per_ring
-        df                = single_ring(nFEM, chan_per_mm, tchans, echans)
-        df['supermodule'] = df.supermodule + sm_correction
-        df['id']          = df.id          + id_correction
-        df['Z']           = df.Z           + ring_z
+        df      = single_ring(nFEM  , chan_per_mm, tchans ,
+                              echans, ring_r     , ring_yx,
+                              sm_feb, ring_no * sm_per_ring)
+        df['Z'] = df.Z + ring_z
         return df
 
     return pd.concat((ring_at_z(i, rngz) for i, rngz in enumerate(ring_pos)), ignore_index=True)
@@ -224,11 +235,22 @@ if __name__ == '__main__':
         df = pd.DataFrame(row_gen(nFEM, 8, channel_map['time_channels'], channel_map['energy_channels']),
                           columns=['id', 'type', 'supermodule', 'minimodule', 'local_x', 'local_y', 'X', 'Y', 'Z'])
     elif geom == '1ring':
-        df = single_ring(nFEM, 8, channel_map['time_channels'], channel_map['energy_channels'])
+        df = single_ring(nFEM                          ,
+                         8                             ,
+                         channel_map[  'time_channels'],
+                         channel_map['energy_channels'],
+                         channel_map[        'ring_r' ],
+                         channel_map[        'ring_yx'],
+                         channel_map[     'sm_feb_map'])
     elif geom == 'nring':
-        with open(args['-c']) as ringZ:
-            ring_z = yaml.safe_load(ringZ)
-        df = n_rings(ring_z['Z'], nFEM, 8, channel_map['time_channels'], channel_map['energy_channels'])
+        df = n_rings(channel_map[         'ring_z'],
+                     nFEM                          ,
+                     8                             ,
+                     channel_map[  'time_channels'],
+                     channel_map['energy_channels'],
+                     channel_map[        'ring_r' ],
+                     channel_map[        'ring_yx'],
+                     channel_map[     'sm_feb_map'])
     elif geom == 'brain':
         df = pd.DataFrame(brain_map(nFEM, 8, channel_map['time_channels'], channel_map['energy_channels']),
                           columns=['id', 'type', 'supermodule', 'minimodule', 'local_x', 'local_y', 'X', 'Y', 'Z'])
