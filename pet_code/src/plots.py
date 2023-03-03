@@ -1,4 +1,4 @@
-from typing import Callable, List, Union
+from typing import Callable, List, Tuple, Union
 
 import matplotlib.pyplot as plt
 
@@ -426,7 +426,7 @@ class ChannelEHistograms:
 
     # Used for channel equalization/peak value plots
     # Will normally be used with singles but general just in case
-    def add_emax_evt(self, evt) -> None:
+    def add_emax_evt(self, evt: Tuple[List, List]) -> None:
         # time channels
         tchn_map = map(select_max_energy, evt, [ChannelType.TIME]*2)
         chns = list(filter(lambda x: x, tchn_map))
@@ -436,8 +436,18 @@ class ChannelEHistograms:
         # energy channels
         if chns:
             echn_map = map(select_max_energy, evt, [ChannelType.ENERGY]*2)
-            chns = list(filter(lambda x: x, echn_map))
-            for echn in chns:
+            for echn in filter(lambda x: x, echn_map):
                 self.fill_energy_channel(echn)
 
+    def add_all_energies(self, evt: Tuple[List, List], sms: List[Tuple]) -> None:
+        """
+        Time channel energy plots for all occurences and
+        energy sums for each minimodule.
+        """
+        for imps, (sm, mm) in zip(evt, sms):
+            # time channels
+            for imp in filter(lambda i: i[1] is ChannelType.TIME, imps):
+                self.fill_time_channel(imp)
+
+            self.fill_esum(imps, int(str(sm) + '000' + str(mm).zfill(2)))
 
