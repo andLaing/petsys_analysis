@@ -12,6 +12,7 @@ from . util  import ChannelType
 
 from . plots import ChannelEHistograms
 from . plots import hist1d
+from . plots import corrected_time_difference
 from . plots import group_times
 from . plots import group_times_list
 from . plots import group_times_slab
@@ -164,6 +165,25 @@ def test_group_times_list(DUMMY_EVT):
     assert times0[0] ==  64
     assert times0[1] == 682
     assert times0[3] - times0[2] == -15
+
+
+def test_corrected_time_difference(DUMMY_EVT):
+    dummy_with_enum = tuple(map(enum_channels, DUMMY_EVT))
+
+    impSel_dummy = lambda x: x
+    ref_dummy    = lambda y: 0 if y[0][0] in (64, 65) else 1
+    geom_dummy   = lambda _1, _2: 3
+    peak_sel     = lambda z: (z > 5) & (z < 14)
+
+    dt_calc = corrected_time_difference(impSel_dummy, ref_dummy, peak_sel, geom_dummy)
+    dts     = list(filter(lambda x: x, map(dt_calc, [dummy_with_enum])))
+
+    assert len(dts) == 1
+    times0 = dts[0]
+    assert len(times0) ==   3
+    assert times0[0]   ==  64
+    assert times0[1]   == 682
+    assert times0[2]   == -18
 
 
 def test_ChannelEHistograms_thist(TEST_DATA_DIR, DUMMY_EVT):

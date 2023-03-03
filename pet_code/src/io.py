@@ -4,6 +4,7 @@ import yaml
 import numpy  as np
 import pandas as pd
 
+from functools import lru_cache
 from itertools import chain, islice, repeat
 from warnings  import warn
 
@@ -272,6 +273,7 @@ class ChannelMap:
             self.mapping['gain'] = 1.0
         self.ch_type = self.mapping.type.to_dict()
         self.plotp   = self.mapping[['local_x', 'local_y']].to_dict('index')
+        self.minimod = self.mapping.minimodule.to_dict()
 
     def get_channel_type(self, id: int) -> ChannelType:
         return self.mapping.at[id, 'type']
@@ -284,7 +286,8 @@ class ChannelMap:
         return self.mapping.at[id, 'supermodule']
 
     def get_minimodule(self, id: int) -> int:
-        return self.mapping.at[id, 'minimodule']
+        # return self.mapping.at[id, 'minimodule']
+        return self.minimod[id]
 
     def get_minimodule_channels(self, sm: int, mm: int) -> np.ndarray:
         mask = (self.mapping.supermodule == sm) & (self.mapping.minimodule == mm)
@@ -296,12 +299,13 @@ class ChannelMap:
     def get_gains(self, ids: Union[List, Tuple, np.ndarray]) -> np.ndarray:
         return self.mapping.loc[ids, 'gain'].values
 
-    def get_plot_position(self, id: int) -> float:
+    def get_plot_position(self, id: int) -> np.ndarray:
         """
         Pseudo position for floodmap plotting.
         """
         return self.mapping.loc[id, ['local_x', 'local_y']].values
 
+    @lru_cache
     def get_channel_position(self, id: int) -> np.ndarray:
         return self.mapping.loc[id, ['X', 'Y', 'Z']].values.astype('float')
 

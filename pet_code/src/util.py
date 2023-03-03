@@ -1,8 +1,8 @@
 import numpy  as np
 import pandas as pd
 
-from enum      import auto, Enum
-from itertools import repeat
+from enum   import auto, Enum
+from typing import List, Callable, Union
 
 from scipy.constants import c as c_vac
 
@@ -211,7 +211,7 @@ def shift_to_centres(bin_low_edge):
     return bin_low_edge[:-1] + np.diff(bin_low_edge) * 0.5
 
 
-def time_of_flight(source_pos):
+def time_of_flight(source_pos: np.ndarray):
     """
     Function to calculate time of flight
     for a gamma emitted from source_pos.
@@ -219,13 +219,13 @@ def time_of_flight(source_pos):
                 source position (x, y, z) in mm.
     """
     c_mm_per_ps = c_vac * 1000 / 1e12
-    def flight_time(slab_pos):
+    def flight_time(slab_pos: Union[List, np.ndarray]):
         """
         Get the time of flight from source to
         the given slab position in mm.
         return flight time in ps
         """
-        distance = np.linalg.norm(np.array(slab_pos) - source_pos)        
+        distance = np.linalg.norm(np.asarray(slab_pos) - source_pos)        
         return distance / c_mm_per_ps
     return flight_time
 
@@ -328,4 +328,39 @@ def calibrate_energies(type_ids, time_cal, eng_cal, sep='\t'):
         return event
     return apply_calibration
 
+
+def bar_source_dt(bar_xy: np.ndarray, bar_r: float, slab_pos: Callable) -> Callable:
+    """
+    Define an axially infinite bar of radius bar_r centred on
+    bar_xy so that geometric dt can be predicted.
+
+    bar_xy : np.ndarray
+             XY postion of bar transverse centre
+    bar_r  : float
+             Radius of bar
+    slab_pos : Callable
+               Function returning pos
+    """
+    c_mm_per_ps = c_vac * 1000 / 1e12
+    c_corr = np.square(bar_xy).sum() - bar_r**2
+    def geom_dt(ref_id: int, coinc_id: int) -> float:
+        ref_pos   = slab_pos(  ref_id)
+        coinc_pos = slab_pos(coinc_id)
+        dir_norm  = np.linalg.norm(coinc_pos - ref_pos)
+        dir       = (coinc_pos - ref_pos) / dir_norm
+
+        a = np.square(dir[:2]).sum()
+        b = 2 * (dir[0] * (ref_pos[0] - bar_xy[0]) + dir[1] * (ref_pos[1] - bar_xy[1]))
+        c = ref_pos[0] * (ref_pos[0] - 2 * bar_xy[0]) + ref_pos[1] * (ref_pos[1] - 2 * bar_xy[1]) + c_corr
+
+        determ = b**2 - 4 * a * c
+        if determ < 0:
+            return
+
+        t1    = 0.5 * (-b + np.sqrt(determ)) / a
+        t2    = 0.5 * (-b - np.sqrt(determ)) / a
+        med_t = (t1 + t2) / 2
+        dt    = (2 * med_t  - dir_norm) / c_mm_per_ps
+        return dt
+    return geom_dt
 
