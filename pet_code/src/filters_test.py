@@ -18,6 +18,7 @@ from . filters import filter_negatives
 from . filters import filter_event_by_impacts_noneg
 from . filters import filter_max_sm
 from . filters import filter_max_coin_event
+from . filters import filter_impacts_channel_list
 
 from . util_test import enum_dummy
 
@@ -79,6 +80,18 @@ def test_filter_module_list(TEST_DATA_DIR, DUMMY_EVT):
 
     assert     evt_select_valid  (*DUMMY_EVT)
     assert not evt_select_invalid(*DUMMY_EVT)
+
+
+@mark.filterwarnings("ignore:Imported map")
+def test_filter_impacts_channel_list(TEST_DATA_DIR, DUMMY_EVT):
+    map_file = os.path.join(TEST_DATA_DIR, 'twoSM_IMAS_map.feather')
+    chan_map = ChannelMap(map_file)
+
+    test_chans      = {64, 112, 697, 699}
+    dummy_with_enum = tuple(map(enum_dummy, DUMMY_EVT))
+    evt_select      = filter_impacts_channel_list(test_chans, 4, chan_map.get_minimodule)
+
+    assert not evt_select(*dummy_with_enum)
 
 
 @mark.filterwarnings("ignore:Imported map")

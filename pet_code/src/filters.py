@@ -95,6 +95,21 @@ def filter_module_list(smMm_to_id, valid_sm, valid_mm):
     return filter_channel_list(valid_ids)
 
 
+def filter_impacts_channel_list(valid_channels, min_ch, mm_map):
+    """
+    Filter events by valid channels
+    and that there's only one minimodule
+    with information.
+    Only for COINC mode!
+    """
+    sel_chans = filter_channel_list(valid_channels)
+    ch_filter = filter_impact(min_ch)
+    def valid_event(sm1, sm2):
+        return sel_chans(sm1, sm2) and filter_one_minimod(sm1, sm2, mm_map)\
+                and ch_filter(sm1) and ch_filter(sm2)
+    return valid_event
+
+
 def filter_impacts_specific_mod(sm_num, mm_num, mm_map, min_sm):
     """
     Combines requirements of impacts, specific mm and
@@ -103,7 +118,7 @@ def filter_impacts_specific_mod(sm_num, mm_num, mm_map, min_sm):
     sel_mm    = filter_specific_mm(sm_num, mm_num, mm_map)
     ch_filter = filter_impact(min_sm)
     def valid_event(sm1, sm2):
-        return sel_mm(sm1, sm2) and filter_one_minimod(sm1, sm2)\
+        return sel_mm(sm1, sm2) and filter_one_minimod(sm1, sm2, mm_map)\
                 and ch_filter(sm1) and ch_filter(sm2)
     return valid_event
 
