@@ -1,11 +1,17 @@
 import os
 import configparser
+import yaml
 
 from pytest import approx, fixture, mark
+from types  import FunctionType
+
+from .. src.io   import ChannelMap
 
 from . skew_calc import np
 from . skew_calc import pd
 from . skew_calc import calculate_skews
+from . skew_calc import geom_loc_2sm
+from . skew_calc import geom_loc_bar
 from . skew_calc import peak_position
 from . skew_calc import process_raw_data
 
@@ -40,21 +46,23 @@ def test_peak_position(deltat_df):
 
 @mark.filterwarnings("ignore:Imported map")
 def test_process_raw_data(TEST_DATA_DIR, TMP_OUT):
-    test_file = os.path.join(TEST_DATA_DIR                              ,
-                             '20221121_SourceSM1pos8_1000evt_coinc.ldat')
-    test_conf = os.path.join(TMP_OUT      , 'skew.conf')
-    mapfile   = os.path.join(TEST_DATA_DIR, 'twoSM_IMAS_map.feather')
+    test_file   = os.path.join(TEST_DATA_DIR                              ,
+                               '20221121_SourceSM1pos8_1000evt_coinc.ldat')
+    test_conf   = os.path.join(TMP_OUT      , 'skew.conf')
+    mapfile     = os.path.join(TEST_DATA_DIR, 'twoSM_IMAS_map.feather')
+    source_file = os.path.join(TEST_DATA_DIR, 'twoSM_skewSource_pos.yaml')
 
     with open(test_conf, 'w') as conf:
         conf.write(f'[mapping]\nmap_file = {mapfile}\nsetup = 2SM\n')
-        conf.write( '[filter]\nmin_channels = 4,4\nelimits = 5,15\n')
+        conf.write(f'source_pos = {source_file}\n')
+        conf.write( '[filter]\nmin_channels = 4\nelimits = 5,15\n')
         conf.write(f'[output]\nout_dir = {TMP_OUT}')
     
     conf = configparser.ConfigParser()
     conf.read(test_conf)
-    proc_file = process_raw_data(conf)
+    ch_map = ChannelMap(mapfile)
 
-    dt_files = list(proc_file([test_file]))
+    dt_files = process_raw_data([test_file], conf, ch_map)
     assert len(dt_files) == 1
     assert os.path.isfile(dt_files[0])
 
@@ -63,9 +71,9 @@ def test_process_raw_data(TEST_DATA_DIR, TMP_OUT):
     assert all(hasattr(saved_dt, col) for col in exp_cols)
     assert saved_dt.shape == (183, len(exp_cols))
 
-    map_df  = pd.read_feather(mapfile)
-    ref_chs = map_df[(map_df.supermodule == 0) & (map_df.minimodule == 14)].id
-    coi_chs = map_df[ map_df.supermodule == 2 ].id
+    map_df  = ch_map.mapping
+    ref_chs = map_df[(map_df.supermodule == 0) & (map_df.minimodule == 14)].index
+    coi_chs = map_df[ map_df.supermodule == 2 ].index
     assert all(saved_dt.ref_ch  .isin(ref_chs))
     assert all(saved_dt.coinc_ch.isin(coi_chs))
     assert saved_dt.corr_dt.mean() == approx(750.84)
@@ -93,3 +101,38 @@ def test_calculate_skews_nobias(TEST_DATA_DIR, TMP_OUT):
     exp_bias = np.array([326.666667, 364.000000, 202.222222, 681.333333,
                          622.758621, 513.333333,  90.588235, 580.000000])
     np.testing.assert_allclose(skews[skews != 0], exp_bias)
+
+
+@mark.filterwarnings("ignore:Imported map")
+def test_geom_loc_2sm(TEST_DATA_DIR):
+    test_file   = os.path.join(TEST_DATA_DIR                              ,
+                               '20221121_SourceSM1pos8_1000evt_coinc.ldat')
+    map_file    = os.path.join(TEST_DATA_DIR, 'twoSM_IMAS_map.feather')
+    source_file = os.path.join(TEST_DATA_DIR, 'twoSM_skewSource_pos.yaml')
+
+    ch_map = ChannelMap(map_file)
+    with open(source_file) as sfile:
+        source_yml = yaml.safe_load(sfile)
+    chan_list, find_indx, geom_dt = geom_loc_2sm(test_file, ch_map, source_yml)
+
+    exp_chans = (245, 243, 242, 233, 240, 238, 241, 239,
+                 253, 250, 251, 248, 249, 246, 247, 244)
+    assert len(chan_list) == 16
+    assert np.isin(chan_list, exp_chans).all()
+    assert isinstance(find_indx, FunctionType)
+    assert isinstance(geom_dt  , FunctionType)
+    assert find_indx([[250, 0, 0, 0], [600, 0, 0, 0]]) == 0
+    assert geom_dt(250, 600) == approx(-314.093)
+
+
+@mark.xfail
+@mark.filterwarnings("ignore:Imported map")
+def test_geom_loc_bar(TEST_DATA_DIR):
+    test_name   = os.path.join(TEST_DATA_DIR, 'fake_SourcePos5_fake.ldat')
+    map_file    = os.path.join(TEST_DATA_DIR, 'ringblah.feather')
+    source_file = os.path.join(TEST_DATA_DIR, 'barBlah.yaml')
+
+    ch_map = ChannelMap(map_file)
+    with open(source_file) as sfile:
+        source_yml = yaml.safe_load(sfile)
+    ids, find_indx, geom_dt = geom_loc_bar(test_name, ch_map, source_yml)
