@@ -38,40 +38,22 @@ def test_channel_sm_coordinate():
 
 @fixture(scope = 'module')
 def channel_types(TEST_DATA_DIR):
-    test_yaml = os.path.join(TEST_DATA_DIR, 'SM_mapping_corrected.yaml')
+    test_yaml = os.path.join(TEST_DATA_DIR, 'SM_mapping_1ring.yaml')
 
     with open(test_yaml) as map_file:
         ch_map = yaml.safe_load(map_file)
 
-    return ch_map['time_channels'], ch_map['energy_channels']
-
-
-@fixture(scope = 'module')
-def sm_ringYX():
-    """
-    Y, X for each SM centre. Ordering invert from normal.
-    """
-    yx_dict = { 0: ( -53.5157,  406.4924),  1: (-156.9002,  378.7906),
-                2: (-249.5922,  325.2749),  3: (-325.2749,  249.5922),
-                4: (-378.7906,  156.9002),  5: (-406.4924,   53.5157),
-                6: (-406.4924,  -53.5157),  7: (-378.7906, -156.9002),
-                8: (-325.2749, -249.5922),  9: (-249.5922, -325.2749),
-               10: (-156.9002, -378.7906), 11: ( -53.5157, -406.4924),
-               12: (  53.5157, -406.4924), 13: ( 156.9002, -378.7906),
-               14: ( 249.5922, -325.2749), 15: ( 325.2749, -249.5922),
-               16: ( 378.7906, -156.9002), 17: ( 406.4924,  -53.5157),
-               18: ( 406.4924,   53.5157), 19: ( 378.7906,  156.9002),
-               20: ( 325.2749,  249.5922), 21: ( 249.5922,  325.2749),
-               22: ( 156.9002,  378.7906), 23: (  53.5157,  406.4924)}
-    return pd.DataFrame(yx_dict, index=['Y', 'X']).T
+    return ch_map
 
 
 def test_sm_gen(channel_types):
-    tchans, echans = channel_types
+    tchans  = channel_types[  'time_channels']
+    echans  = channel_types['energy_channels']
+    feb_map = {0: [0, 0]}
     mm_emap = {0:0, 1:4,  2:8 ,  3:12,  4:1,  5:5,  6:9 ,  7:13,
                8:2, 9:6, 10:10, 11:14, 12:3, 13:7, 14:11, 15:15}
 
-    gen_sm = sm_gen(256, 8, tchans, echans, mm_emap)
+    gen_sm = sm_gen(256, 8, tchans, echans, mm_emap, feb_map)
 
     cols  = ['id', 'type', 'minimodule', 'local_x', 'local_y']
     sm_df = pd.DataFrame((ch for ch in gen_sm(0)), columns=cols)
@@ -94,11 +76,15 @@ def test_sm_gen(channel_types):
     assert all(sm_df.local_y <= max_pos)
 
 
-def test_single_ring(channel_types, sm_ringYX):
-    tchans, echans = channel_types
+def test_single_ring(channel_types):
+    tchans  = channel_types[  'time_channels']
+    echans  = channel_types['energy_channels']
+    ring_r  = channel_types[        'ring_r' ]
+    ring_yx = channel_types[        'ring_yx']
+    feb_map = channel_types[     'sm_feb_map']
 
     nFEM    = 256
-    ring_df = single_ring(nFEM, 8, tchans, echans)
+    ring_df = single_ring(nFEM, 8, tchans, echans, ring_r, ring_yx, feb_map)
 
     cols = ['id', 'type', 'supermodule', 'minimodule',
             'local_x', 'local_y', 'X', 'Y', 'Z']
@@ -107,10 +93,11 @@ def test_single_ring(channel_types, sm_ringYX):
 
     # Approx centre of SM with means
     xyz        = ['X', 'Y', 'Z']
+    yx_df      = pd.DataFrame(ring_yx, index=['Y', 'X']).T
     sm_centres = ring_df.groupby('supermodule')[xyz].apply(np.mean)
-    assert_allclose(sm_centres.Z,           0, atol=1e-4)
-    assert_allclose(sm_centres.X, sm_ringYX.X, rtol=1e-5)
-    assert_allclose(sm_centres.Y, sm_ringYX.Y, rtol=1e-5)
+    assert_allclose(sm_centres.Z,       0, atol=1e-4)
+    assert_allclose(sm_centres.X, yx_df.X, rtol=1e-5)
+    assert_allclose(sm_centres.Y, yx_df.Y, rtol=1e-5)
 
     # Check z of time channels in row always the same.
     mask =    (ring_df.supermodule == 3)\
@@ -119,10 +106,15 @@ def test_single_ring(channel_types, sm_ringYX):
     assert_allclose(ring_df.Z[mask][1:], ring_df.Z[mask].iloc[0])
 
 
-def test_single_ring_corners(TEST_DATA_DIR, channel_types, sm_ringYX):
+def test_single_ring_corners(TEST_DATA_DIR, channel_types):
     corners = os.path.join(TEST_DATA_DIR, 'IMAS1R_CORNERS-Table.csv')
-    tchans, echans = channel_types
-    sm_angs = sm_ringYX.apply(lambda x: np.arctan2(x.Y, x.X), axis=1)
+    tchans  = channel_types[  'time_channels']
+    echans  = channel_types['energy_channels']
+    ring_r  = channel_types[        'ring_r' ]
+    ring_yx = channel_types[        'ring_yx']
+    feb_map = channel_types[     'sm_feb_map']
+    yx_df   = pd.DataFrame(ring_yx, index=['Y', 'X']).T
+    sm_angs = yx_df.apply(lambda x: np.arctan2(x.Y, x.X), axis=1)
 
     exp_xyz     = ['GlobalX', 'GlobalY', 'GlobalZ']
     exp_corners = pd.read_csv(corners, sep=';', decimal=',')
@@ -132,7 +124,7 @@ def test_single_ring_corners(TEST_DATA_DIR, channel_types, sm_ringYX):
                      .sort_values('Module').reset_index(drop=True))
 
     nFEM    = 256
-    ring_df = single_ring(nFEM, 8, tchans, echans)
+    ring_df = single_ring(nFEM, 8, tchans, echans, ring_r, ring_yx, feb_map)
 
     # Compare using the local_x min and max (TIME channels)
     corn_vec   = np.array([0, (mm_spacing + slab_width) / 2, -mm_edge / 2])
@@ -155,7 +147,9 @@ def test_single_ring_corners(TEST_DATA_DIR, channel_types, sm_ringYX):
 
 def test_row_gen(TEST_DATA_DIR, channel_types):
     test_map       = os.path.join(TEST_DATA_DIR, 'twoSM_IMAS_map.feather')
-    tchans, echans = channel_types
+    tchans  = channel_types[  'time_channels']
+    echans  = channel_types['energy_channels']
+    # tchans, echans = channel_types
 
     cols = ['id', 'type', 'supermodule', 'minimodule', 'local_x', 'local_y', 'X', 'Y', 'Z']
     twoSM_gen = (row for row in row_gen(256, 8, tchans, echans))
@@ -166,12 +160,16 @@ def test_row_gen(TEST_DATA_DIR, channel_types):
 
 
 def test_n_rings(channel_types):
-    tchans, echans = channel_types
-    z_pos = [-305.5312 + i * 152.7656 for i in range(5)]
+    tchans  = channel_types[  'time_channels']
+    echans  = channel_types['energy_channels']
+    ring_r  = channel_types[        'ring_r' ]
+    ring_yx = channel_types[        'ring_yx']
+    feb_map = {sm: [sm // 6, 5 - sm % 6] for sm in range(24 * 5)}
+    z_pos   = [-305.5312 + i * 152.7656 for i in range(5)]
 
     nFEM = 256
     n_sm =  24
-    five_rings = n_rings(z_pos, nFEM, 8, tchans, echans)
+    five_rings = n_rings(z_pos, nFEM, 8, tchans, echans, ring_r, ring_yx, feb_map)
 
     cols = ['id', 'type', 'supermodule', 'minimodule',
             'local_x', 'local_y', 'X', 'Y', 'Z']
