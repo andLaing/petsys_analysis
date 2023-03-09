@@ -30,6 +30,20 @@ def get_supermodule_eng(mod_data):
     return len(eng_ch), sum(hit[3] for hit in eng_ch)
 
 
+def energy_weighted_average(channel_pos: Callable,
+                            local_indx : int     ,
+                            power      : int     ) -> Callable:
+    """
+    Position from energy channel positions, charge and a power
+    """
+    vec_pos = np.vectorize(lambda x: channel_pos(x)[local_indx])
+    def _average(sm_info):
+        echans    = filter(lambda x: x[1] is ChannelType.ENERGY, sm_info)
+        id_charge = np.asarray(tuple(map(lambda x: (x[0], x[3]), echans)))
+        return np.average(vec_pos(id_charge[:, 0]), weights=id_charge[:, 1]**power)
+    return _average
+
+
 def centroid_calculation(plot_pos, offset_x=0.00001, offset_y=0.00001):
     """
     Calculates the centroid of a set of module
