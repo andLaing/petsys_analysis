@@ -230,25 +230,34 @@ def time_of_flight(source_pos: np.ndarray):
     return flight_time
 
 
-def mm_energy_centroids(c_calc, mm_map, mod_sel=lambda sm: sm):
+def mm_energy_centroids(c_calc, sm_map, mm_map, mod_sel=lambda sm: sm):
     """
     Calculate centroid and energy for
     mini modules per event assuming
     one mini module per SM per event.
     """
     def _mm_ecentroids(events):
-        mod_dicts = [{}, {}]
+        mod_dicts = {}
         for evt in events:
-            sel_evt = tuple(map(mod_sel, evt))
-            for i, ((x, y, _), (_, eng)) in enumerate(zip(map(c_calc, sel_evt), map(get_supermodule_eng, sel_evt))):
-                if evt[i]:
-                    mm = mm_map(evt[i][0][0])
+            sel_evt = tuple(filter(lambda x: x, map(mod_sel, evt)))
+            for ev_sel in sel_evt:
+                sm = sm_map(ev_sel[0][0])
+                mm = mm_map(ev_sel[0][0])
+                x, y, _ = c_calc(ev_sel)
+                _, eng  = get_supermodule_eng(ev_sel)
+            # for ((x, y, _), (_, eng)) in zip(map(c_calc, sel_evt),
+            #                                  map(get_supermodule_eng, sel_evt)):
+            #     sm = sm_map(sel_evt[i][0][0])
+            #     mm = mm_map(sel_evt[i][0][0])
+                try:
+                    mod_dicts[sm][mm]['x'].append(x)
+                    mod_dicts[sm][mm]['y'].append(y)
+                    mod_dicts[sm][mm]['energy'].append(eng)
+                except KeyError:
                     try:
-                        mod_dicts[i][mm]['x'].append(x)
-                        mod_dicts[i][mm]['y'].append(y)
-                        mod_dicts[i][mm]['energy'].append(eng)
+                        mod_dicts[sm][mm] = {'x': [x], 'y': [y], 'energy': [eng]}
                     except KeyError:
-                        mod_dicts[i][mm] = {'x': [x], 'y': [y], 'energy': [eng]}
+                        mod_dicts[sm] = {mm: {'x': [x], 'y': [y], 'energy': [eng]}}
         return mod_dicts
     return _mm_ecentroids
 
