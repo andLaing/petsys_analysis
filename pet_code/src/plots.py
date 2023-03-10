@@ -47,13 +47,13 @@ def mm_energy_spectra(setup='tbpet', plot_output=None, min_peak=150, brange=(0, 
     return
                  List of energy selection filters.
     """
-    if   plot_output and setup == 'tbpet' :
+    if   setup == 'tbpet' :
         nrow    = 4
         ncol    = 4
         psize   = (15, 15)
         flbins  = 500
         flrange = [[0, 104], [0, 104]]
-    elif plot_output and setup == 'ebrain':
+    elif setup == 'ebrain':
         nrow  = 8
         ncol  = 2
         psize = (20, 15)
@@ -66,11 +66,11 @@ def mm_energy_spectra(setup='tbpet', plot_output=None, min_peak=150, brange=(0, 
         psize   = (15, 15)
         flbins  = 500
         flrange = [[0, 104], [0, 104]]
-    def _make_plot(module_xye, sm_label):
+    def _make_plot(sm_label, module_xye):
         """
         module_xye  : Dict
                       Supermodule xyz lists for each mm
-                      key is mm number (1--),
+                      key is mm number (0--),
         sm_label    : int
                       A label for the plots of which SM
                       is being processed.
@@ -122,7 +122,7 @@ def mm_energy_spectra(setup='tbpet', plot_output=None, min_peak=150, brange=(0, 
             plt.savefig(out_name)
             plt.clf()
         else:
-            for j in range(1, 17):
+            for j in range(nrow * ncol):
                 try:
                     bin_vals, bin_edges = np.histogram(module_xye[j]['energy'], bins=200, range=brange)
                 except KeyError:

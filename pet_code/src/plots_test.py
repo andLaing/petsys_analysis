@@ -30,17 +30,17 @@ def test_hist1d():
 
 def test_mm_energy_spectra_noplots():
     gen_stats = 10000
-    mm_e = {i: {'energy': np.random.normal(100 + 2 * i, 5, gen_stats)} for i in range(1, 17)}
+    mm_e = {i: {'energy': np.random.normal(100 + 2 * i, 5, gen_stats)} for i in range(16)}
 
     eplots     = mm_energy_spectra(min_peak=100)
     # exclusions = mm_energy_spectra(mm_e, 0, min_peak=100)
-    exclusions = eplots(mm_e, 0)
+    exclusions = eplots(0, mm_e)
 
     assert isinstance(exclusions, list)
     assert len(exclusions) == 16
     assert all(isinstance(ex, FunctionType) for ex in exclusions)
     ## Check that we have approximately +- 3 sigma passing cuts.
-    accepted_prop = np.fromiter((len(v['energy'][exclusions[i-1](v['energy'])]) / gen_stats for i, v in mm_e.items()), float)
+    accepted_prop = np.fromiter((len(v['energy'][exclusions[i](v['energy'])]) / gen_stats for i, v in mm_e.items()), float)
     assert all(accepted_prop > 0.9)
 
 
@@ -60,7 +60,7 @@ def test_mm_energy_spectra_plots(TMP_OUT):
     out_base = os.path.join(TMP_OUT, 'testplots.ldat')
     eplots   = mm_energy_spectra(min_peak=100, plot_output=out_base)
     # _        = mm_energy_spectra(mm_e, 0, min_peak=100, plot_output=out_base)
-    _        = eplots(mm_e, 0)
+    _        = eplots(0, mm_e)
 
     # mM energy spectra plots created?
     spec_plot  = out_base.replace('.ldat', '_EnergyModuleSMod0.png')
