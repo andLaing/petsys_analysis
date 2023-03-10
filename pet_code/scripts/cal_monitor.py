@@ -97,21 +97,26 @@ def output_energy_plots(histos, cal_name, out_dir, setup, no_super):
     sig_vals = []
     fig_ax   = [plt.subplots(nrows=fig_rows, ncols=fig_cols, figsize=psize)
                 for _ in range(no_super)]
-    for id, dist in histos.sum_dist.items():
-        sm, mm = id
+    txt_file = os.path.join(out_dir, fn.split('/')[-1].replace('.ldat', f'{cal_name}_MMEngPeaks.png'))
+    with open(txt_file, 'w') as peak_out:
+        peak_out.write('Supermod\tMinimod\tEnergy Peak\tSigma\n')
+        for id, dist in histos.sum_dist.items():
+            sm, mm = id
 
-        all_eng += dist
-        bcent, gvals, pars, _ = fit_gaussian(dist, histos.edges['ESUM'])
-        fig_ax[sm][1].flatten()[mm].errorbar(bcent                ,
-                                             dist                 ,
-                                             yerr  = np.sqrt(dist),
-                                             label = 'dataset'    )
-        fig_ax[sm][1].flatten()[mm].plot(bcent, gvals, label=f'Fit: mu = {pars[1]}, sigma = {pars[2]}')
-        fig_ax[sm][1].flatten()[mm].set_xlabel(f'mM {mm} energy sum (au)')
-        fig_ax[sm][1].flatten()[mm].set_ylabel('AU')
-        fig_ax[sm][1].flatten()[mm].legend()
-        mu_vals .append(pars[1])
-        sig_vals.append(pars[2])
+            all_eng += dist
+            bcent, gvals, pars, _ = fit_gaussian(dist, histos.edges['ESUM'])
+            fig_ax[sm][1].flatten()[mm].errorbar(bcent                ,
+                                                 dist                 ,
+                                                 yerr  = np.sqrt(dist),
+                                                 label = 'dataset'    )
+            fig_ax[sm][1].flatten()[mm].plot(bcent, gvals, label=f'Fit: mu = {pars[1]}, sigma = {pars[2]}')
+            fig_ax[sm][1].flatten()[mm].set_xlabel(f'mM {mm} energy sum (au)')
+            fig_ax[sm][1].flatten()[mm].set_ylabel('AU')
+            fig_ax[sm][1].flatten()[mm].legend()
+            mu_vals .append(pars[1])
+            sig_vals.append(pars[2])
+            peak_out.write(f'{sm}\t{mm}\t{pars[1]}\t{pars[2]}\n')
+
     for i, (fig, _) in enumerate(fig_ax):
         out_name = os.path.join(out_dir, fn.split('/')[-1].replace('.ldat', f'{cal_name}_MMEngs_sm{i}.png'))
         fig.savefig(out_name)
