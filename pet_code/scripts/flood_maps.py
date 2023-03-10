@@ -68,7 +68,8 @@ if __name__ == '__main__':
         os.makedirs(out_dir)
     nsigma   = conf.getint('output', 'nsigma', fallback=2)
     sm_setup = 'ebrain' if 'brain' in map_file else 'tbpet'
-    mm_ecent = mm_energy_centroids(c_calc, chan_map.get_minimodule, mod_sel=max_sel)
+    mm_ecent = mm_energy_centroids(c_calc, chan_map.get_supermodule,
+                                   chan_map.get_minimodule, mod_sel=max_sel)
     try:
         out_form = conf.get('output', 'out_file')
     except configparser.NoOptionError:
@@ -97,7 +98,8 @@ if __name__ == '__main__':
             fbase    = out_form + fn.split('/')[-1].replace('.ldat', set_end)
             out_base = os.path.join(out_dir, fbase)
         plotter  = mm_energy_spectra(sm_setup, out_base, 100, nsigma=nsigma)
-        photo_peak = list(map(plotter, mod_dicts, [1, 2]))
+        photo_peak = {i: plotter(i, vals) for i, vals in mod_dicts.items()}
+        # photo_peak = dict(map(lambda i: i[0]: plotter(*i), mod_dicts.items()))
         end_p = time.time()
         print("Time enlapsed plotting: {} s".format(int(end_p - start_sec)))
             
