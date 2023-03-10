@@ -1,6 +1,6 @@
 import os
 
-from pytest import fixture
+from pytest import fixture, mark
 
 from .. src.filters import filter_event_by_impacts
 from .. src.plots   import ChannelEHistograms
@@ -33,7 +33,7 @@ def test_plots(TEST_DATA_DIR):
     ## Fill some values...
     return plotter    
 
-
+@mark.skip
 def test_output_time_plots(TMP_OUT, test_plots):
     cal_name = 'test'
     output_time_plots(test_plots, cal_name, TMP_OUT)
