@@ -36,5 +36,5 @@ def test_plots(TEST_DATA_DIR):
 @mark.skip
 def test_output_time_plots(TMP_OUT, test_plots):
     cal_name = 'test'
-    output_time_plots(test_plots, cal_name, TMP_OUT)
+    output_time_plots(test_plots, cal_name, TMP_OUT, 10)
 

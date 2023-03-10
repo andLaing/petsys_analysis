@@ -35,7 +35,7 @@ def cal_and_sel(cal_func, sel_func):
     return _cal_and_sel
 
 
-def output_time_plots(histos, cal_name, out_dir):
+def output_time_plots(histos, cal_name, out_dir, min_stats):
     """
     Make the energy plots for timeslabs.
     """
@@ -47,14 +47,15 @@ def output_time_plots(histos, cal_name, out_dir):
     for id, dist in histos.tdist.items():
         slab_sum += dist
         try:
-            *_, fit_pars, _ = fit_gaussian(dist, histos.edges[htype], min_peak=100)
+            *_, fit_pars, _ = fit_gaussian(dist, histos.edges[htype], min_peak=min_stats)
             mu_vals .append(fit_pars[1])
             sig_vals.append(fit_pars[2])
         except RuntimeError:
             print(f'Fit failed for channel {id}')
-            plt.errorbar(histos.edges[htype][:-1], dist, yerr=np.sqrt(dist))
-            plt.show()
-            plt.clf()
+            if __name__ == '__main__':
+                plt.errorbar(histos.edges[htype][:-1], dist, yerr=np.sqrt(dist))
+                plt.show()
+                plt.clf()
     
     ## Fit distributions
     bins = min(mu_vals) - 2, max(mu_vals) + 2, np.diff(histos.edges[htype][:2])[0]
@@ -182,8 +183,9 @@ if __name__ == '__main__':
     if not os.path.isdir(out_dir):
         os.makedirs(out_dir)
 
-    reader  = read_petsys_filebyfile(chan_map.ch_type, sm_filter=evt_filter, singles=singles)
-    cal_sel = cal_and_sel(cal_func, select_module(chan_map.get_minimodule))
+    reader    = read_petsys_filebyfile(chan_map.ch_type, sm_filter=evt_filter, singles=singles)
+    cal_sel   = cal_and_sel(cal_func, select_module(chan_map.get_minimodule))
+    min_stats = conf.getint('filter', 'min_stats')
     for fn in infiles:
         print(f'Reading file {fn}')
         plotter = ChannelEHistograms(tbins, ebins, ebins)
@@ -193,5 +195,5 @@ if __name__ == '__main__':
                               filter(lambda j: j, evt)                     ))
             plotter.add_all_energies(evt, sm_mm)
 
-        output_time_plots  (plotter, cal_name, out_dir)
+        output_time_plots  (plotter, cal_name, out_dir, min_stats)
         output_energy_plots(plotter, cal_name, out_dir, map_file, num_sm)
