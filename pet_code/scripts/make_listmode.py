@@ -115,8 +115,14 @@ if __name__ == '__main__':
                 ## cog for now.
                 pixels     = tuple(map(pixel_vals, local_tpos, map(ecog, evt)))
                 try:
-                    pair = p_lookup.loc[sm_nums      ].p
+                    pair               = p_lookup.loc[sm_nums      ].p
+                    e1, e2             = mm_energies
+                    (x1, y1), (x2, y2) = pixels
+                    dt                 = max_chans[0][2] - max_chans[1][2]
                 except KeyError:
-                    pair = p_lookup.loc[sm_nums[::-1]].p
+                    pair               = p_lookup.loc[sm_nums[::-1]].p
+                    e1, e2             = mm_energies[::-1]
+                    (x1, y1), (x2, y2) = pixels     [::-1]
+                    dt                 = max_chans[1][2] - max_chans[0][2]
 
 
