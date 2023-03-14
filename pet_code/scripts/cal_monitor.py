@@ -118,7 +118,7 @@ def output_energy_plots(histos, cal_name, out_dir, setup, no_super):
             sig_vals.append(pars[2])
             peak_out.write(f'{sm}\t{mm}\t{pars[1]}\t{pars[2]}\n')
 
-    for i, (fig, _) in enumerate(fig_ax):
+    for i, (fig, _) in enumerate(fig_ax.values()):
         out_name = os.path.join(out_dir, fn.split('/')[-1].replace('.ldat', f'{cal_name}_MMEngs_sm{i}.png'))
         fig.savefig(out_name)
 
