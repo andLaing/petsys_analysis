@@ -316,17 +316,18 @@ def write_event_trace(file_buffer, sm_map, mm_lookup):#centroid_map, mm_map):
     information as tab separated list of:
     8 * time channels 8 * energy channels, module number
     """
+    nchan  = 8
+    isTIME = sm_map.type.map(lambda x: x is ChannelType.TIME)
+    ## Time as X hardwire? OK? 8 chans of type per minimodule hardwire? OK?
+    chan_ord = (sm_map[ isTIME].sort_values(['minimodule', 'local_x']).groupby('minimodule').head(nchan),
+                sm_map[~isTIME].sort_values(['minimodule', 'local_y']).groupby('minimodule').head(nchan))
     def write_minimod(mm_trace):
         channels = np.zeros(16)
-        mini_mod    = mm_lookup(mm_trace[0][0])
-        mm_channels = sm_map[sm_map.minimodule == mini_mod].index
+        mini_mod = mm_lookup(mm_trace[0][0])
         for imp in mm_trace:
-            en_t      = 0 if imp[1] is ChannelType.TIME else 1
-            indx      = np.argwhere(mm_channels == imp[0])[0][0] // 2
-            # en_t, pos = centroid_map[imp[0]]
-            # indx      = slab_indx(pos)
+            en_t = 0 if imp[1] is ChannelType.TIME else 1
+            indx = np.argwhere(chan_ord[en_t].index == imp[0])[0][0] % nchan
             channels[indx + 8 * en_t] = imp[3]
         file_buffer.write('\t'.join("{:.6f}".format(round(val, 6)) for val in channels))
         file_buffer.write('\t' + str(mini_mod) + '\n')
     return write_minimod
-        
