@@ -96,8 +96,8 @@ def output_energy_plots(histos, cal_name, out_dir, setup, no_super):
 
     mu_vals  = []
     sig_vals = []
-    fig_ax   = [plt.subplots(nrows=fig_rows, ncols=fig_cols, figsize=psize)
-                for _ in range(no_super)]
+    fig_ax   = {k: plt.subplots(nrows=fig_rows, ncols=fig_cols, figsize=psize)
+                for k in no_super}
     txt_file = os.path.join(out_dir, fn.split('/')[-1].replace('.ldat', f'{cal_name}_MMEngPeaks.png'))
     with open(txt_file, 'w') as peak_out:
         peak_out.write('Supermod\tMinimod\tEnergy Peak\tSigma\n')
@@ -160,7 +160,7 @@ if __name__ == '__main__':
 
     map_file = conf.get('mapping', 'map_file')
     chan_map = ChannelMap(map_file)
-    num_sm   = chan_map.mapping.supermodule.unique().shape[0]
+    sm_nums  = chan_map.mapping.supermodule.unique()
 
     min_chan   = conf.getint('filter', 'min_channels')
     singles    = 'coinc' not in infiles[0]
@@ -196,4 +196,4 @@ if __name__ == '__main__':
             plotter.add_all_energies(evt, sm_mm)
 
         output_time_plots  (plotter, cal_name, out_dir, min_stats)
-        output_energy_plots(plotter, cal_name, out_dir, map_file, num_sm)
+        output_energy_plots(plotter, cal_name, out_dir, map_file, sm_nums)
