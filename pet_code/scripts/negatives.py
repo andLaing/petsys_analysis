@@ -1,5 +1,7 @@
 import sys
 
+from collections import Counter
+
 import numpy as np
 
 from pet_code.src.filters import filter_event_by_impacts
@@ -66,5 +68,5 @@ if __name__ == '__main__':
     print(f'{neg_in_both} events have negatives in both SM')
     print(f'{neg_in_sm1} events with at least one negative first list(indx 0)')
     print(f'{neg_in_sm2} events with at least one negative second list(indx 1)')
-    print(f'{np.unique(neg_ch1)} channels in first SM have negatives, {np.unique(neg_MMs1)} minimodules.')
-    print(f'{np.unique(neg_ch2)} channels in second SM have negatives, {np.unique(neg_MMs2)} minimodules.')
+    print(f'{np.unique(neg_ch1).shape[0]} of the channels in first SM have negatives, {Counter(neg_MMs1)} minimodules count.')
+    print(f'{np.unique(neg_ch2).shape[0]} of the channels in second SM have negatives, {Counter(neg_MMs2)} minimodule count.')
