@@ -60,8 +60,8 @@ if __name__ == '__main__':
             neg_MMs2.extend(print_info(sm2, sm2_neg, chan_map))
         if sm1_neg and sm2_neg:
             neg_in_both += 1
-        neg_ch1.extend(sm1_neg)
-        neg_ch2.extend(sm2_neg)
+        neg_ch1.extend(x[0] for x in sm1_neg)
+        neg_ch2.extend(x[0] for x in sm2_neg)
     print(f'Total events {total_evt}')
     print(f'{neg_in_both} events have negatives in both SM')
     print(f'{neg_in_sm1} events with at least one negative first list(indx 0)')
