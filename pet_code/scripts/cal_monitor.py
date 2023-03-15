@@ -35,7 +35,7 @@ def cal_and_sel(cal_func, sel_func):
     return _cal_and_sel
 
 
-def output_time_plots(histos, cal_name, out_dir, min_stats):
+def output_time_plots(histos, cal_name, out_dir, file_name, min_stats):
     """
     Make the energy plots for timeslabs.
     """
@@ -64,7 +64,7 @@ def output_time_plots(histos, cal_name, out_dir, min_stats):
     plt.xlabel('Time channel peak positions (keV)')
     plt.ylabel('AU')
     plt.legend()
-    plt.savefig(os.path.join(out_dir, fn.split('/')[-1].replace('.ldat', f'{cal_name}_timeEngMu.png')))
+    plt.savefig(os.path.join(out_dir, file_name.split('/')[-1].replace('.ldat', f'{cal_name}_timeEngMu.png')))
     plt.clf()
     bins = min(sig_vals) - 2, max(sig_vals) + 2, np.diff(histos.edges[htype][:2])[0]
     plt.hist(sig_vals, bins=np.arange(*bins),
@@ -72,7 +72,7 @@ def output_time_plots(histos, cal_name, out_dir, min_stats):
     plt.xlabel('Time channel peak sigmas (keV)')
     plt.ylabel('AU')
     plt.legend()
-    plt.savefig(os.path.join(out_dir, fn.split('/')[-1].replace('.ldat', f'{cal_name}_timeEngSig.png')))
+    plt.savefig(os.path.join(out_dir, file_name.split('/')[-1].replace('.ldat', f'{cal_name}_timeEngSig.png')))
     plt.clf()
 
     bcent, gvals, pars, _ = fit_gaussian(slab_sum, histos.edges[htype])
@@ -80,12 +80,12 @@ def output_time_plots(histos, cal_name, out_dir, min_stats):
     plt.plot(bcent, gvals, label=f'Fit: mu = {pars[1]}, sigma = {pars[2]}')
     plt.xlabel('Time channel energy (keV)')
     plt.ylabel('AU')
-    plt.savefig(os.path.join(out_dir, fn.split('/')[-1].replace('.ldat', f'{cal_name}_timeAllDist.png')))
+    plt.savefig(os.path.join(out_dir, file_name.split('/')[-1].replace('.ldat', f'{cal_name}_timeAllDist.png')))
     plt.clf()
     ##
 
 
-def output_energy_plots(histos, cal_name, out_dir, setup, no_super):
+def output_energy_plots(histos, cal_name, out_dir, file_name, setup, no_super):
     """
     Make the plots for the energy channels.
     """
@@ -98,14 +98,15 @@ def output_energy_plots(histos, cal_name, out_dir, setup, no_super):
     sig_vals = []
     fig_ax   = {k: plt.subplots(nrows=fig_rows, ncols=fig_cols, figsize=psize)
                 for k in no_super}
-    txt_file = os.path.join(out_dir, fn.split('/')[-1].replace('.ldat', f'{cal_name}_MMEngPeaks.txt'))
+    htype    = 'ESUM'
+    txt_file = os.path.join(out_dir, file_name.split('/')[-1].replace('.ldat', f'{cal_name}_MMEngPeaks.txt'))
     with open(txt_file, 'w') as peak_out:
         peak_out.write('Supermod\tMinimod\tEnergy Peak\tSigma\n')
         for id, dist in histos.sum_dist.items():
             sm, mm = id
 
             all_eng += dist
-            bcent, gvals, pars, _ = fit_gaussian(dist, histos.edges['ESUM'])
+            bcent, gvals, pars, _ = fit_gaussian(dist, histos.edges[htype])
             fig_ax[sm][1].flatten()[mm].errorbar(bcent                ,
                                                  dist                 ,
                                                  yerr  = np.sqrt(dist),
@@ -119,19 +120,18 @@ def output_energy_plots(histos, cal_name, out_dir, setup, no_super):
             peak_out.write(f'{sm}\t{mm}\t{pars[1]}\t{pars[2]}\n')
 
     for i, (fig, _) in fig_ax.items():
-        out_name = os.path.join(out_dir, fn.split('/')[-1].replace('.ldat', f'{cal_name}_MMEngs_sm{i}.png'))
+        out_name = os.path.join(out_dir, file_name.split('/')[-1].replace('.ldat', f'{cal_name}_MMEngs_sm{i}.png'))
         fig.savefig(out_name)
     plt.clf()
 
     ## Fit distributions
-    htype = 'ESUM'
     bins = min(mu_vals) - 2, max(mu_vals) + 2, np.diff(histos.edges[htype][:2])[0]
     plt.hist(mu_vals, bins=np.arange(*bins),
              label=f'mean = {np.mean(mu_vals)} +- {np.std(mu_vals, ddof=1)}')
     plt.xlabel('Minimodule energy channel peak positions (au)')
     plt.ylabel('AU')
     plt.legend()
-    plt.savefig(os.path.join(out_dir, fn.split('/')[-1].replace('.ldat', f'{cal_name}_mmEngMu.png')))
+    plt.savefig(os.path.join(out_dir, file_name.split('/')[-1].replace('.ldat', f'{cal_name}_mmEngMu.png')))
     plt.clf()
     bins = min(sig_vals) - 2, max(sig_vals) + 2, np.diff(histos.edges[htype][:2])[0]
     plt.hist(sig_vals, bins=np.arange(*bins),
@@ -139,7 +139,7 @@ def output_energy_plots(histos, cal_name, out_dir, setup, no_super):
     plt.xlabel('Minimodule energy channel peak sigmas (au)')
     plt.ylabel('AU')
     plt.legend()
-    plt.savefig(os.path.join(out_dir, fn.split('/')[-1].replace('.ldat', f'{cal_name}_mmEngSig.png')))
+    plt.savefig(os.path.join(out_dir, file_name.split('/')[-1].replace('.ldat', f'{cal_name}_mmEngSig.png')))
     plt.clf()
 
     bcent, gvals, pars, _ = fit_gaussian(all_eng, histos.edges[htype])
@@ -147,7 +147,7 @@ def output_energy_plots(histos, cal_name, out_dir, setup, no_super):
     plt.plot(bcent, gvals, label=f'Fit: mu = {pars[1]}, sigma = {pars[2]}')
     plt.xlabel('All MM sum energy (keV)')
     plt.ylabel('AU')
-    plt.savefig(os.path.join(out_dir, fn.split('/')[-1].replace('.ldat', f'{cal_name}_engAllDist.png')))
+    plt.savefig(os.path.join(out_dir, file_name.split('/')[-1].replace('.ldat', f'{cal_name}_engAllDist.png')))
     plt.clf()
     ##
 
@@ -196,5 +196,5 @@ if __name__ == '__main__':
                               filter(lambda j: j, evt)                     ))
             plotter.add_all_energies(evt, sm_mm)
 
-        output_time_plots  (plotter, cal_name, out_dir, min_stats)
-        output_energy_plots(plotter, cal_name, out_dir, map_file, sm_nums)
+        output_time_plots  (plotter, cal_name, out_dir, fn, min_stats)
+        output_energy_plots(plotter, cal_name, out_dir, fn, map_file, sm_nums)
