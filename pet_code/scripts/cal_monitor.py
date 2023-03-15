@@ -121,6 +121,7 @@ def output_energy_plots(histos, cal_name, out_dir, setup, no_super):
     for i, (fig, _) in fig_ax.items():
         out_name = os.path.join(out_dir, fn.split('/')[-1].replace('.ldat', f'{cal_name}_MMEngs_sm{i}.png'))
         fig.savefig(out_name)
+    plt.clf()
 
     ## Fit distributions
     htype = 'ESUM'
