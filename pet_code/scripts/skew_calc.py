@@ -52,24 +52,32 @@ from pet_code.src.util    import select_module
 def source_position(pos_conf):
     pos_to_mm  = pos_conf[ 'pos_to_mm']
     source_pos = pos_conf['source_pos']
-    def _source_position(sm_num, pos_num):
-        mm = pos_to_mm[sm_num][pos_num]
-        return mm, np.asarray(source_pos[sm_num][mm])
+    def _source_position(pos_num):
+        sm, mms = pos_to_mm[pos_num]
+        return sm, mms, np.asarray(source_pos[pos_num])
     return _source_position
 
 
-def get_references(file_name, source_p, correct=0):
+def get_references(file_name, source_p):
     """
     Extract supermodule and minimodule
     numbers for reference channels and
     the source position.
-    correct allows backward compatibility for old numbering
+    #correct allows backward compatibility for old numbering
     """
-    file_name_parts = file_name.split(os.sep)[-1].split('_')
-    SM_lab          = int(file_name_parts[1][ 8:9])
-    source_posNo    = int(file_name_parts[1][12: ])
-    mM_num, s_pos   = source_p(SM_lab, source_posNo)
-    return SM_lab + correct, mM_num, s_pos
+    file_label  = 'SourcePos'#Assume this is followed by position number
+    source_indx = file_name.find(file_label)
+    if source_indx == -1:
+        print('lalalal: ', source_indx)
+        file_name_parts = file_name.split(os.sep)[-1].split('_')
+        SM_lab          = int(file_name_parts[1][ 8:9])
+        source_posNo    = int(file_name_parts[1][12: ])
+        pos_no          = int(str(SM_lab) + '00' + str(source_posNo).zfill(2))
+        sm, mms, s_pos  = source_p(pos_no)
+        return sm, mms, s_pos
+    source_pnum = int(file_name[source_indx + len(file_label):].split('_')[0])
+    SM_lab, mM_nums, s_pos = source_p(source_pnum)
+    return SM_lab, mM_nums, s_pos
 
 
 def geom_loc_point(file_name, ch_map, source_yml, corr_sm_no=0):
@@ -78,10 +86,11 @@ def geom_loc_point(file_name, ch_map, source_yml, corr_sm_no=0):
     and geometric dt for the 2 SM setup.
     REVIEW, a lot of inversion to adapt!
     """
-    (SM_lab,
-     mM_num,
-     s_pos ) = get_references(file_name, source_position(source_yml), corr_sm_no)
-    mm_channels = ch_map.get_minimodule_channels(SM_lab, mM_num)
+    (SM_lab ,
+     mM_nums,
+     s_pos  ) = get_references(file_name, source_position(source_yml))
+    mm_channels = np.concatenate([ch_map.get_minimodule_channels(SM_lab, mm)
+                                  for mm in mM_nums])
     valid_ids   = set(filter(lambda x: ch_map.get_channel_type(x) is ChannelType.TIME, mm_channels))
     def find_indx(evt):
         return 0 if evt[0][0] in valid_ids else 1
