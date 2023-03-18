@@ -10,7 +10,7 @@ from warnings  import warn
 
 from . util    import ChannelType
 from . util    import slab_indx, slab_x, slab_y, slab_z
-from . io_util import coinc_evt_loop
+from . io_util import coinc_evt_loop, singles_evt
 
 from typing import List, Tuple, Union # Once upgraded to python 3.9 not necessary
 
@@ -84,17 +84,25 @@ def _read_petsys_file(file_name, type_dict, sm_filter, singles=False):
     file yielding those meeting sm_filter
     conditions.
     """
-    line_struct = '<BBqfi'         if singles else '<BBqfiBBqfi'
-    evt_loop    = singles_evt_loop if singles else coinc_evt_loop
-    with open(file_name, 'rb') as fbuff:
-        b_iter = struct.iter_unpack(line_struct, fbuff.read())
-        for first_line in b_iter:
-            sm1, sm2 = evt_loop(first_line, b_iter, type_dict)
-            if sm_filter(sm1, sm2):
-                yield sm1, sm2
+    # line_struct = '<BBqfi'         if singles else '<BBqfiBBqfi'
+    line_struct = 'B, B, i8, f4, i' if singles else 'B, B, i8, f4, i, B, B, i8, f4, i'
+    # evt_loop    = singles_evt_loop if singles else coinc_evt_loop
+    evt_loop    = singles_evt if singles else coinc_evt_loop
+    # with open(file_name, 'rb') as fbuff:
+    #     b_iter = struct.iter_unpack(line_struct, fbuff.read())
+    #     for first_line in b_iter:
+    #         sm1, sm2 = evt_loop(first_line, b_iter, type_dict)
+    #         if sm_filter(sm1, sm2):
+    #             yield sm1, sm2
+    b_iter = np.nditer(np.memmap(file_name, np.dtype(line_struct), mode='r'))
+    for first_line in b_iter:
+        sm1, sm2 = evt_loop(first_line, b_iter, type_dict)
+        if sm_filter(sm1, sm2):
+            yield sm1, sm2
 
 
 def singles_evt_loop(first_line, line_it, type_dict):
+# def singles_evt_loop(line_it, first_indx, type_dict):
     """
     Loop through the lines for an event
     of singles data.
@@ -102,6 +110,8 @@ def singles_evt_loop(first_line, line_it, type_dict):
     Should be for what PETSys calls 'grouped'
     which seems more like a PET single.
     """
+    # evt_end = first_indx + line_it[first_indx][0]
+    # return evt_end, list(map(unpack_supermodule, line_it[first_indx:evt_end], repeat(type_dict))), []
     nlines = first_line[0] - 1
     return list(map(unpack_supermodule                          ,
                     chain([first_line], islice(line_it, nlines)),
