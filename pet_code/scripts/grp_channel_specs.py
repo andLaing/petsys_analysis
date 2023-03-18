@@ -178,9 +178,9 @@ def channel_plots(config, infiles):
     ebins     = np.arange(*tuple(map(float, config.get('output',     'ebinning', fallback='7,40,0.4') .split(','))))
 
     plotS     = ChannelEHistograms(tbins, ebins, esum_bins)
-    splots    = select_mod_wrapper(plotS .add_emax_evt, chan_map.get_minimodule)
+    splots    = plotS .add_emax_evt#select_mod_wrapper(plotS .add_emax_evt, chan_map.get_minimodule)
     plotNS    = ChannelEHistograms(tbins, ebins, esum_bins)
-    nsplots   = select_mod_wrapper(plotNS.add_emax_evt, chan_map.get_minimodule)
+    nsplots   = plotNS.add_emax_evt#select_mod_wrapper(plotNS.add_emax_evt, chan_map.get_minimodule)
 
     reader    = read_petsys_filebyfile(chan_map.ch_type, sm_filter=filt, singles=True)
     for fn in infiles:
