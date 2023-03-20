@@ -28,7 +28,7 @@ import pandas as pd
 
 from functools import partial
 
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 # import multiprocessing as mp
 from multiprocessing import cpu_count, get_context
@@ -47,6 +47,7 @@ from pet_code.src.util    import get_absolute_id
 from pet_code.src.util    import get_electronics_nums
 from pet_code.src.util    import select_energy_range
 from pet_code.src.util    import select_module
+from pet_code.src.util    import shift_to_centres
 
 
 def source_position(pos_conf):
@@ -68,7 +69,6 @@ def get_references(file_name, source_p):
     file_label  = 'SourcePos'#Assume this is followed by position number
     source_indx = file_name.find(file_label)
     if source_indx == -1:
-        print('lalalal: ', source_indx)
         file_name_parts = file_name.split(os.sep)[-1].split('_')
         SM_lab          = int(file_name_parts[1][ 8:9])
         source_posNo    = int(file_name_parts[1][12: ])
@@ -193,7 +193,7 @@ def process_raw_data(file_list, config, ch_map):
     return dt_filenames
 
 
-def calculate_skews(file_list, config, skew_values):
+def calculate_skews(file_list, config, skew_values, it=0):
     """
     Read files with channel numbers and calculated
     delta_t - delta_t_geom and calculate the bias
@@ -204,7 +204,13 @@ def calculate_skews(file_list, config, skew_values):
     rel_fact   = config.getfloat('filter', 'relax_fact')
     min_stats  = config.getint  ('filter',  'min_stats')
     hist_bins  = map(float, config.get('filter',  'hist_bins').split(','))
-    bias_calc  = peak_position(np.arange(*hist_bins), min_stats, skew_values)
+    try:
+        monitor_id = set(map(int, config.get('output', 'mon_ids').split(',')))
+    except (configparser.NoSectionError, configparser.NoOptionError):
+        monitor_id = {}
+    out_name   = os.path.join(*file_list[0].split(os.sep)[:-1], f'corrected_dt_it{it}_')
+    bias_calc  = peak_position(np.arange(*hist_bins), min_stats,
+                               skew_values, monitor_id, out_name)
     for fn in file_list:
         dt_df      = pd.read_feather(fn)
         biases     = dt_df.groupby('ref_ch', group_keys=False).apply(bias_calc)
@@ -212,7 +218,7 @@ def calculate_skews(file_list, config, skew_values):
     return corr_skews
 
 
-def peak_position(hist_bins, min_stats, skew):
+def peak_position(hist_bins, min_stats, skew, mon_ids={}, out_base='dt_monitor'):
     """
     Calculate the mean position of the delta time distribution
     corrected for theoretical difference and, optionally, skew.
@@ -227,6 +233,8 @@ def peak_position(hist_bins, min_stats, skew):
         skew_corr = skew.loc[delta_t.coinc_ch].values - ref_skew
 
         bin_vals, bin_edges = np.histogram(delta_t.corr_dt.values + skew_corr, bins=hist_bins)
+        if ref_ch in mon_ids:
+            output_plot(ref_ch, bin_vals, bin_edges, '_'.join((out_base, f'ch{ref_ch}.png')))
         try:
             *_, pars, _ = fit_gaussian(bin_vals, bin_edges, min_peak=min_stats)
         except RuntimeError:
@@ -235,6 +243,17 @@ def peak_position(hist_bins, min_stats, skew):
             return peak_mean if peak_mean else 0
         return pars[1]
     return calculate_bias
+
+
+def output_plot(id, dt_data, dt_binedges, plot_file):
+    """
+    Plots and saves a corrected dt distribution.
+    """
+    plt.errorbar(shift_to_centres(dt_binedges), dt_data, yerr=np.sqrt(dt_data))
+    plt.xlabel(f'$dt_r$ - $dt_t$ for slab {id} (ps)')
+    plt.ylabel('Bin content (AU)')
+    plt.savefig(plot_file)
+    plt.clf()
 
 
 if __name__ == '__main__':
@@ -288,7 +307,7 @@ if __name__ == '__main__':
     # start iterations (will need to do monitor plots using i for iteration):
     for i in range(first_it, total_iter):
         print(f'Starting iteration {i}')
-        skew_vals = calculate_skews(input_files, conf, skew_vals)
+        skew_vals = calculate_skews(input_files, conf, skew_vals, i)
 
     ## Save the skew values, change to format expected for PETsys?
     print('Requested iterations complete, output text file.')
