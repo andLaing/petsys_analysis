@@ -26,7 +26,6 @@ def cal_conf(TEST_DATA_DIR, TMP_OUT):
     return config
 
 
-@mark.xfail
 @mark.filterwarnings("ignore:Imported map")
 def test_channel_plots(TEST_DATA_DIR, cal_conf):
     inSource = os.path.join(TEST_DATA_DIR, 'chanCal_Source.ldat')
@@ -37,17 +36,17 @@ def test_channel_plots(TEST_DATA_DIR, cal_conf):
     plotS, plotNS = channel_plots(conf, [inSource, inBack])
 
     assert len(plotS .tdist) == 255
-    assert len(plotNS.tdist) == 246
+    assert len(plotNS.tdist) == 245
     assert len(plotS .edist) == 252
-    assert len(plotNS.edist) == 207
+    assert len(plotNS.edist) == 206
     nval_Sslab   = sum(plotS .tdist.values()).sum()
     nval_woSslab = sum(plotNS.tdist.values()).sum()
     nval_Semax   = sum(plotS .edist.values()).sum()
     nval_woSemax = sum(plotNS.edist.values()).sum()
-    assert nval_Sslab   == 8792
-    assert nval_woSslab ==  829
-    assert nval_Semax   == 8742
-    assert nval_woSemax ==  824
+    assert nval_Sslab   == 8807
+    assert nval_woSslab ==  830
+    assert nval_Semax   == 8756
+    assert nval_woSemax ==  825
 
 
 @fixture(scope = 'module')

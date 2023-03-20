@@ -17,7 +17,7 @@ Options:
 import os
 import configparser
 
-from docopt      import docopt
+from docopt import docopt
 
 import matplotlib.pyplot as plt
 import numpy             as np
@@ -28,12 +28,10 @@ from pet_code.src.filters  import filter_event_by_impacts
 from pet_code.src.fits     import curve_fit_fn
 from pet_code.src.fits     import fit_gaussian
 from pet_code.src.fits     import lorentzian
-from pet_code.src.fits     import gaussian
 from pet_code.src.io       import ChannelMap
 from pet_code.src.io       import read_petsys_filebyfile
 from pet_code.src.plots    import ChannelEHistograms
 from pet_code.src.util     import ChannelType
-from pet_code.src.util     import select_mod_wrapper
 from pet_code.src.util     import shift_to_centres
 
 
@@ -178,9 +176,9 @@ def channel_plots(config, infiles):
     ebins     = np.arange(*tuple(map(float, config.get('output',     'ebinning', fallback='7,40,0.4') .split(','))))
 
     plotS     = ChannelEHistograms(tbins, ebins, esum_bins)
-    splots    = plotS .add_emax_evt#select_mod_wrapper(plotS .add_emax_evt, chan_map.get_minimodule)
+    splots    = plotS .add_emax_evt
     plotNS    = ChannelEHistograms(tbins, ebins, esum_bins)
-    nsplots   = plotNS.add_emax_evt#select_mod_wrapper(plotNS.add_emax_evt, chan_map.get_minimodule)
+    nsplots   = plotNS.add_emax_evt
 
     reader    = read_petsys_filebyfile(chan_map.ch_type, sm_filter=filt, singles=True)
     for fn in infiles:
