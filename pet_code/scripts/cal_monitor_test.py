@@ -20,7 +20,7 @@ def test_plots(TEST_DATA_DIR):
     ch_map    = ChannelMap(map_file)
     typ       = np.vectorize(ch_map.get_channel_type)
     ## Random values for ids and energies
-    nevt      = 100 * ch_map.mapping.shape[0]
+    nevt      = 500 * ch_map.mapping.shape[0]
     ids       = np.random.choice(ch_map.mapping.index, size=(nevt, 1))
     test_data = np.hstack((ids, typ(ids), np.full((ids.shape[0], 1), 0),
                            np.random.normal(15, 3, (nevt, 1))))

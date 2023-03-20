@@ -76,10 +76,11 @@ def output_time_plots(histos, cal_name, out_dir, file_name, min_stats):
     plt.clf()
 
     bcent, gvals, pars, _ = fit_gaussian(slab_sum, histos.edges[htype])
-    plt.errorbar(bcent, slab_sum, yerr=np.sqrt(slab_sum), label='Binned values')
-    plt.plot(bcent, gvals, label=f'Fit: mu = {pars[1]}, sigma = {pars[2]}')
+    plt.errorbar(bcent, slab_sum, yerr=np.sqrt(slab_sum), label='Energy distribution')
+    plt.plot(bcent, gvals, label=f'Fit: mu = {round(pars[1], 3)}, sigma = {round(pars[2], 3)}')
     plt.xlabel('Time channel energy (keV)')
     plt.ylabel('AU')
+    plt.legend()
     plt.savefig(os.path.join(out_dir, file_name.split('/')[-1].replace('.ldat', f'{cal_name}_timeAllDist.png')))
     plt.clf()
     ##
@@ -111,13 +112,13 @@ def output_energy_plots(histos, cal_name, out_dir, file_name, setup, no_super):
                                                  dist                 ,
                                                  yerr  = np.sqrt(dist),
                                                  label = 'dataset'    )
-            fig_ax[sm][1].flatten()[mm].plot(bcent, gvals, label=f'Fit: mu = {pars[1]}, sigma = {pars[2]}')
+            fig_ax[sm][1].flatten()[mm].plot(bcent, gvals, label=f'Fit: mu = {round(pars[1], 3)}, sigma = {round(pars[2], 3)}')
             fig_ax[sm][1].flatten()[mm].set_xlabel(f'mM {mm} energy sum (au)')
             fig_ax[sm][1].flatten()[mm].set_ylabel('AU')
             fig_ax[sm][1].flatten()[mm].legend()
             mu_vals .append(pars[1])
             sig_vals.append(pars[2])
-            peak_out.write(f'{sm}\t{mm}\t{pars[1]}\t{pars[2]}\n')
+            peak_out.write(f'{sm}\t{mm}\t{round(pars[1], 3)}\t{round(pars[2], 3)}\n')
 
     for i, (fig, _) in fig_ax.items():
         out_name = os.path.join(out_dir, file_name.split('/')[-1].replace('.ldat', f'{cal_name}_MMEngs_sm{i}.png'))
@@ -143,10 +144,11 @@ def output_energy_plots(histos, cal_name, out_dir, file_name, setup, no_super):
     plt.clf()
 
     bcent, gvals, pars, _ = fit_gaussian(all_eng, histos.edges[htype])
-    plt.errorbar(bcent, all_eng, yerr=np.sqrt(all_eng), label='Binned values')
-    plt.plot(bcent, gvals, label=f'Fit: mu = {pars[1]}, sigma = {pars[2]}')
+    plt.errorbar(bcent, all_eng, yerr=np.sqrt(all_eng), label='Energy distribution')
+    plt.plot(bcent, gvals, label=f'Fit: mu = {round(pars[1], 3)}, sigma = {round(pars[2], 3)}')
     plt.xlabel('All MM sum energy (keV)')
     plt.ylabel('AU')
+    plt.legend()
     plt.savefig(os.path.join(out_dir, file_name.split('/')[-1].replace('.ldat', f'{cal_name}_engAllDist.png')))
     plt.clf()
     ##
