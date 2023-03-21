@@ -1,3 +1,5 @@
+from itertools import chain
+
 from . util import np
 from . util import get_no_eng_channels
 
@@ -156,10 +158,16 @@ def filter_max_sm(max_sm, sm_map):
     max_sm supermodules present.
     Only valid for coinc mode.
     """
-    vec_sm_map = np.vectorize(sm_map)
+    # vec_sm_map = np.vectorize(sm_map)
     def valid_event(sm1, sm2):
-        all_ids = np.vstack((sm1, sm2))[:, 0].astype('int')
-        return np.unique(vec_sm_map(all_ids)).shape[0] <= max_sm
+        sm_set = set()
+        for imp in chain(sm1, sm2):
+            sm_set.add(sm_map(imp[0]))
+            if not (v_evt := len(sm_set) <= max_sm):
+                break
+        return v_evt
+        # all_ids = np.vstack((sm1, sm2))[:, 0].astype('int')
+        # return np.unique(vec_sm_map(all_ids)).shape[0] <= max_sm
     return valid_event
 
 
