@@ -58,7 +58,7 @@ def test_filter_impacts_one_minimod(TEST_DATA_DIR, DUMMY_EVT):
 
 
 def test_filter_channel_list(DUMMY_EVT):
-    test_valid_channels   = {64, 112, 697, 699}
+    test_valid_channels   = {64, 65, 66, 67, 69, 112, 113, 115, 116, 117, 118, 119, 120, 121}
     test_invalid_channels = { 1,   2,   3}
     evt_select_valid      = filter_channel_list(test_valid_channels)
     evt_select_invalid    = filter_channel_list(test_invalid_channels)
