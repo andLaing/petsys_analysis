@@ -130,7 +130,8 @@ def filter_negatives(sm):
     """
     if not sm:
         return True
-    return all(np.asarray(sm)[:, 3] > 0)
+    # return all(np.asarray(sm)[:, 3] > 0)
+    return all(imp[3] > 0 for imp in sm)
 
 
 def filter_event_by_impacts_noneg(min_sm, singles=False):
