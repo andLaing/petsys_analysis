@@ -346,19 +346,18 @@ def corrected_time_difference(impact_sel: Callable[[   tuple], tuple],
     return _correct_dt
 
 
-# Need to review all of this. Clearly repetition.
-# Should be a general energy selection for all? Lookup?
-def ctr(time_ch, peaks, skew=pd.Series(dtype=float)):
+def ctr(eselect, skew=pd.Series(dtype=float)):
     """
-    CTR
+    CTR function.
+    Returns a function that calculates the timestamp
+    difference for a coincidence event given the
+    energy selection (eselect) and skew correction values (skew)
     """
     def timestamp_difference(evt):
-        try:
-            chns = [select_max_energy(sm, time_ch) for sm in evt]
-        except ValueError:
-            return
-        if peaks[0][chns[0][0]](chns[0][3]) and peaks[1][chns[1][0]](chns[1][3]):
-            return chns[0][2] - chns[1][2] + skew.get(chns[1][0], 0.0) - skew.get(chns[0][0], 0.0)
+        chns = [chn for sm in evt if (chn := select_max_energy(sm, ChannelType.TIME))]
+        if len(chns) == 2 and eselect(chns[0][3]) and eselect(chns[1][3]):
+            skew_corr = skew.get(chns[1][0], 0.0) - skew.get(chns[0][0], 0.0)
+            return chns[0][2] - chns[1][2] + skew_corr
         return
     return timestamp_difference
 
