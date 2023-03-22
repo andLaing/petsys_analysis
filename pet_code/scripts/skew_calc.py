@@ -2,7 +2,7 @@
 
 """Calculate the skew for each channel in a two super module set-up
 
-Usage: skew_calc.py (--conf CONFFILE) [-n NCORE] [--it NITER] [--firstit FITER] [-r] INFILES ...
+Usage: skew_calc.py (--conf CONFFILE) [-n NCORE] [--it NITER] [--firstit FITER] [--sk SKEW] [-r] INFILES ...
 
 Arguments:
     INFILES File(s) to be processed.
@@ -14,6 +14,7 @@ Options:
     -n=NCORE         Number of cores for processing [default: 2]
     --it=NITER       Number of iterations over data [default: 3]
     --firstit=FITRE  Iteration at which to start    [default: 0]
+    --sk=SKEW        Existing skew file to be used if FITEr != 0.
     -r               Recalculate from 0 assuming dt files available.
 """
 
@@ -284,12 +285,10 @@ if __name__ == '__main__':
     elec_cols   = ['#portID', 'slaveID', 'chipID', 'channelID']
     if first_it != 0:
         # Probably want to update formats?
-        skew_vals       = pd.read_csv(skew_file, sep='\t')
+        skew_vals       = pd.read_csv(args['--sk'], sep='\t')
         skew_vals['id'] = skew_vals.apply(lambda r: get_absolute_id(*r[elec_cols]),
                                           axis=1).astype('int')
         skew_vals       = skew_vals.set_index('id')['tOffset (ps)']
-        # Let's not overwrite existing outputs.
-        skew_file = skew_file.replace('.txt', '_recalc.txt')
     else:
         ch_map    = ChannelMap(conf.get('mapping', 'map_file'))
         all_ids   = ch_map.mapping.index
