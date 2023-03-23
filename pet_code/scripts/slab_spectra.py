@@ -15,79 +15,93 @@ import os
 import configparser
 
 from docopt    import docopt
-from itertools import repeat
+from itertools import chain
 
 import matplotlib.pyplot as plt
 import numpy  as np
 
-from pet_code.src.filters  import filter_event_by_impacts
-from pet_code.src.filters  import filter_impacts_one_minimod
-from pet_code.src.filters  import filter_impacts_specific_mod
-from pet_code.src.io       import read_petsys_filebyfile
-from pet_code.src.io       import read_ymlmapping
-from pet_code.src.plots    import slab_energy_spectra
-from pet_code.src.util     import calibrate_energies
-from pet_code.src.util     import centroid_calculation
-from pet_code.src.util     import slab_energy_centroids
+from pet_code.src.filters import filter_event_by_impacts
+from pet_code.src.filters import filter_impacts_one_minimod
+from pet_code.src.filters import filter_impacts_module_list
+from pet_code.src.fits    import fit_gaussian
+from pet_code.src.io      import ChannelMap
+from pet_code.src.io      import read_petsys_filebyfile
+from pet_code.src.plots   import ChannelEHistograms
+from pet_code.src.util    import ChannelType
+from pet_code.src.util    import calibrate_energies
+from pet_code.src.util    import shift_to_centres
+
+
+def accept_channel(channel_set):
+    def _accept(imp):
+        return imp[1] is ChannelType.TIME and imp[0] in channel_set
+    return _accept
+
 
 if __name__ == '__main__':
     args   = docopt(__doc__)
     conf   = configparser.ConfigParser()
     conf.read(args['--conf'])
 
-    map_file = conf.get('mapping', 'map_file')#'pet_code/test_data/SM_mapping_corrected.yaml' # shouldn't be hardwired
+    map_file = conf.get('mapping', 'map_file')
     infile   = args['INFILE']
 
-    time_ch, eng_ch, mm_map, centroid_map, slab_map = read_ymlmapping(map_file)
+    chan_map  = ChannelMap(map_file)
     filt_type = conf.get('filter', 'type', fallback='Impacts')
+    singles   = 'coinc' not in infile
     # Should improve with an enum or something
     if 'Impacts'    in filt_type:
         min_chan   = conf.getint('filter', 'min_channels')
-        evt_select = filter_event_by_impacts(eng_ch, min_chan)
+        evt_select = filter_event_by_impacts(min_chan, singles=singles)
+        valid_ch   = accept_channel(set(chan_map.mapping.index))
     elif 'OneMod'   in filt_type:
         min_chan   = conf.getint('filter', 'min_channels')
-        evt_select = filter_impacts_one_minimod(eng_ch, min_chan)
+        singles    = 'coinc' not in infile
+        evt_select = filter_impacts_one_minimod(min_chan, chan_map.get_minimodule, singles=singles)
+        valid_ch   = accept_channel(set(chan_map.mapping.index))
     elif 'Specific' in filt_type:
         min_chan   = conf.getint('filter', 'min_channels')
-        # Still needs to be improved, re: index not obvious maybe
-        ref_indx   = conf.getint('filter', 'supermod_indx')
-        mm_num     = conf.getint('filter',   'mini_module')
-        evt_select = filter_impacts_specific_mod(ref_indx, mm_num, eng_ch, min_chan)
+        valid_sms  = tuple(map(int, conf.get('filter', 'sm_nums').split(',')))
+        valid_mms  = tuple(map(int, conf.get('filter', 'mm_nums').split(',')))
+        chan_set   = set(np.concatenate([chan_map.get_minimodule_channels(*v)
+                                         for v in np.vstack(np.stack(np.meshgrid(valid_sms, valid_mms)).T)]))
+        valid_ch   = accept_channel(chan_set)
+        evt_select = filter_impacts_module_list(chan_map.get_minimodule_channels,
+                                                valid_sms, valid_mms, min_chan, singles=singles)
     else:
-        print('No valid filter found, fallback to 4, 4 minimum energy channels')
-        evt_select = filter_event_by_impacts(eng_ch, 4)
+        print('No valid filter found, fallback to 4 minimum energy channels')
+        evt_select = filter_event_by_impacts(4, singles=singles)
+        valid_ch   = accept_channel(set(chan_map.mapping.index))
 
     time_cal = conf.get('calibration',   'time_channels', fallback='')
     eng_cal  = conf.get('calibration', 'energy_channels', fallback='')
-    cal_func = calibrate_energies(time_ch, eng_ch, time_cal, eng_cal)
+    cal_func = calibrate_energies(chan_map.get_chantype_ids, time_cal, eng_cal)
 
-    pet_reader = read_petsys_filebyfile(mm_map, evt_select)
-    filtered_events = list(map(cal_func, pet_reader(infile)))
-    ## Should we be filtering the events with multiple mini-modules in one sm?
-    c_calc     = centroid_calculation(centroid_map)
-    slab_dicts = slab_energy_centroids(filtered_events, c_calc, time_ch)
-
+    pet_reader = read_petsys_filebyfile(chan_map.ch_type, evt_select, singles=singles)
     out_dir    = conf.get('output', 'out_dir')
     if not os.path.isdir(out_dir):
         os.makedirs(out_dir)
 
     min_peak   = conf.getint('output', 'min_peak_fit', fallback=100)
-    bin_edges  = np.arange(*tuple(map(float, conf.get('output', 'binning', fallback='9,25,0.2').split(','))))
+    bin_edges  = np.arange(*map(float, conf.get('output', 'binning', fallback='9,25,0.2').split(',')))
     out_base   = os.path.join(out_dir, conf.get('output', 'out_file', fallback=infile.split('/')[-1]))
-    photo_peak = list(map(slab_energy_spectra, slab_dicts, repeat(out_base), repeat(min_peak), repeat(bin_edges)))
+    slab_plots = ChannelEHistograms(bin_edges, np.arange(1), np.arange(1))
+    for evt in map(cal_func, pet_reader(infile)):
+        for imp in filter(valid_ch, chain(*evt)):
+            slab_plots.fill_time_channel(imp)
 
-    # reco_dt = group_times_slab(filtered_events, photo_peak, time_ch, ref_indx)
-    # # Source pos hardwired for tests, extract from data file?
-    # flight_time = time_of_flight(np.array([38.4, 38.4, 22.5986]))
-    # for ref_ch, tstps in reco_dt.items():
-    #     time_arr   = np.array(tstps)
-    #     dt_th      = flight_time(slab_map[ref_ch]) - np.fromiter((flight_time(slab_map[id]) for id in time_arr[:, 0]), float)
-    #     tstp_diff  = np.diff(time_arr[:, 1:], axis=1).flatten()
-    #     plt.hist(tstp_diff, bins=300, range=[-10000, 10000], histtype='step', fill=False, label = f"Ref ch {ref_ch}")
-    #     plt.hist(tstp_diff - dt_th, bins=300, range=[-10000, 10000], histtype='step', fill=False, label = f"Ref ch {ref_ch} theory corr dt")
-    #     plt.xlabel(f'tstp ch {ref_ch} - tstp coinc (ps)')
-    #     plt.legend()
-    #     ## Temp hardwire!!
-    #     out_name = 'test_plots/slab_filt/' + file_list[0].split('/')[-1].replace('.ldat', '_timeCoincRef' + str(ref_ch) + '.png')
-    #     plt.savefig(out_name)
-    #     plt.clf()
+    bwid = np.diff(bin_edges)[0]
+    for id, hist in slab_plots.tdist.items():
+        plt.errorbar(shift_to_centres(bin_edges), hist, yerr=np.sqrt(hist), label='energy histogram')
+        try:
+            bcent, gvals, pars, _ = fit_gaussian(hist, bin_edges, min_peak=min_peak)
+            plt.plot(bcent, gvals, label=f'Gaussian fit: mu = {round(pars[1], 2)}, sigma = {round(pars[2], 2)}')
+        except RuntimeError:
+            max_bin = np.argmax(hist)
+            minE, maxE = bin_edges[max_bin - 8], bin_edges[max_bin + 8]
+            plt.axvspan(minE, maxE, facecolor='#00FF00' , alpha = 0.3, label='Max +- 8 bins')
+        plt.xlabel(f'Energy spectrum channel {id}')
+        plt.ylabel(f'Entries per {bwid} counts')
+        plt.legend()
+        plt.savefig(out_base.replace('.ldat', f'_slab{id}Spec.png'))
+        plt.clf()
