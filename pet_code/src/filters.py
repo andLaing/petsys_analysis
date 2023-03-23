@@ -112,16 +112,18 @@ def filter_impacts_channel_list(valid_channels, min_ch, mm_map):
     return valid_event
 
 
-def filter_impacts_specific_mod(sm_num, mm_num, mm_map, min_sm):
+def filter_impacts_module_list(smMm_to_id, sms, mms, min_sm, singles=False):
     """
     Combines requirements of impacts, specific mm and
     that only one module hit in both sm.
     """
-    sel_mm    = filter_specific_mm(sm_num, mm_num, mm_map)
-    ch_filter = filter_impact(min_sm)
+    sel_mm     = filter_module_list(smMm_to_id, sms, mms)
+    ch1_filter = filter_impact(min_sm)
+    ch2_filter = ch1_filter
+    if singles:
+        ch2_filter = lambda x: True
     def valid_event(sm1, sm2):
-        return sel_mm(sm1, sm2) and filter_one_minimod(sm1, sm2, mm_map)\
-                and ch_filter(sm1) and ch_filter(sm2)
+        return sel_mm(sm1, sm2) and ch1_filter(sm1) and ch2_filter(sm2)
     return valid_event
 
 
