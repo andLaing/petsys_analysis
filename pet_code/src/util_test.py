@@ -3,6 +3,7 @@ import os
 from pytest        import mark, fixture
 from numpy.testing import assert_almost_equal
 
+from . io   import ChannelMap
 from . io   import read_ymlmapping
 from . io   import ChannelMap
 from . util import c_vac
@@ -14,6 +15,7 @@ from . util import get_no_eng_channels
 from . util import get_absolute_id
 from . util import get_electronics_nums
 from . util import get_supermodule_eng
+from . util import mm_energy_centroids
 from . util import time_of_flight
 
 
@@ -92,3 +94,19 @@ def test_bar_source_dt():
     exp_dt   = [-560 * np.sqrt(2) / c_vac_ps,
                 (2 * 14.2468471 - np.linalg.norm(slab_pos[3] - slab_pos[1])) / c_vac_ps]
     np.testing.assert_allclose(dts[:2], exp_dt)
+
+
+@mark.filterwarnings("ignore:Imported map")
+def test_mm_energy_centroids(TEST_DATA_DIR, DUMMY_EVT):
+    map_file = os.path.join(TEST_DATA_DIR, 'twoSM_IMAS_map.feather')
+    chan_map = ChannelMap(map_file)
+    c_calc   = centroid_calculation(chan_map.plotp)
+
+    mm_cent = mm_energy_centroids(c_calc, chan_map.get_supermodule, chan_map.get_minimodule)
+
+    dummy_with_enum = tuple(map(enum_dummy, DUMMY_EVT))
+    centroids       = mm_cent([dummy_with_enum])
+    assert len(centroids.keys()) == 2
+    assert all(c in [0, 2] for c in centroids.keys())
+    assert len(centroids[0].keys()) == 1
+    assert len(centroids[2].keys()) == 1

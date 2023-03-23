@@ -1,4 +1,4 @@
-from typing import Callable, List, Union
+from typing import Callable, List, Tuple, Union
 
 import matplotlib.pyplot as plt
 
@@ -47,13 +47,13 @@ def mm_energy_spectra(setup='tbpet', plot_output=None, min_peak=150, brange=(0, 
     return
                  List of energy selection filters.
     """
-    if   plot_output and setup == 'tbpet' :
+    if   setup == 'tbpet' :
         nrow    = 4
         ncol    = 4
         psize   = (15, 15)
         flbins  = 500
         flrange = [[0, 104], [0, 104]]
-    elif plot_output and setup == 'ebrain':
+    elif setup == 'ebrain':
         nrow  = 8
         ncol  = 2
         psize = (20, 15)
@@ -66,11 +66,11 @@ def mm_energy_spectra(setup='tbpet', plot_output=None, min_peak=150, brange=(0, 
         psize   = (15, 15)
         flbins  = 500
         flrange = [[0, 104], [0, 104]]
-    def _make_plot(module_xye, sm_label):
+    def _make_plot(sm_label, module_xye):
         """
         module_xye  : Dict
                       Supermodule xyz lists for each mm
-                      key is mm number (1--),
+                      key is mm number (0--),
         sm_label    : int
                       A label for the plots of which SM
                       is being processed.
@@ -122,7 +122,7 @@ def mm_energy_spectra(setup='tbpet', plot_output=None, min_peak=150, brange=(0, 
             plt.savefig(out_name)
             plt.clf()
         else:
-            for j in range(1, 17):
+            for j in range(nrow * ncol):
                 try:
                     bin_vals, bin_edges = np.histogram(module_xye[j]['energy'], bins=200, range=brange)
                 except KeyError:
@@ -346,19 +346,18 @@ def corrected_time_difference(impact_sel: Callable[[   tuple], tuple],
     return _correct_dt
 
 
-# Need to review all of this. Clearly repetition.
-# Should be a general energy selection for all? Lookup?
-def ctr(time_ch, peaks, skew=pd.Series(dtype=float)):
+def ctr(eselect, skew=pd.Series(dtype=float)):
     """
-    CTR
+    CTR function.
+    Returns a function that calculates the timestamp
+    difference for a coincidence event given the
+    energy selection (eselect) and skew correction values (skew)
     """
     def timestamp_difference(evt):
-        try:
-            chns = [select_max_energy(sm, time_ch) for sm in evt]
-        except ValueError:
-            return
-        if peaks[0][chns[0][0]](chns[0][3]) and peaks[1][chns[1][0]](chns[1][3]):
-            return chns[0][2] - chns[1][2] + skew.get(chns[1][0], 0.0) - skew.get(chns[0][0], 0.0)
+        chns = [chn for sm in evt if (chn := select_max_energy(sm, ChannelType.TIME))]
+        if len(chns) == 2 and eselect(chns[0][3]) and eselect(chns[1][3]):
+            skew_corr = skew.get(chns[1][0], 0.0) - skew.get(chns[0][0], 0.0)
+            return chns[0][2] - chns[1][2] + skew_corr
         return
     return timestamp_difference
 
@@ -426,7 +425,7 @@ class ChannelEHistograms:
 
     # Used for channel equalization/peak value plots
     # Will normally be used with singles but general just in case
-    def add_emax_evt(self, evt) -> None:
+    def add_emax_evt(self, evt: Tuple[List, List]) -> None:
         # time channels
         tchn_map = map(select_max_energy, evt, [ChannelType.TIME]*2)
         chns = list(filter(lambda x: x, tchn_map))
@@ -436,8 +435,18 @@ class ChannelEHistograms:
         # energy channels
         if chns:
             echn_map = map(select_max_energy, evt, [ChannelType.ENERGY]*2)
-            chns = list(filter(lambda x: x, echn_map))
-            for echn in chns:
+            for echn in filter(lambda x: x, echn_map):
                 self.fill_energy_channel(echn)
 
+    def add_all_energies(self, evt: Tuple[List, List], sms: List[Tuple]) -> None:
+        """
+        Time channel energy plots for all occurences and
+        energy sums for each minimodule.
+        """
+        for imps, sm_mm in zip(evt, sms):
+            # time channels
+            for imp in filter(lambda i: i[1] is ChannelType.TIME, imps):
+                self.fill_time_channel(imp)
+
+            self.fill_esum(imps, sm_mm)
 

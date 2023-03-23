@@ -252,20 +252,19 @@ def test_ChannelMap(TEST_DATA_DIR):
     assert all(ch_map.get_minimodule_channels(0, 4) == exp_mm4)
 
 
+@pytest.mark.filterwarnings("ignore:Imported map")
 def test_write_event_trace(TEST_DATA_DIR, TMP_OUT, DUMMY_SM):
-    test_yml         = os.path.join(TEST_DATA_DIR, "SM_mapping.yaml")
-    *_, mm_map, centroid_map, _ = read_ymlmapping(test_yml)
+    map_file = os.path.join(TEST_DATA_DIR, 'twoSM_IMAS_map.feather')
+    chan_map = ChannelMap(map_file)
 
-    def mm_map_f(id):
-        return mm_map[id]
-
+    sm_map = chan_map.mapping[chan_map.mapping.supermodule == 2]
     tmp_out = os.path.join(TMP_OUT, 'first_test.txt')
     with open(tmp_out, 'w') as out_buf:
-        writer = write_event_trace(out_buf, centroid_map, mm_map_f)
+        writer = write_event_trace(out_buf, sm_map, chan_map.get_minimodule)
         writer(DUMMY_SM)
 
     with open(tmp_out) as txt_test:
         all_values = txt_test.read().split('\t')
         assert len(all_values    ) == 17
-        assert int(all_values[-1]) == 10
+        assert int(all_values[-1]) ==  8
         assert all(float(val) >= 0 for val in all_values[:-1])

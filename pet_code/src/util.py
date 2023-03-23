@@ -142,28 +142,53 @@ def select_mod_wrapper(fn, mm_map):
     return wrapped
 
 
+# def select_module(mm_map):
+#     """
+#     Select the mini module with
+#     highest energy in a SM.
+#     """
+#     # Is there a vectorize decorator?
+#     to_mm   = np.vectorize(mm_map)
+#     is_eng  = np.vectorize(lambda x: x is ChannelType.ENERGY)
+#     def select(sm_info):
+#         if not sm_info:
+#             return sm_info
+
+#         sm_arr  = np.asarray(sm_info, dtype='object')
+#         mms     = to_mm(sm_arr[:, 0])
+#         mms_uni = np.unique(mms)
+#         if mms_uni.shape[0] == 1:
+#             return sm_info
+
+#         e_chan = is_eng(sm_arr[:, 1])
+#         sums   = np.fromiter((sm_arr[(mms == mm) & e_chan, 3].sum() for mm in mms_uni), float)
+#         max_mm = mms_uni[np.argmax(sums)]
+#         return sm_arr[mms == max_mm, :].tolist()
+#     return select
+
+
 def select_module(mm_map):
     """
-    Select the mini module with
-    highest energy in a SM.
+    Select the mini module with highest energy in sm.
+    Version to avoid converting to numpy.
     """
-    # Is there a vectorize decorator?
-    to_mm   = np.vectorize(mm_map)
-    is_eng  = np.vectorize(lambda x: x is ChannelType.ENERGY)
+    def val_if_eng(impact):
+        return impact[3] if impact[1] is ChannelType.ENERGY else 0
+    
     def select(sm_info):
         if not sm_info:
             return sm_info
-
-        sm_arr  = np.asarray(sm_info, dtype='object')
-        mms     = to_mm(sm_arr[:, 0])
-        mms_uni = np.unique(mms)
-        if mms_uni.shape[0] == 1:
-            return sm_info
-
-        e_chan = is_eng(sm_arr[:, 1])
-        sums   = np.fromiter((sm_arr[(mms == mm) & e_chan, 3].sum() for mm in mms_uni), float)
-        max_mm = mms_uni[np.argmax(sums)]
-        return sm_arr[mms == max_mm, :].tolist()
+        
+        mm_dict = {}
+        for imp in sm_info:
+            mm = mm_map(imp[0])
+            try:
+                mm_dict[mm][0] += val_if_eng(imp)
+                mm_dict[mm][1].append(imp)
+            except KeyError:
+                mm_dict[mm] = [val_if_eng(imp), [imp]]
+                
+        return max(mm_dict.values(), key=lambda x: x[0])[1]
     return select
 
 
@@ -230,25 +255,34 @@ def time_of_flight(source_pos: np.ndarray):
     return flight_time
 
 
-def mm_energy_centroids(c_calc, mm_map, mod_sel=lambda sm: sm):
+def mm_energy_centroids(c_calc, sm_map, mm_map, mod_sel=lambda sm: sm):
     """
     Calculate centroid and energy for
     mini modules per event assuming
     one mini module per SM per event.
     """
     def _mm_ecentroids(events):
-        mod_dicts = [{}, {}]
+        mod_dicts = {}
         for evt in events:
-            sel_evt = tuple(map(mod_sel, evt))
-            for i, ((x, y, _), (_, eng)) in enumerate(zip(map(c_calc, sel_evt), map(get_supermodule_eng, sel_evt))):
-                if evt[i]:
-                    mm = mm_map(evt[i][0][0])
+            sel_evt = tuple(filter(lambda x: x, map(mod_sel, evt)))
+            for ev_sel in sel_evt:
+                sm = sm_map(ev_sel[0][0])
+                mm = mm_map(ev_sel[0][0])
+                x, y, _ = c_calc(ev_sel)
+                _, eng  = get_supermodule_eng(ev_sel)
+            # for ((x, y, _), (_, eng)) in zip(map(c_calc, sel_evt),
+            #                                  map(get_supermodule_eng, sel_evt)):
+            #     sm = sm_map(sel_evt[i][0][0])
+            #     mm = mm_map(sel_evt[i][0][0])
+                try:
+                    mod_dicts[sm][mm]['x'].append(x)
+                    mod_dicts[sm][mm]['y'].append(y)
+                    mod_dicts[sm][mm]['energy'].append(eng)
+                except KeyError:
                     try:
-                        mod_dicts[i][mm]['x'].append(x)
-                        mod_dicts[i][mm]['y'].append(y)
-                        mod_dicts[i][mm]['energy'].append(eng)
+                        mod_dicts[sm][mm] = {'x': [x], 'y': [y], 'energy': [eng]}
                     except KeyError:
-                        mod_dicts[i][mm] = {'x': [x], 'y': [y], 'energy': [eng]}
+                        mod_dicts[sm] = {mm: {'x': [x], 'y': [y], 'energy': [eng]}}
         return mod_dicts
     return _mm_ecentroids
 
@@ -275,22 +309,22 @@ def all_mm_energy_centroids(events, c_calc, eng_ch):
             
 
 
-def slab_energy_centroids(events, c_calc, time_ch):
+def slab_energy_centroids(events, c_calc):
     """
     Calculate centroids for mini module
     assuming one mini module per SM and
     save energy for the time channels.
     """
-    slab_dicts = [{}, {}]
+    slab_dicts = {}
     for evt in events:
-        for i, ((x, y, _), sm) in enumerate(zip(map(c_calc, evt), evt)):
-            for imp in filter(lambda x: x[0] in time_ch, sm):
+        for (x, y, _), sm in zip(map(c_calc, evt), evt):
+            for imp in filter(lambda x: x[1] is ChannelType.TIME, sm):
                 try:
-                    slab_dicts[i][imp[0]]['x'].append(x)
-                    slab_dicts[i][imp[0]]['y'].append(y)
-                    slab_dicts[i][imp[0]]['energy'].append(imp[3])
+                    slab_dicts[imp[0]]['x'].append(x)
+                    slab_dicts[imp[0]]['y'].append(y)
+                    slab_dicts[imp[0]]['energy'].append(imp[3])
                 except KeyError:
-                    slab_dicts[i][imp[0]] = {'x': [x], 'y': [y], 'energy': [imp[3]]}
+                    slab_dicts[imp[0]] = {'x': [x], 'y': [y], 'energy': [imp[3]]}
     return slab_dicts
 
 

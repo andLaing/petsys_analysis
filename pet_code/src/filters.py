@@ -1,3 +1,5 @@
+from itertools import chain
+
 from . util import np
 from . util import get_no_eng_channels
 
@@ -81,8 +83,8 @@ def filter_channel_list(valid_channels: np.ndarray):
     having channels in the valid list.
     """
     def valid_event(sm1, sm2):
-        return any(imp[0] in valid_channels for imp in sm1) or\
-               any(imp[0] in valid_channels for imp in sm2)
+        return all(imp[0] in valid_channels for imp in sm1) or\
+               all(imp[0] in valid_channels for imp in sm2)
     return valid_event
 
 
@@ -110,16 +112,18 @@ def filter_impacts_channel_list(valid_channels, min_ch, mm_map):
     return valid_event
 
 
-def filter_impacts_specific_mod(sm_num, mm_num, mm_map, min_sm):
+def filter_impacts_module_list(smMm_to_id, sms, mms, min_sm, singles=False):
     """
     Combines requirements of impacts, specific mm and
     that only one module hit in both sm.
     """
-    sel_mm    = filter_specific_mm(sm_num, mm_num, mm_map)
-    ch_filter = filter_impact(min_sm)
+    sel_mm     = filter_module_list(smMm_to_id, sms, mms)
+    ch1_filter = filter_impact(min_sm)
+    ch2_filter = ch1_filter
+    if singles:
+        ch2_filter = lambda x: True
     def valid_event(sm1, sm2):
-        return sel_mm(sm1, sm2) and filter_one_minimod(sm1, sm2, mm_map)\
-                and ch_filter(sm1) and ch_filter(sm2)
+        return sel_mm(sm1, sm2) and ch1_filter(sm1) and ch2_filter(sm2)
     return valid_event
 
 
@@ -130,7 +134,8 @@ def filter_negatives(sm):
     """
     if not sm:
         return True
-    return all(np.asarray(sm)[:, 3] > 0)
+    # return all(np.asarray(sm)[:, 3] > 0)
+    return all(imp[3] > 0 for imp in sm)
 
 
 def filter_event_by_impacts_noneg(min_sm, singles=False):
@@ -155,10 +160,16 @@ def filter_max_sm(max_sm, sm_map):
     max_sm supermodules present.
     Only valid for coinc mode.
     """
-    vec_sm_map = np.vectorize(sm_map)
+    # vec_sm_map = np.vectorize(sm_map)
     def valid_event(sm1, sm2):
-        all_ids = np.vstack((sm1, sm2))[:, 0].astype('int')
-        return np.unique(vec_sm_map(all_ids)).shape[0] <= max_sm
+        sm_set = set()
+        for imp in chain(sm1, sm2):
+            sm_set.add(sm_map(imp[0]))
+            if not (v_evt := len(sm_set) <= max_sm):
+                break
+        return v_evt
+        # all_ids = np.vstack((sm1, sm2))[:, 0].astype('int')
+        # return np.unique(vec_sm_map(all_ids)).shape[0] <= max_sm
     return valid_event
 
 

@@ -2,7 +2,7 @@
 
 """Calculate the skew for each channel in a two super module set-up
 
-Usage: skew_calc.py (--conf CONFFILE) [-n NCORE] [--it NITER] [--firstit FITER] [-r] INFILES ...
+Usage: skew_calc.py (--conf CONFFILE) [-n NCORE] [--it NITER] [--firstit FITER] [--sk SKEW] [-r] INFILES ...
 
 Arguments:
     INFILES File(s) to be processed.
@@ -14,6 +14,7 @@ Options:
     -n=NCORE         Number of cores for processing [default: 2]
     --it=NITER       Number of iterations over data [default: 3]
     --firstit=FITRE  Iteration at which to start    [default: 0]
+    --sk=SKEW        Existing skew file to be used if FITEr != 0.
     -r               Recalculate from 0 assuming dt files available.
 """
 
@@ -28,7 +29,7 @@ import pandas as pd
 
 from functools import partial
 
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 # import multiprocessing as mp
 from multiprocessing import cpu_count, get_context
@@ -47,29 +48,37 @@ from pet_code.src.util    import get_absolute_id
 from pet_code.src.util    import get_electronics_nums
 from pet_code.src.util    import select_energy_range
 from pet_code.src.util    import select_module
+from pet_code.src.util    import shift_to_centres
 
 
 def source_position(pos_conf):
     pos_to_mm  = pos_conf[ 'pos_to_mm']
     source_pos = pos_conf['source_pos']
-    def _source_position(sm_num, pos_num):
-        mm = pos_to_mm[sm_num][pos_num]
-        return mm, np.asarray(source_pos[sm_num][mm])
+    def _source_position(pos_num):
+        sm, mms = pos_to_mm[pos_num]
+        return sm, mms, np.asarray(source_pos[pos_num])
     return _source_position
 
 
-def get_references(file_name, source_p, correct=0):
+def get_references(file_name, source_p):
     """
     Extract supermodule and minimodule
     numbers for reference channels and
     the source position.
-    correct allows backward compatibility for old numbering
+    #correct allows backward compatibility for old numbering
     """
-    file_name_parts = file_name.split(os.sep)[-1].split('_')
-    SM_lab          = int(file_name_parts[1][ 8:9])
-    source_posNo    = int(file_name_parts[1][12: ])
-    mM_num, s_pos   = source_p(SM_lab, source_posNo)
-    return SM_lab + correct, mM_num, s_pos
+    file_label  = 'SourcePos'#Assume this is followed by position number
+    source_indx = file_name.find(file_label)
+    if source_indx == -1:
+        file_name_parts = file_name.split(os.sep)[-1].split('_')
+        SM_lab          = int(file_name_parts[1][ 8:9])
+        source_posNo    = int(file_name_parts[1][12: ])
+        pos_no          = int(str(SM_lab) + '00' + str(source_posNo).zfill(2))
+        sm, mms, s_pos  = source_p(pos_no)
+        return sm, mms, s_pos
+    source_pnum = int(file_name[source_indx + len(file_label):].split('_')[0])
+    SM_lab, mM_nums, s_pos = source_p(source_pnum)
+    return SM_lab, mM_nums, s_pos
 
 
 def geom_loc_point(file_name, ch_map, source_yml, corr_sm_no=0):
@@ -78,10 +87,11 @@ def geom_loc_point(file_name, ch_map, source_yml, corr_sm_no=0):
     and geometric dt for the 2 SM setup.
     REVIEW, a lot of inversion to adapt!
     """
-    (SM_lab,
-     mM_num,
-     s_pos ) = get_references(file_name, source_position(source_yml), corr_sm_no)
-    mm_channels = ch_map.get_minimodule_channels(SM_lab, mM_num)
+    (SM_lab ,
+     mM_nums,
+     s_pos  ) = get_references(file_name, source_position(source_yml))
+    mm_channels = np.concatenate([ch_map.get_minimodule_channels(SM_lab, mm)
+                                  for mm in mM_nums])
     valid_ids   = set(filter(lambda x: ch_map.get_channel_type(x) is ChannelType.TIME, mm_channels))
     def find_indx(evt):
         return 0 if evt[0][0] in valid_ids else 1
@@ -184,7 +194,7 @@ def process_raw_data(file_list, config, ch_map):
     return dt_filenames
 
 
-def calculate_skews(file_list, config, skew_values):
+def calculate_skews(file_list, config, skew_values, it=0):
     """
     Read files with channel numbers and calculated
     delta_t - delta_t_geom and calculate the bias
@@ -195,7 +205,13 @@ def calculate_skews(file_list, config, skew_values):
     rel_fact   = config.getfloat('filter', 'relax_fact')
     min_stats  = config.getint  ('filter',  'min_stats')
     hist_bins  = map(float, config.get('filter',  'hist_bins').split(','))
-    bias_calc  = peak_position(np.arange(*hist_bins), min_stats, skew_values)
+    try:
+        monitor_id = set(map(int, config.get('output', 'mon_ids').split(',')))
+    except (configparser.NoSectionError, configparser.NoOptionError):
+        monitor_id = {}
+    out_name   = os.path.join(*file_list[0].split(os.sep)[:-1], f'corrected_dt_it{it}_')
+    bias_calc  = peak_position(np.arange(*hist_bins), min_stats,
+                               skew_values, monitor_id, out_name)
     for fn in file_list:
         dt_df      = pd.read_feather(fn)
         biases     = dt_df.groupby('ref_ch', group_keys=False).apply(bias_calc)
@@ -203,7 +219,7 @@ def calculate_skews(file_list, config, skew_values):
     return corr_skews
 
 
-def peak_position(hist_bins, min_stats, skew):
+def peak_position(hist_bins, min_stats, skew, mon_ids={}, out_base='dt_monitor'):
     """
     Calculate the mean position of the delta time distribution
     corrected for theoretical difference and, optionally, skew.
@@ -218,6 +234,8 @@ def peak_position(hist_bins, min_stats, skew):
         skew_corr = skew.loc[delta_t.coinc_ch].values - ref_skew
 
         bin_vals, bin_edges = np.histogram(delta_t.corr_dt.values + skew_corr, bins=hist_bins)
+        if ref_ch in mon_ids:
+            output_plot(ref_ch, bin_vals, bin_edges, '_'.join((out_base, f'ch{ref_ch}.png')))
         try:
             *_, pars, _ = fit_gaussian(bin_vals, bin_edges, min_peak=min_stats)
         except RuntimeError:
@@ -226,6 +244,17 @@ def peak_position(hist_bins, min_stats, skew):
             return peak_mean if peak_mean else 0
         return pars[1]
     return calculate_bias
+
+
+def output_plot(id, dt_data, dt_binedges, plot_file):
+    """
+    Plots and saves a corrected dt distribution.
+    """
+    plt.errorbar(shift_to_centres(dt_binedges), dt_data, yerr=np.sqrt(dt_data))
+    plt.xlabel(f'$dt_r$ - $dt_t$ for slab {id} (ps)')
+    plt.ylabel('Bin content (AU)')
+    plt.savefig(plot_file)
+    plt.clf()
 
 
 if __name__ == '__main__':
@@ -256,12 +285,10 @@ if __name__ == '__main__':
     elec_cols   = ['#portID', 'slaveID', 'chipID', 'channelID']
     if first_it != 0:
         # Probably want to update formats?
-        skew_vals       = pd.read_csv(skew_file, sep='\t')
+        skew_vals       = pd.read_csv(args['--sk'], sep='\t')
         skew_vals['id'] = skew_vals.apply(lambda r: get_absolute_id(*r[elec_cols]),
                                           axis=1).astype('int')
         skew_vals       = skew_vals.set_index('id')['tOffset (ps)']
-        # Let's not overwrite existing outputs.
-        skew_file = skew_file.replace('.txt', '_recalc.txt')
     else:
         ch_map    = ChannelMap(conf.get('mapping', 'map_file'))
         all_ids   = ch_map.mapping.index
@@ -279,7 +306,7 @@ if __name__ == '__main__':
     # start iterations (will need to do monitor plots using i for iteration):
     for i in range(first_it, total_iter):
         print(f'Starting iteration {i}')
-        skew_vals = calculate_skews(input_files, conf, skew_vals)
+        skew_vals = calculate_skews(input_files, conf, skew_vals, i)
 
     ## Save the skew values, change to format expected for PETsys?
     print('Requested iterations complete, output text file.')

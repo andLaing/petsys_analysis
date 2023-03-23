@@ -13,7 +13,7 @@ from . filters import filter_multihit
 from . filters import filter_one_minimod
 from . filters import filter_channel_list
 from . filters import filter_module_list
-from . filters import filter_impacts_specific_mod
+from . filters import filter_impacts_module_list
 from . filters import filter_negatives
 from . filters import filter_event_by_impacts_noneg
 from . filters import filter_max_sm
@@ -58,7 +58,7 @@ def test_filter_impacts_one_minimod(TEST_DATA_DIR, DUMMY_EVT):
 
 
 def test_filter_channel_list(DUMMY_EVT):
-    test_valid_channels   = {64, 112, 697, 699}
+    test_valid_channels   = {64, 65, 66, 67, 69, 112, 113, 115, 116, 117, 118, 119, 120, 121}
     test_invalid_channels = { 1,   2,   3}
     evt_select_valid      = filter_channel_list(test_valid_channels)
     evt_select_invalid    = filter_channel_list(test_invalid_channels)
@@ -95,11 +95,11 @@ def test_filter_impacts_channel_list(TEST_DATA_DIR, DUMMY_EVT):
 
 
 @mark.filterwarnings("ignore:Imported map")
-def test_filter_impacts_specific_mod(TEST_DATA_DIR, DUMMY_EVT):
+def test_filter_impacts_module_list(TEST_DATA_DIR, DUMMY_EVT):
     map_file = os.path.join(TEST_DATA_DIR, 'twoSM_IMAS_map.feather')
     chan_map = ChannelMap(map_file)
 
-    evt_select = filter_impacts_specific_mod(0, 11, chan_map.get_minimodule, 4)
+    evt_select = filter_impacts_module_list(chan_map.get_minimodule_channels, 0, 11, 4)
 
     assert not evt_select(*DUMMY_EVT)
 
