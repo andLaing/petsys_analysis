@@ -341,3 +341,13 @@ def write_event_trace(file_buffer, sm_map, mm_lookup):#centroid_map, mm_map):
         file_buffer.write('\t'.join("{:.6f}".format(round(val, 6)) for val in channels))
         file_buffer.write('\t' + str(mini_mod) + '\n')
     return write_minimod
+
+
+## TEMP? Faster in Cython?
+def write_listmode(file_buffer):
+    """
+    Output linstmode binary with coincidence information
+    """
+    def write_coinc(*args):
+        pass
+    return write_coinc
