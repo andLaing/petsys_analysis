@@ -2,12 +2,14 @@ import os
 
 import pytest
 
-from . io import np
-from . io import read_petsys
-from . io import read_petsys_filebyfile
-from . io import read_petsys_singles
-from . io import read_ymlmapping
-from . io import write_event_trace
+from . io   import np
+from . io   import ChannelMap
+from . io   import read_petsys
+from . io   import read_petsys_filebyfile
+from . io   import read_petsys_singles
+from . io   import read_ymlmapping
+from . io   import write_event_trace
+from . util import ChannelType
 
 
 @pytest.fixture(scope = 'module')
@@ -40,7 +42,8 @@ def module_mapping():
                       73,  70,  98,  71, 100, 113, 115, 116, 117, 118, 119,
                      120, 121, 203, 201, 199, 197, 195, 193, 254, 255, 244,
                      245, 243, 242, 233, 240, 238, 241]
-    mapping = {}
+    mapping    = {}
+    ch_types   = {}
     FEM_num_ch = 256
     slab_num   =   1
     mM_energyMapping = {1:1,  2:5,  3:9 ,  4:13,  5:2,  6:6,  7:10,  8:14,
@@ -51,19 +54,28 @@ def module_mapping():
             abs_tch = t_ch + i * FEM_num_ch
             abs_ech = e_ch + i * FEM_num_ch
             mM_num_en = mM_energyMapping[mm_num]
-            mapping[abs_tch] = mm_num
-            mapping[abs_ech] = mM_num_en
+            mapping [abs_tch] = mm_num
+            mapping [abs_ech] = mM_num_en
+            ch_types[abs_tch] = ChannelType.TIME
+            ch_types[abs_ech] = ChannelType.ENERGY
 
             if slab_num%8 == 0:
                 mm_num += 1
             slab_num += 1
-    return mapping
+    def get_chtype(id):
+        return ch_types[id]
+    def get_mm(id):
+        return mapping[id]
+    def get_map_keys():
+        return mapping.keys()
+    return ch_types, get_mm, get_map_keys
 
 
 def test_read_petsys(TEST_DATA_DIR, module_mapping):
+    type_dict, _, map_keys = module_mapping
     infile = os.path.join(TEST_DATA_DIR,
                           "petsys_test_TB_SMGathered_120s_4.0OV_10T1_15T2_5E_coinc.ldat")
-    pet_reader = read_petsys(module_mapping)
+    pet_reader = read_petsys(type_dict)
     all_evts = [evt for evt in pet_reader([infile])]
 
     assert len(all_evts) == 20
@@ -73,42 +85,65 @@ def test_read_petsys(TEST_DATA_DIR, module_mapping):
     assert all(len(set(np.array(sm)[:, 0])) == len(sm) for _ , sm in all_evts)
     ids1 = [x[0] for evt in all_evts for x in evt[0]]
     ids2 = [x[0] for evt in all_evts for x in evt[1]]
-    assert set(ids1).issubset(module_mapping.keys())
-    assert set(ids2).issubset(module_mapping.keys())
+    assert set(ids1).issubset(map_keys())
+    assert set(ids2).issubset(map_keys())
+    assert all(x[1] is type_dict[x[0]] for evt in all_evts for sm in evt for x in sm)
     # Check energy and timestamp?
 
 
 def test_read_petsys_mod1(TEST_DATA_DIR, module_mapping):
+    type_dict, get_mm, _ = module_mapping
     infile = os.path.join(TEST_DATA_DIR,
                           "petsys_test_TB_SMGathered_120s_4.0OV_10T1_15T2_5E_coinc.ldat")
     def filt_one_mod(sm1, _):
-        return all(np.array(sm1)[:, 1] == 9)
-    pet_reader = read_petsys(module_mapping, filt_one_mod)
+        mms = np.fromiter(map(lambda x: get_mm(x[0]), sm1), int)
+        return all(mms == 9)
+    pet_reader = read_petsys(type_dict, filt_one_mod)
     all_evts = [evt for evt in pet_reader([infile])]
 
-    exp_evt1 = ([[696, 9, 1137456113288,  5.1196], [644, 9, 1137456104789,  4.9302],
-                 [697, 9, 1137456111320,  4.9263], [695, 9, 1137456114648,  4.1518],
-                 [694, 9, 1137456117132,  3.9170], [693, 9, 1137456116532,  3.0733],
-                 [692, 9, 1137456118194,  2.8072], [691, 9, 1137456118303,  2.3376],
-                 [689, 9, 1137456118804,  1.5792], [645, 9, 1137456105668,  0.5493],
-                 [642, 9, 1137456126721,  0.3673]],
-                [[  7, 5, 1137456110189, 22.7387], [  5, 5, 1137456110402, 19.2009],
-                 [  9, 5, 1137456110310, 17.8486], [  3, 5, 1137456111027, 16.4262],
-                 [ 63, 5, 1137456111874, 15.2988], [ 11, 5, 1137456111220, 14.6819],
-                 [ 62, 5, 1137456111221, 13.9333], [  1, 5, 1137456111258, 12.3697],
-                 [  4, 5, 1137456106047,  4.5095], [  6, 5, 1137456109639,  1.8361],
-                 [ 14, 5, 1137456119187,  1.3980], [ 10, 5, 1137456128473,  0.7132]])
+    exp_evt1 = ([[696, ChannelType.ENERGY, 1137456113288,  5.1196],
+                 [644, ChannelType.TIME  , 1137456104789,  4.9302],
+                 [697, ChannelType.ENERGY, 1137456111320,  4.9263],
+                 [695, ChannelType.ENERGY, 1137456114648,  4.1518],
+                 [694, ChannelType.ENERGY, 1137456117132,  3.9170],
+                 [693, ChannelType.ENERGY, 1137456116532,  3.0733],
+                 [692, ChannelType.ENERGY, 1137456118194,  2.8072],
+                 [691, ChannelType.ENERGY, 1137456118303,  2.3376],
+                 [689, ChannelType.ENERGY, 1137456118804,  1.5792],
+                 [645, ChannelType.TIME  , 1137456105668,  0.5493],
+                 [642, ChannelType.TIME  , 1137456126721,  0.3673]],
+                [[  7, ChannelType.ENERGY, 1137456110189, 22.7387],
+                 [  5, ChannelType.ENERGY, 1137456110402, 19.2009],
+                 [  9, ChannelType.ENERGY, 1137456110310, 17.8486],
+                 [  3, ChannelType.ENERGY, 1137456111027, 16.4262],
+                 [ 63, ChannelType.ENERGY, 1137456111874, 15.2988],
+                 [ 11, ChannelType.ENERGY, 1137456111220, 14.6819],
+                 [ 62, ChannelType.ENERGY, 1137456111221, 13.9333],
+                 [  1, ChannelType.ENERGY, 1137456111258, 12.3697],
+                 [  4, ChannelType.TIME  , 1137456106047,  4.5095],
+                 [  6, ChannelType.TIME  , 1137456109639,  1.8361],
+                 [ 14, ChannelType.TIME  , 1137456119187,  1.3980],
+                 [ 10, ChannelType.TIME  , 1137456128473,  0.7132]])
     assert len(all_evts) == 2
-    np.testing.assert_allclose(all_evts[0][0], exp_evt1[0], rtol=1e-4)
-    np.testing.assert_allclose(all_evts[0][1], exp_evt1[1], rtol=1e-4)
+    assert all(imp[0] == exp[0] for imp, exp in zip(all_evts[0][0], exp_evt1[0]))
+    assert all(imp[0] == exp[0] for imp, exp in zip(all_evts[0][1], exp_evt1[1]))
+    assert all(imp[1] is exp[1] for imp, exp in zip(all_evts[0][0], exp_evt1[0]))
+    assert all(imp[1] is exp[1] for imp, exp in zip(all_evts[0][1], exp_evt1[1]))
+    sm0     = np.asarray(all_evts[0][0])
+    sm1     = np.asarray(all_evts[0][1])
+    sm0_exp = np.asarray(exp_evt1[0]   )
+    sm1_exp = np.asarray(exp_evt1[1]   )
+    np.testing.assert_allclose(sm0[:, 2:].astype('float'), sm0_exp[:, 2:].astype('float'), rtol=1e-4)
+    np.testing.assert_allclose(sm1[:, 2:].astype('float'), sm1_exp[:, 2:].astype('float'), rtol=1e-4)
 
 # Should test in singles mode too once have a file.
 
 
 def test_read_petsys_singles(TEST_DATA_DIR, module_mapping):
+    type_dict, *_ = module_mapping
     infile = os.path.join(TEST_DATA_DIR, 'petsys_singles_test.ldat')
 
-    reader  = read_petsys_singles(infile, module_mapping)
+    reader  = read_petsys_singles(infile, type_dict)
     all_evt = [evt for evt in reader()]
 
     exp_ch = {525, 715, 717}
@@ -120,14 +155,15 @@ def test_read_petsys_singles(TEST_DATA_DIR, module_mapping):
                 1362231630985, 1362232428710, 1362233168959, 1362234228854]
     assert len(all_evt) == 20
     assert all(evt[0] in exp_ch for evt in all_evt)
-    assert all(evt[1] in exp_mm for evt in all_evt)
+    assert all(evt[1] is type_dict[evt[0]] for evt in all_evt)
     assert all(evt[2] == t for evt, t in zip(all_evt, exp_time))
 
 
 def test_read_petsys_filebyfile(TEST_DATA_DIR, module_mapping):
+    type_dict, _, map_keys = module_mapping
     infile = os.path.join(TEST_DATA_DIR,
                           "petsys_test_TB_SMGathered_120s_4.0OV_10T1_15T2_5E_coinc.ldat")
-    pet_reader = read_petsys_filebyfile(module_mapping)
+    pet_reader = read_petsys_filebyfile(type_dict)
     all_evts = [evt for evt in pet_reader(infile)]
 
     assert len(all_evts) == 20
@@ -137,8 +173,9 @@ def test_read_petsys_filebyfile(TEST_DATA_DIR, module_mapping):
     assert all(len(set(np.array(sm)[:, 0])) == len(sm) for _ , sm in all_evts)
     ids1 = [x[0] for evt in all_evts for x in evt[0]]
     ids2 = [x[0] for evt in all_evts for x in evt[1]]
-    assert set(ids1).issubset(module_mapping.keys())
-    assert set(ids2).issubset(module_mapping.keys())
+    assert set(ids1).issubset(map_keys())
+    assert set(ids2).issubset(map_keys())
+    assert all(x[1] is type_dict[x[0]] for evt in all_evts for sm in evt for x in sm)
     # Check energy and timestamp?
 
 
@@ -185,17 +222,49 @@ def test_nonyml_raises(TMP_TXT):
         catch = read_ymlmapping(TMP_TXT)
 
 
-def test_write_event_trace(TEST_DATA_DIR, TMP_OUT, DUMMY_SM):
-    test_yml         = os.path.join(TEST_DATA_DIR, "SM_mapping.yaml")
-    *_, centroid_map, _ = read_ymlmapping(test_yml)
+def test_ChannelMap(TEST_DATA_DIR):
+    test_map = os.path.join(TEST_DATA_DIR, "twoSM_IMAS_map.feather")
 
+    with pytest.warns(UserWarning):
+        ch_map = ChannelMap(test_map)
+
+    t_chans = [(  0,  4, (38.85, -79.45,   0.0   )), ( 52,  1, (12.95, -75.95,   0.0   )),
+               (200, 11, (64.75, -20.95,   0.0   )), (223, 15, (90.65, -14.55,   0.0   )),
+               (514,  5, (38.85, -27.65, 123.7971)), (567,  1, (12.95, -30.85, 123.7971)),
+               (720, 11, (64.75, -85.85, 123.7971)), (738, 15, (90.65, -92.25, 123.7971))]
+    assert all(ch_map.get_channel_type(id) is ChannelType.TIME for id, *_ in t_chans)
+    assert all(ch_map.get_supermodule (id) ==  0 for id, *_    in t_chans[ :4])
+    assert all(ch_map.get_supermodule (id) ==  2 for id, *_    in t_chans[4: ])
+    assert all(ch_map.get_minimodule  (id) == mm for id, mm, _ in t_chans)
+    assert all(np.allclose(ch_map.get_channel_position(id), pos) for id, _, pos in t_chans)
+
+    e_chans = [(  1,  5, (37.25, -64.75,   0.0   )), ( 53,  1, (24.15, -64.75,   0.0   )),
+               (201, 10, (53.55, -38.85,   0.0   )), (229, 15, (79.45, -12.95,   0.0   )),
+               (515,  5, (40.45, -38.85, 123.7971)), (572,  5, (27.65, -38.85, 123.7971)),
+               (724, 11, (56.75, -90.65, 123.7971)), (741, 15, (79.45, -90.65, 123.7971))]
+    assert all(ch_map.get_channel_type(id) is ChannelType.ENERGY for id, *_ in e_chans)
+    assert all(ch_map.get_supermodule (id) ==  0 for id, *_    in e_chans[ :4])
+    assert all(ch_map.get_supermodule (id) ==  2 for id, *_    in e_chans[4: ])
+    assert all(ch_map.get_minimodule  (id) == mm for id, mm, _ in e_chans)
+    assert all(np.allclose(ch_map.get_channel_position(id), pos) for id, _, pos in e_chans)
+
+    exp_mm4 = np.array([27, 28, 26, 24, 25, 22, 20, 23, 21, 19, 17, 18, 15, 16, 8, 0])
+    assert all(ch_map.get_minimodule_channels(0, 4) == exp_mm4)
+
+
+@pytest.mark.filterwarnings("ignore:Imported map")
+def test_write_event_trace(TEST_DATA_DIR, TMP_OUT, DUMMY_SM):
+    map_file = os.path.join(TEST_DATA_DIR, 'twoSM_IMAS_map.feather')
+    chan_map = ChannelMap(map_file)
+
+    sm_map = chan_map.mapping[chan_map.mapping.supermodule == 2]
     tmp_out = os.path.join(TMP_OUT, 'first_test.txt')
     with open(tmp_out, 'w') as out_buf:
-        writer = write_event_trace(out_buf, centroid_map)
+        writer = write_event_trace(out_buf, sm_map, chan_map.get_minimodule)
         writer(DUMMY_SM)
 
     with open(tmp_out) as txt_test:
         all_values = txt_test.read().split('\t')
         assert len(all_values    ) == 17
-        assert int(all_values[-1]) == 10
+        assert int(all_values[-1]) ==  8
         assert all(float(val) >= 0 for val in all_values[:-1])
