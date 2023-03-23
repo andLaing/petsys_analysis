@@ -309,22 +309,22 @@ def all_mm_energy_centroids(events, c_calc, eng_ch):
             
 
 
-def slab_energy_centroids(events, c_calc, time_ch):
+def slab_energy_centroids(events, c_calc):
     """
     Calculate centroids for mini module
     assuming one mini module per SM and
     save energy for the time channels.
     """
-    slab_dicts = [{}, {}]
+    slab_dicts = {}
     for evt in events:
-        for i, ((x, y, _), sm) in enumerate(zip(map(c_calc, evt), evt)):
-            for imp in filter(lambda x: x[0] in time_ch, sm):
+        for (x, y, _), sm in zip(map(c_calc, evt), evt):
+            for imp in filter(lambda x: x[1] is ChannelType.TIME, sm):
                 try:
-                    slab_dicts[i][imp[0]]['x'].append(x)
-                    slab_dicts[i][imp[0]]['y'].append(y)
-                    slab_dicts[i][imp[0]]['energy'].append(imp[3])
+                    slab_dicts[imp[0]]['x'].append(x)
+                    slab_dicts[imp[0]]['y'].append(y)
+                    slab_dicts[imp[0]]['energy'].append(imp[3])
                 except KeyError:
-                    slab_dicts[i][imp[0]] = {'x': [x], 'y': [y], 'energy': [imp[3]]}
+                    slab_dicts[imp[0]] = {'x': [x], 'y': [y], 'energy': [imp[3]]}
     return slab_dicts
 
 
