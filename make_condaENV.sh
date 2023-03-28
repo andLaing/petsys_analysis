@@ -7,54 +7,10 @@
 CONDA_ENV_NAME=crystal_cal
 YML_FILENAME=environment-${CONDA_ENV_NAME}.yml
 
-if ! which conda >> /dev/null
-then
-    mini_loc=$HOME/miniconda
-    if [ -d $mini_loc ];
-    then
-        CONDA_SH=$mini_loc/etc/profile.d/conda.sh
-        source $CONDA_SH
-    elif [ -d "$HOME/miniconda3" ];
-    then
-        CONDA_SH=$HOME/miniconda3/etc/profile.d/conda.sh
-        source $CONDA_SH
-    else
-        echo "miniconda not found at $mini_loc or other known locations."
-        echo "What do you want to do?"
-        echo "Choose from: EXIT (stop script) or"
-        echo "INSTALL (download and install miniconda) or"
-        echo "USE (indicate path to conda.sh)"
-        read do_me
-        case $do_me in
-            *EXIT*) return;;
-            *INSTALL*) install_miniconda;;
-            *USE*) activate_nonstandard_conda;;
-            *) echo "Unrecognised request exiting"; return;;
-        esac
-    fi
-fi
-
-bmod_time=$(date -r make_condaENV.sh +%s)
-if [ ! -f "$YML_FILENAME" ] || [ $bmod_time -gt $(date -r $YML_FILENAME +%s) ];
-then
-    echo "Environment file not found or older than make script."
-    echo "Generating $YML_FILENAME and associated conda environment."
-    make_conda_env
-    conda deactivate
-    activate_and_compile
-else
-    conda deactivate
+function activate_and_compile {
     conda activate ${CONDA_ENV_NAME}
-    util_time=$(date -r "$PWD/pet_code/src/io_util.pyx" +%s)
-    c_time=$(date -r "$PWD/pet_code/src/io_util.c" +%s)
-    if [ $util_time -gt $c_time ];
-    then
-        python setup.py develop
-    fi
-fi
-
-echo "Environment installed and activated, running tests."
-pytest -v
+    python setup.py develop
+}
 
 function make_conda_env {
     echo creating ${YML_FILENAME}
@@ -127,7 +83,52 @@ function install_miniconda {
     activate_and_compile
 }
 
-function activate_and_compile {
+# Start main
+if ! which conda >> /dev/null
+then
+    mini_loc=$HOME/miniconda
+    if [ -d $mini_loc ];
+    then
+        CONDA_SH=$mini_loc/etc/profile.d/conda.sh
+        source $CONDA_SH
+    elif [ -d "$HOME/miniconda3" ];
+    then
+        CONDA_SH=$HOME/miniconda3/etc/profile.d/conda.sh
+        source $CONDA_SH
+    else
+        echo "miniconda not found at $mini_loc or other known locations."
+        echo "What do you want to do?"
+        echo "Choose from: EXIT (stop script) or"
+        echo "INSTALL (download and install miniconda) or"
+        echo "USE (indicate path to conda.sh)"
+        read do_me
+        case $do_me in
+            *EXIT*) return;;
+            *INSTALL*) install_miniconda;;
+            *USE*) activate_nonstandard_conda;;
+            *) echo "Unrecognised request exiting"; return;;
+        esac
+    fi
+fi
+
+bmod_time=$(date -r make_condaENV.sh +%s)
+if [ ! -f "$YML_FILENAME" ] || [ $bmod_time -gt $(date -r $YML_FILENAME +%s) ];
+then
+    echo "Environment file not found or older than make script."
+    echo "Generating $YML_FILENAME and associated conda environment."
+    make_conda_env
+    conda deactivate
+    activate_and_compile
+else
+    conda deactivate
     conda activate ${CONDA_ENV_NAME}
-    python setup.py develop
-}
+    util_time=$(date -r "$PWD/pet_code/src/io_util.pyx" +%s)
+    c_time=$(date -r "$PWD/pet_code/src/io_util.c" +%s)
+    if [ $util_time -gt $c_time ];
+    then
+        python setup.py develop
+    fi
+fi
+
+echo "Environment installed and activated, running tests."
+pytest -v
