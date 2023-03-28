@@ -2,7 +2,7 @@ import numpy  as np
 import pandas as pd
 
 from enum   import auto, Enum
-from typing import List, Callable, Union
+from typing import Callable
 
 from scipy.constants import c as c_vac
 
@@ -12,7 +12,7 @@ class ChannelType(Enum):
     ENERGY = auto()
 
 
-def get_no_eng_channels(mod_data):
+def get_no_eng_channels(mod_data: list[list]) -> int:
     """
     Return the number of channels for energy
     measurement in the module data list.
@@ -20,7 +20,7 @@ def get_no_eng_channels(mod_data):
     return sum(x[1] is ChannelType.ENERGY for x in mod_data)
 
 
-def get_supermodule_eng(mod_data):
+def get_supermodule_eng(mod_data: list[list]) -> tuple[int, float]:
     """
     Return the number of channels for energy
     measurement in the module data and the
@@ -44,7 +44,10 @@ def energy_weighted_average(channel_pos: Callable,
     return _average
 
 
-def centroid_calculation(plot_pos, offset_x=0.00001, offset_y=0.00001):
+def centroid_calculation(plot_pos: dict           ,
+                         offset_x: float = 0.00001,
+                         offset_y: float = 0.00001
+                         ) -> Callable:
     """
     Calculates the centroid of a set of module
     data according to a centroid map.
@@ -52,7 +55,7 @@ def centroid_calculation(plot_pos, offset_x=0.00001, offset_y=0.00001):
     powers  = [1, 2]
     offsets = [offset_x, offset_y]
     plot_ax = ['local_x', 'local_y']
-    def centroid(data):
+    def centroid(data: list[list]) -> tuple[float, float, float]:
         """
         Calculate the average position of the time
         and energy channels and return them plus
@@ -71,7 +74,7 @@ def centroid_calculation(plot_pos, offset_x=0.00001, offset_y=0.00001):
     return centroid
 
 
-def slab_indx(pos):
+def slab_indx(pos: float) -> int:
     """
     Calculate the index of
     a slab in a mini-module using
@@ -92,7 +95,7 @@ def slab_indx(pos):
 #     if sm_num == 2:
 #         return round(100.8 - 3.2 * rc_num, 2)
 #     return round(1.6 + 3.2 * rc_num, 2)
-def slab_x(row):
+def slab_x(row: int) -> float:
     """
     Get the x position of the channel
     given the mm row.
@@ -111,7 +114,7 @@ def slab_x(row):
 #     current iteration of cal setup.
 #     """
 #     return round(103.6 - 25.9 * (0.5 + row), 2)
-def slab_y(rc_num, sm_num=1):
+def slab_y(rc_num: int, sm_num: int=1) -> float:
     """
     Get the y position of the channel
     given the slab in row number (rc_num).
@@ -130,7 +133,7 @@ def slab_y(rc_num, sm_num=1):
     return round(-103.6 + 1.75 + mm_wrap + 3.2 * rc_num, 2)
 
 
-def slab_z(sm_num):
+def slab_z(sm_num: int) -> float:
     """
     Get the z position of super module.
     TODO Generalise, hardwired for calibration setup.
@@ -138,19 +141,19 @@ def slab_z(sm_num):
     return 123.7971 if sm_num == 2 else 0
 
 
-def select_energy_range(minE, maxE):
+def select_energy_range(minE: float, maxE: float) -> Callable:
     """
     Return a function that can select
     energies in an open range (minE, maxE).
     """
-    def select_eng(eng_val):
+    def select_eng(eng_val: float) -> bool:
         return (eng_val > minE) & (eng_val < maxE)
     return select_eng
 
 
-def select_mod_wrapper(fn, mm_map):
+def select_mod_wrapper(fn: Callable, mm_map: Callable) -> Callable:
     sel_mod = select_module(mm_map)
-    def wrapped(evt):
+    def wrapped(evt: list[list]) -> list:
         max_mms = tuple(map(sel_mod, evt))
         return fn(max_mms)
     return wrapped
@@ -181,15 +184,15 @@ def select_mod_wrapper(fn, mm_map):
 #     return select
 
 
-def select_module(mm_map):
+def select_module(mm_map: Callable) -> Callable:
     """
     Select the mini module with highest energy in sm.
     Version to avoid converting to numpy.
     """
-    def val_if_eng(impact):
+    def val_if_eng(impact: list) -> int:
         return impact[3] if impact[1] is ChannelType.ENERGY else 0
     
-    def select(sm_info):
+    def select(sm_info: list[list]) -> list:
         if not sm_info:
             return sm_info
         
@@ -206,7 +209,7 @@ def select_module(mm_map):
     return select
 
 
-def get_electronics_nums(channel_id):
+def get_electronics_nums(channel_id: int) -> tuple[int, int, int, int]:
     """
     Calculates the electronics numbers:
     portID, slaveID, chipID, channelID
@@ -218,7 +221,11 @@ def get_electronics_nums(channel_id):
     return portID, slaveID, chipID, channelID
 
 
-def get_absolute_id(portID, slaveID, chipID, channelID):
+def get_absolute_id(portID   : int,
+                    slaveID  : int,
+                    chipID   : int,
+                    channelID: int
+                    ) -> int:
     """
     Calculates absolute channel id from
     electronics numbers.
@@ -226,7 +233,9 @@ def get_absolute_id(portID, slaveID, chipID, channelID):
     return 131072 * portID + 4096 * slaveID + 64 * chipID + channelID
 
 
-def select_max_energy(superm, chan_type=None):
+def select_max_energy(superm   : list[list]      ,
+                      chan_type: ChannelType=None
+                      ) -> list | None:
     """
     Select the channel with highest deposit.
     superm    : List
@@ -242,7 +251,7 @@ def select_max_energy(superm, chan_type=None):
         return None
 
 
-def shift_to_centres(bin_low_edge):
+def shift_to_centres(bin_low_edge: np.ndarray) -> np.ndarray:
     """
     Get the bin centres from a list/array
     of lower edges (standard bin labels).
@@ -250,7 +259,7 @@ def shift_to_centres(bin_low_edge):
     return bin_low_edge[:-1] + np.diff(bin_low_edge) * 0.5
 
 
-def time_of_flight(source_pos: np.ndarray):
+def time_of_flight(source_pos: np.ndarray) -> Callable:
     """
     Function to calculate time of flight
     for a gamma emitted from source_pos.
@@ -258,7 +267,7 @@ def time_of_flight(source_pos: np.ndarray):
                 source position (x, y, z) in mm.
     """
     c_mm_per_ps = c_vac * 1000 / 1e12
-    def flight_time(slab_pos: Union[List, np.ndarray]):
+    def flight_time(slab_pos: list | np.ndarray) -> float:
         """
         Get the time of flight from source to
         the given slab position in mm.
@@ -269,13 +278,17 @@ def time_of_flight(source_pos: np.ndarray):
     return flight_time
 
 
-def mm_energy_centroids(c_calc, sm_map, mm_map, mod_sel=lambda sm: sm):
+def mm_energy_centroids(c_calc : Callable              ,
+                        sm_map : Callable              ,
+                        mm_map : Callable              ,
+                        mod_sel: Callable=lambda sm: sm
+                        ) -> Callable:
     """
     Calculate centroid and energy for
     mini modules per event assuming
     one mini module per SM per event.
     """
-    def _mm_ecentroids(events):
+    def _mm_ecentroids(events: list[tuple]) -> dict:
         mod_dicts = {}
         for evt in events:
             sel_evt = tuple(filter(lambda x: x, map(mod_sel, evt)))
@@ -301,29 +314,29 @@ def mm_energy_centroids(c_calc, sm_map, mm_map, mod_sel=lambda sm: sm):
     return _mm_ecentroids
 
 
-def all_mm_energy_centroids(events, c_calc, eng_ch):
-    """
-    HAck for now to work with multiple mm per sm.
-    """
-    mod_dicts = [{}, {}]
-    for evt in events:
-        arr_evt = list(map(np.asarray, evt))
-        for i, sm in enumerate(arr_evt):
-            for mm in np.unique(sm[:, 1]):
-                mm_sel    = sm[sm[:, 1] == mm, :]
-                x, y  , _ = c_calc(mm_sel)
-                _, eng    = get_supermodule_eng(mm_sel, eng_ch)
-                try:
-                    mod_dicts[i][mm]['x'].append(x)
-                    mod_dicts[i][mm]['y'].append(y)
-                    mod_dicts[i][mm]['energy'].append(eng)
-                except KeyError:
-                    mod_dicts[i][mm] = {'x': [x], 'y': [y], 'energy': [eng]}
-    return mod_dicts
+# def all_mm_energy_centroids(events: list[tuple], c_calc: Callable, eng_ch):
+#     """
+#     HAck for now to work with multiple mm per sm.
+#     """
+#     mod_dicts = [{}, {}]
+#     for evt in events:
+#         arr_evt = list(map(np.asarray, evt))
+#         for i, sm in enumerate(arr_evt):
+#             for mm in np.unique(sm[:, 1]):
+#                 mm_sel    = sm[sm[:, 1] == mm, :]
+#                 x, y  , _ = c_calc(mm_sel)
+#                 _, eng    = get_supermodule_eng(mm_sel, eng_ch)
+#                 try:
+#                     mod_dicts[i][mm]['x'].append(x)
+#                     mod_dicts[i][mm]['y'].append(y)
+#                     mod_dicts[i][mm]['energy'].append(eng)
+#                 except KeyError:
+#                     mod_dicts[i][mm] = {'x': [x], 'y': [y], 'energy': [eng]}
+#     return mod_dicts
             
 
 
-def slab_energy_centroids(events, c_calc):
+def slab_energy_centroids(events: list[tuple], c_calc: Callable) -> dict:
     """
     Calculate centroids for mini module
     assuming one mini module per SM and
@@ -342,7 +355,11 @@ def slab_energy_centroids(events, c_calc):
     return slab_dicts
 
 
-def calibrate_energies(type_ids, time_cal, eng_cal, sep='\t'):
+def calibrate_energies(type_ids: Callable,
+                       time_cal: str     ,
+                       eng_cal : str     ,
+                       sep     : str='\t'
+                       ) -> Callable:
     """
     Equalize the energy for the channels
     given the peak positions in a file (for now)
@@ -369,7 +386,7 @@ def calibrate_energies(type_ids, time_cal, eng_cal, sep='\t'):
         ecal    = pd.Series(1, index=type_ids(ChannelType.ENERGY))
 
     cal = tcal.append(ecal).to_dict()
-    def apply_calibration(event):
+    def apply_calibration(event: tuple[list]) -> tuple[list]:
         for sm in event:
             for imp in sm:
                 imp[3] *= cal.get(imp[0], 0.0)#Effectively mask channels without calibration
