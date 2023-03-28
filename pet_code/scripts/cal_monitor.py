@@ -15,6 +15,7 @@ import os
 import configparser
 
 from docopt import docopt
+from typing import Callable
 
 import matplotlib.pyplot as plt
 import numpy             as np
@@ -29,13 +30,18 @@ from pet_code.src.util    import calibrate_energies
 from pet_code.src.util    import select_module
     
 
-def cal_and_sel(cal_func, sel_func):
-    def _cal_and_sel(evt):
+def cal_and_sel(cal_func: Callable, sel_func: Callable):
+    def _cal_and_sel(evt: tuple[list]) -> tuple:
         return tuple(map(sel_func, cal_func(evt)))
     return _cal_and_sel
 
 
-def output_time_plots(histos, cal_name, out_dir, file_name, min_stats):
+def output_time_plots(histos   : ChannelEHistograms,
+                      cal_name : str               ,
+                      out_dir  : str               ,
+                      file_name: str               ,
+                      min_stats: int
+                      ) -> None:
     """
     Make the energy plots for timeslabs.
     """
@@ -86,7 +92,13 @@ def output_time_plots(histos, cal_name, out_dir, file_name, min_stats):
     ##
 
 
-def output_energy_plots(histos, cal_name, out_dir, file_name, setup, no_super):
+def output_energy_plots(histos   : ChannelEHistograms,
+                        cal_name : str               ,
+                        out_dir  : str               ,
+                        file_name: str               ,
+                        setup    : str               ,
+                        no_super : int
+                        ) -> None:
     """
     Make the plots for the energy channels.
     """
