@@ -114,7 +114,7 @@ def test_geom_loc_point(TEST_DATA_DIR):
     ch_map = ChannelMap(map_file)
     with open(source_file) as sfile:
         source_yml = yaml.safe_load(sfile)
-    chan_list, find_indx, geom_dt = geom_loc_point(test_file, ch_map, source_yml, -1)
+    chan_list, find_indx, geom_dt = geom_loc_point(test_file, ch_map, source_yml)
 
     exp_chans = (245, 243, 242, 233, 240, 238, 241, 239,
                  253, 250, 251, 248, 249, 246, 247, 244)
