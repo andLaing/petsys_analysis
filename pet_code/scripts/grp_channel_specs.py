@@ -71,7 +71,7 @@ def slab_plots(out_file, plot_source, plot_wosource, min_stats):
             sig_err = np.sqrt(cov[2, 2])
             par_out.write(f'{id}\t{round(fit_pars[1], 3)}\t{round(mu_err, 3)}\t{round(fit_pars[2], 3)}\t{round(sig_err, 3)}\n')
             plt.errorbar(bcent, diff_data[min_indx:], yerr=bin_errs[min_indx:], label='distribution')
-            plt.plot(bcent, g_vals, label=f'Gaussian fit $\mu = {round(fit_pars[1], 2)}, \sigma = {round(fit_pars[2], 2)}$')
+            plt.plot(bcent, g_vals, label=f'Gaussian fit mu = {round(fit_pars[1], 2)}, sigma = {round(fit_pars[2], 2)}')
             plt.legend()
             plt.xlabel(f'Energy time channel {id}')
             plt.ylabel('source spec - no source spec (au)')

@@ -93,7 +93,7 @@ def mm_energy_spectra(setup='tbpet', plot_output=None, min_peak=150, brange=(0, 
                 try:
                     bcent, gvals, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
                     minE, maxE = pars[1] - nsigma * pars[2], pars[1] + nsigma * pars[2]
-                    ax.plot(bcent, gvals, label=f'fit $\mu$ = {round(pars[1], 3)},  $\sigma$ = {round(pars[2], 3)}')
+                    ax.plot(bcent, gvals, label=f'fit mu = {round(pars[1], 3)},  sigma = {round(pars[2], 3)}')
                 except RuntimeError:
                     minE, maxE = 0, 300
                 eng_arr = np.array(module_xye[j]['energy'])
@@ -169,7 +169,7 @@ def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150, bins=np.arange
                     minE, maxE = -1, 1
                 else:
                     minE, maxE = pars[1] - 2 * pars[2], pars[1] + 2 * pars[2]
-                plt.plot(bcent, gvals, label=f'fit $\mu$ = {round(pars[1], 3)},  $\sigma$ = {round(pars[2], 3)}')
+                plt.plot(bcent, gvals, label=f'fit mu = {round(pars[1], 3)},  sigma = {round(pars[2], 3)}')
             except RuntimeError:
                 print(f'Failed fit, slab {slab}')
                 minE, maxE = -1, 0
