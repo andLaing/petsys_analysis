@@ -35,7 +35,11 @@ from pet_code.src.util     import ChannelType
 from pet_code.src.util     import shift_to_centres
 
 
-def slab_plots(out_file, plot_source, plot_wosource, min_stats):
+def slab_plots(out_file     : str               ,
+               plot_source  : ChannelEHistograms,
+               plot_wosource: ChannelEHistograms,
+               min_stats    : int
+               ) -> None:
     bin_edges = plot_source.edges[ChannelType.TIME]
     with open(out_file + 'timeSlabPeaks.txt', 'w') as par_out:
         par_out.write('ID\tMU\tMU_ERR\tSIG\tSIG_ERR\n')
@@ -100,7 +104,10 @@ def refit_slab(out_file, id, bin_edges, source, nosource, diff_data, yerr):
     return bcent, indx, g_vals, fit_pars, cov
 
 
-def energy_plots(out_file, plot_source, plot_wosource):
+def energy_plots(out_file     : str               ,
+                 plot_source  : ChannelEHistograms,
+                 plot_wosource: ChannelEHistograms
+                 ) -> None:
     bin_edges = plot_source.edges[ChannelType.ENERGY]
     bin_wid   = np.diff(bin_edges[:2])[0]
     with open(out_file + 'eChannelPeaks.txt', 'w') as par_out:
@@ -154,14 +161,21 @@ def energy_plots(out_file, plot_source, plot_wosource):
             plt.clf()
 
 
-def weighted_average(axis, bin_cent, hdiff, hdiff_err, mask):
+def weighted_average(axis     : plt.Axes  ,
+                     bin_cent : np.ndarray,
+                     hdiff    : np.ndarray,
+                     hdiff_err: np.ndarray,
+                     mask     : np.ndarray
+                     ) -> tuple[np.ndarray, np.ndarray]:
     av_diff, wsum = np.average(bin_cent[mask], weights=hdiff[mask], returned=True)
     av_err        = average_error(bin_cent[mask], hdiff[mask], hdiff_err[mask], wsum)
     axis.axvspan(av_diff - av_err, av_diff + av_err, facecolor='#00FF00' , alpha = 0.3, label='Average diff')
     return av_diff, av_err
 
 
-def channel_plots(config, infiles):
+def channel_plots(config : configparser.ConfigParser,
+                  infiles: list[str]
+                  ) -> tuple:
     """
     Channel calibration function.
     """
@@ -171,9 +185,9 @@ def channel_plots(config, infiles):
     min_chan  = config.getint('filter', 'min_channels')
     filt      = filter_event_by_impacts(min_chan, singles=True)
 
-    esum_bins = np.arange(*tuple(map(float, config.get('output', 'esum_binning', fallback='0,300,1.5').split(','))))
-    tbins     = np.arange(*tuple(map(float, config.get('output',     'tbinning', fallback='5,30,0.2') .split(','))))
-    ebins     = np.arange(*tuple(map(float, config.get('output',     'ebinning', fallback='7,40,0.4') .split(','))))
+    esum_bins = np.arange(*map(float, config.get('output', 'esum_binning', fallback='0,300,1.5').split(',')))
+    tbins     = np.arange(*map(float, config.get('output',     'tbinning', fallback='5,30,0.2') .split(',')))
+    ebins     = np.arange(*map(float, config.get('output',     'ebinning', fallback='7,40,0.4') .split(',')))
 
     plotS     = ChannelEHistograms(tbins, ebins, esum_bins)
     splots    = plotS .add_emax_evt
@@ -191,14 +205,24 @@ def channel_plots(config, infiles):
     return plotS, plotNS
 
 
-def average_error(x, y, yerr, ysum):
+def average_error(x   : np.ndarray,
+                  y   : np.ndarray,
+                  yerr: np.ndarray,
+                  ysum: np.ndarray
+                  ) -> np.ndarray:
     bin_err = x / 2# Half bin width as error
     x_cont  = np.sum((y * bin_err)**2) / ysum**2
     y_cont  = np.sum(((x * ysum - y * x) * yerr)**2) / ysum**4
     return np.sqrt(x_cont + y_cont)
 
 
-def fail_plot(out_file, id, bin_e, s_vals, ns_vals, bin_errs):
+def fail_plot(out_file: str       ,
+              id      : int       ,
+              bin_e   : np.ndarray,
+              s_vals  : np.ndarray,
+              ns_vals : np.ndarray,
+              bin_errs: np.ndarray
+              ) -> None:
     plt.plot(bin_e[:-1], s_vals , label='Source')
     plt.plot(bin_e[:-1], ns_vals, label='No Source')
     plt.errorbar(bin_e[:-1], s_vals - ns_vals, yerr=bin_errs, label='difference')
