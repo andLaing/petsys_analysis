@@ -7,15 +7,17 @@ import pandas as pd
 from functools import lru_cache
 from itertools import chain, islice, repeat
 from warnings  import warn
+from typing    import Callable, Iterator, TextIO
 
 from . util    import ChannelType
 from . util    import slab_indx, slab_x, slab_y, slab_z
 from . io_util import coinc_evt_loop, singles_evt
 
-from typing import List, Tuple, Union # Once upgraded to python 3.9 not necessary
 
-
-def read_petsys(type_dict, sm_filter=lambda x, y: True, singles=False):
+def read_petsys(type_dict: dict                        ,
+                sm_filter: Callable = lambda x, y: True,
+                singles: bool       = False
+                ) -> Callable:
     """
     Reader for petsys output for a list of input files.
     All files yielded in single generator.
@@ -27,7 +29,7 @@ def read_petsys(type_dict, sm_filter=lambda x, y: True, singles=False):
     petsys_event: Fn, loops over input file list and yields
                       event information.
     """
-    def petsys_event(file_list):
+    def petsys_event(file_list: list[str]) -> Iterator:
         """
         file_list: List{String}
                    List of strings with the paths to the files of interest.
@@ -37,7 +39,10 @@ def read_petsys(type_dict, sm_filter=lambda x, y: True, singles=False):
     return petsys_event
 
 
-def read_petsys_filebyfile(type_dict, sm_filter=lambda x, y: True, singles=False):
+def read_petsys_filebyfile(type_dict: dict                        ,
+                           sm_filter: Callable = lambda x, y: True,
+                           singles: bool       = False
+                           ) -> Callable:
     """
     Reader for petsys output for a list of input files.
     type_dict : Lookup for the channel id
@@ -48,7 +53,7 @@ def read_petsys_filebyfile(type_dict, sm_filter=lambda x, y: True, singles=False
     petsys_event: Fn, loops over input file list and yields
                       event information.
     """
-    def petsys_event(file_name):
+    def petsys_event(file_name: str) -> Iterator:
         """
         Read a single file:
         file_name  : String
@@ -58,7 +63,7 @@ def read_petsys_filebyfile(type_dict, sm_filter=lambda x, y: True, singles=False
     return petsys_event
 
 
-def read_petsys_singles(file_name, type_dict):
+def read_petsys_singles(file_name: str, type_dict: dict) -> Callable:
     """
     Read a petsys singles mode file which
     contains only channel by channel time
@@ -71,14 +76,18 @@ def read_petsys_singles(file_name, type_dict):
     returns a generator for line info [id, mm, tstp, eng]
     """
     line_struct = '<qfi'
-    def petsys_event():
+    def petsys_event() -> Iterator:
         with open(file_name, 'rb') as fbuff:
             for line in struct.iter_unpack(line_struct, fbuff.read()):
                 yield line[2], type_dict[line[2]], line[0], line[1]
     return petsys_event
 
 
-def _read_petsys_file(file_name, type_dict, sm_filter, singles=False):
+def _read_petsys_file(file_name: str       ,
+                      type_dict: dict      ,
+                      sm_filter: Callable  ,
+                      singles  : bool=False
+                      ) -> Iterator:
     """
     Read all events from a single petsys
     file yielding those meeting sm_filter
@@ -150,7 +159,7 @@ def unpack_supermodule(sm_info, type_dict):
     return [id, ch_type, tstp, eng]
 
 
-def _read_yaml_file(mapping_file):
+def _read_yaml_file(mapping_file: str) -> dict:
     """
     Read and return yaml mapping file.
     """
@@ -165,7 +174,7 @@ def _read_yaml_file(mapping_file):
     return channel_map
 
 
-def read_ymlmapping(mapping_file):
+def read_ymlmapping(mapping_file: str) -> tuple[set, set, dict, dict, dict]:
     """
     Read channel mapping information from
     yaml file.
@@ -206,7 +215,7 @@ def read_ymlmapping(mapping_file):
     return ALLSM_time_ch, ALLSM_energy_ch, mM_mapping, centroid_mapping, slab_positions
 
 
-def read_ymlmapping_brain(mapping_file):
+def read_ymlmapping_brain(mapping_file: str) -> tuple[set, set, dict, dict, dict]:
     """
     Read channel mapping information from
     yaml file.
@@ -306,7 +315,7 @@ class ChannelMap:
     def get_channel_gain(self, id: int) -> float:
         return self.mapping.at[id, 'gain']
 
-    def get_gains(self, ids: Union[List, Tuple, np.ndarray]) -> np.ndarray:
+    def get_gains(self, ids: list | tuple | np.ndarray) -> np.ndarray:
         return self.mapping.loc[ids, 'gain'].values
 
     def get_plot_position(self, id: int) -> np.ndarray:
@@ -320,7 +329,10 @@ class ChannelMap:
         return self.mapping.loc[id, ['X', 'Y', 'Z']].values.astype('float')
 
 
-def write_event_trace(file_buffer, sm_map, mm_lookup):#centroid_map, mm_map):
+def write_event_trace(file_buffer: TextIO      ,
+                      sm_map     : pd.DataFrame,
+                      mm_lookup  : Callable
+                      ) -> Callable:
     """
     Writer for text output of mini-module
     information as tab separated list of:
@@ -331,7 +343,7 @@ def write_event_trace(file_buffer, sm_map, mm_lookup):#centroid_map, mm_map):
     ## Time as X hardwire? OK? 8 chans of type per minimodule hardwire? OK?
     chan_ord = (sm_map[ isTIME].sort_values(['minimodule', 'local_x']).groupby('minimodule').head(nchan),
                 sm_map[~isTIME].sort_values(['minimodule', 'local_y']).groupby('minimodule').head(nchan))
-    def write_minimod(mm_trace):
+    def write_minimod(mm_trace: list[list]) -> None:
         channels = np.zeros(16)
         mini_mod = mm_lookup(mm_trace[0][0])
         for imp in mm_trace:
