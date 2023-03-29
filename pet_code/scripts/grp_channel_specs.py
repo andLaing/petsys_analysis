@@ -83,7 +83,14 @@ def slab_plots(out_file     : str               ,
             plt.clf()
 
 
-def refit_slab(out_file, id, bin_edges, source, nosource, diff_data, yerr):
+def refit_slab(out_file : str               ,
+               id       : int               ,
+               bin_edges: np.ndarray        ,
+               source   : ChannelEHistograms,
+               nosource : ChannelEHistograms,
+               diff_data: np.ndarray        ,
+               yerr     : np.ndarray
+               ) -> tuple:
     print(f'Failed or unsafe fit for channel {id}')
     plt.errorbar(bin_edges[:-1], diff_data, yerr=yerr)
     plt.show()
