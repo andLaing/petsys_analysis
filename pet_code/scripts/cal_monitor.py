@@ -119,7 +119,10 @@ def output_energy_plots(histos   : ChannelEHistograms,
             sm, mm = id
 
             all_eng += dist
-            bcent, gvals, pars, _ = fit_gaussian(dist, histos.edges[htype])
+            try:
+                bcent, gvals, pars, _ = fit_gaussian(dist, histos.edges[htype])
+            except RuntimeError:
+                continue
             fig_ax[sm][1].flatten()[mm].errorbar(bcent                ,
                                                  dist                 ,
                                                  yerr  = np.sqrt(dist),
