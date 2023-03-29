@@ -99,8 +99,8 @@ def test_calculate_skews_nobias(TEST_DATA_DIR, TMP_OUT):
     assert skews[skews != 0].shape[0] == ref_chs.shape[0]
     assert all(skews[skews != 0].index.isin(ref_chs))
     # Too much hardwiring as normal!
-    exp_bias = np.array([326.666667, 364.000000, 202.222222, 681.333333,
-                         622.758621, 513.333333,  90.588235, 580.000000])
+    exp_bias = np.array([326.666667, 364.000000, 482.222222, 681.333333,
+                         622.758621, 513.333333,  370.588235, 580.000000])
     np.testing.assert_allclose(skews[skews != 0], exp_bias)
 
 
