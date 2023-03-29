@@ -252,7 +252,7 @@ def peak_position(hist_bins: np.ndarray             ,
             *_, pars, _ = fit_gaussian(bin_vals, bin_edges, min_peak=min_stats)
         except RuntimeError:
             print(f'Ref channel {ref_ch} fit fail', flush=True)
-            peak_mean, *_ = mean_around_max(bin_vals, bin_edges[:-1], 6)
+            peak_mean, *_ = mean_around_max(bin_vals, shift_to_centres(bin_edges), 6)
             return peak_mean if peak_mean else 0
         return pars[1]
     return calculate_bias
