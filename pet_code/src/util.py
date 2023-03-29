@@ -1,35 +1,57 @@
 import numpy  as np
 import pandas as pd
 
-from itertools import repeat
+from enum   import auto, Enum
+from typing import List, Callable, Union
 
 from scipy.constants import c as c_vac
 
-def get_no_eng_channels(mod_data, energy_chid):
+
+class ChannelType(Enum):
+    TIME   = auto()
+    ENERGY = auto()
+
+
+def get_no_eng_channels(mod_data):
     """
     Return the number of channels for energy
     measurement in the module data list.
     """
-    return sum(x[0] in energy_chid for x in mod_data)
+    return sum(x[1] is ChannelType.ENERGY for x in mod_data)
 
 
-def get_supermodule_eng(mod_data, energy_chid):
+def get_supermodule_eng(mod_data):
     """
     Return the number of channels for energy
     measurement in the module data and the
     total energy deposited.
     """
-    eng_ch = list(filter(lambda x: x[0] in energy_chid, mod_data))
+    eng_ch = list(filter(lambda x: x[1] is ChannelType.ENERGY, mod_data))
     return len(eng_ch), sum(hit[3] for hit in eng_ch)
 
 
-def centroid_calculation(centroid_map, offset_x=0.00001, offset_y=0.00001):
+def energy_weighted_average(channel_pos: Callable,
+                            local_indx : int     ,
+                            power      : int     ) -> Callable:
+    """
+    Position from energy channel positions, charge and a power
+    """
+    vec_pos = np.vectorize(lambda x: channel_pos(x)[local_indx])
+    def _average(sm_info):
+        echans    = filter(lambda x: x[1] is ChannelType.ENERGY, sm_info)
+        id_charge = np.asarray(tuple(map(lambda x: (x[0], x[3]), echans)))
+        return np.average(vec_pos(id_charge[:, 0]), weights=id_charge[:, 1]**power)
+    return _average
+
+
+def centroid_calculation(plot_pos, offset_x=0.00001, offset_y=0.00001):
     """
     Calculates the centroid of a set of module
     data according to a centroid map.
     """
     powers  = [1, 2]
     offsets = [offset_x, offset_y]
+    plot_ax = ['local_x', 'local_y']
     def centroid(data):
         """
         Calculate the average position of the time
@@ -39,7 +61,8 @@ def centroid_calculation(centroid_map, offset_x=0.00001, offset_y=0.00001):
         sums    = [0.0, 0.0]
         weights = [0.0, 0.0]
         for imp in data:
-            en_t, pos      = centroid_map[imp[0]]
+            en_t           = imp[1].value - 1
+            pos            = plot_pos[imp[0]][plot_ax[en_t]]
             weight         = (imp[3] + offsets[en_t])**powers[en_t]
             sums   [en_t] += weight * pos
             weights[en_t] += weight
@@ -125,150 +148,62 @@ def select_energy_range(minE, maxE):
     return select_eng
 
 
-## Event and impact filters...
-def filter_impact(min_ch, energy_chid):
-    """
-    Make a filter to check impacts recorded
-    in sufficient channels.
-    """
-    def valid_impact(mod_data):
-        neng = get_no_eng_channels(mod_data, energy_chid)
-        return min_ch < neng < len(mod_data)
-    return valid_impact
+def select_mod_wrapper(fn, mm_map):
+    sel_mod = select_module(mm_map)
+    def wrapped(evt):
+        max_mms = tuple(map(sel_mod, evt))
+        return fn(max_mms)
+    return wrapped
 
 
-def filter_multihit(sm):
-    """
-    Select super modules with one
-    and only one mini modules hit.
-    """
-    n_mm = len(set(x[1] for x in sm))
-    return n_mm == 1
+# def select_module(mm_map):
+#     """
+#     Select the mini module with
+#     highest energy in a SM.
+#     """
+#     # Is there a vectorize decorator?
+#     to_mm   = np.vectorize(mm_map)
+#     is_eng  = np.vectorize(lambda x: x is ChannelType.ENERGY)
+#     def select(sm_info):
+#         if not sm_info:
+#             return sm_info
+
+#         sm_arr  = np.asarray(sm_info, dtype='object')
+#         mms     = to_mm(sm_arr[:, 0])
+#         mms_uni = np.unique(mms)
+#         if mms_uni.shape[0] == 1:
+#             return sm_info
+
+#         e_chan = is_eng(sm_arr[:, 1])
+#         sums   = np.fromiter((sm_arr[(mms == mm) & e_chan, 3].sum() for mm in mms_uni), float)
+#         max_mm = mms_uni[np.argmax(sums)]
+#         return sm_arr[mms == max_mm, :].tolist()
+#     return select
 
 
-def filter_event_by_impacts(eng_map, min_sm1, min_sm2, singles=False):
+def select_module(mm_map):
     """
-    Event filter based on the minimum energy channel
-    hist for each of the two super modules in coincidence.
+    Select the mini module with highest energy in sm.
+    Version to avoid converting to numpy.
     """
-    m1_filter = filter_impact(min_sm1, eng_map)
-    m2_filter = lambda x: True
-    if not singles:
-        m2_filter = filter_impact(min_sm2, eng_map)
-    def valid_event(sm1, sm2):
-        return m1_filter(sm1) and m2_filter(sm2)
-    return valid_event
-
-
-def filter_one_minimod(sm1, sm2, singles=False):
-    """
-    Select events with only one
-    minimodule hit in each super module.
-    """
-    if singles:
-        return filter_multihit(sm1)
-    return filter_multihit(sm1) and filter_multihit(sm2)
-
-
-def filter_impacts_one_minimod(eng_map, min_sm1, min_sm2, singles=False):
-    """
-    Event filter based on the minimum energy channel
-    hist for each of the two super modules in coincidence
-    with additional filter requiring only one mini module
-    per super module.
-    """
-    m1_filter = filter_impact(min_sm1, eng_map)
-    m2_filter = lambda x: True
-    if not singles:
-        m2_filter = filter_impact(min_sm2, eng_map)
-    def valid_event(sm1, sm2):
-        return filter_one_minimod(sm1, sm2, singles) and m1_filter(sm1) and m2_filter(sm2)
-    return valid_event
-
-
-def filter_specific_mm(sm_num, mm_num):
-    """
-    Select events in a specific mini module.
-    TODO review for full body.
-    """
-    def valid_event(sm1, sm2):
-        if sm_num == 0:
-            return mm_num in set(x[1] for x in sm1)
-        return mm_num in set(x[1] for x in sm2)
-    return valid_event
-
-
-def filter_impacts_specific_mod(sm_num, mm_num, eng_map, min_sm1, min_sm2):
-    """
-    Combines requirements of impacts, specific mm and
-    that only one module hit in both sm.
-    """
-    sel_mm = filter_specific_mm(sm_num, mm_num)
-    m1_filter = filter_impact(min_sm1, eng_map)
-    m2_filter = filter_impact(min_sm2, eng_map)
-    def valid_event(sm1, sm2):
-        return sel_mm(sm1, sm2) and filter_one_minimod(sm1, sm2)\
-                and m1_filter(sm1) and m2_filter(sm2)
-    return valid_event
-
-
-def filter_impacts_mmgroup(mm_sm1, mm_sm2, eng_map, min_sm1, min_sm2):
-    """
-    Only use events with mini-modules within
-    specific groups.
-    """
-    sm1_filter = filter_impact(min_sm1, eng_map)
-    sm2_filter = filter_impact(min_sm2, eng_map)
-    def valid_event(sm1, sm2):
-        sm1_grp = (mm in mm_sm1 for _, mm, *_ in sm1)
-        sm2_grp = (mm in mm_sm2 for _, mm, *_ in sm2)
-        return all(sm1_grp) and all(sm2_grp) and sm1_filter(sm1) and sm2_filter
-    return valid_event
-
-
-def filter_negatives(sm):
-    """
-    Return true if all energies
-    are positive.
-    """
-    if not sm:
-        return True
-    return all(np.asarray(sm)[:, 3] > 0)
-
-
-def filter_event_by_impacts_noneg(eng_map, min_sm1, min_sm2, singles=False):
-    """
-    Event filter based on the minimum number of energy channels
-    for each of the two super modules in coincidence filtering any
-    events with negative signals.
-    """
-    m1_filter = filter_impact(min_sm1, eng_map)
-    m2_filter = lambda x: True
-    if not singles:
-        m2_filter = filter_impact(min_sm2, eng_map)
-    def valid_event(sm1, sm2):
-        return m1_filter(sm1) and m2_filter(sm2) and\
-            filter_negatives(sm1) and filter_negatives(sm2)
-    return valid_event
-## End filters (examples)
-
-
-def select_module(sm_info, eng_ch):
-    """
-    Select the mini module with
-    highest energy in a SM.
-    """
-    sm  = np.asarray(sm_info, dtype='object')
-    if sm.size == 0:
-        return sm_info
-
-    mms = np.unique(sm[:, 1])
-    if mms.shape[0] == 1:
-        return sm_info
-    e_chan = np.fromiter(map(lambda x: x[0] in eng_ch, sm), bool)
-    sums   = np.fromiter((sm[(sm[:, 1] == mm) & e_chan, 3].sum() for mm in mms), float)
-    max_mm = mms[np.argmax(sums)]
-    return sm[sm[:, 1] == max_mm, :].tolist()
+    def val_if_eng(impact):
+        return impact[3] if impact[1] is ChannelType.ENERGY else 0
+    
+    def select(sm_info):
+        if not sm_info:
+            return sm_info
+        
+        mm_dict = {}
+        for imp in sm_info:
+            mm = mm_map(imp[0])
+            try:
+                mm_dict[mm][0] += val_if_eng(imp)
+                mm_dict[mm][1].append(imp)
+            except KeyError:
+                mm_dict[mm] = [val_if_eng(imp), [imp]]
+                
+        return max(mm_dict.values(), key=lambda x: x[0])[1]
+    return select
 
 
 def get_electronics_nums(channel_id):
@@ -291,17 +226,20 @@ def get_absolute_id(portID, slaveID, chipID, channelID):
     return 131072 * portID + 4096 * slaveID + 64 * chipID + channelID
 
 
-def select_max_energy(superm, channels=None):
+def select_max_energy(superm, chan_type=None):
     """
     Select the channel with highest deposit.
-    superm   : List
+    superm    : List
                List of impacts with [id, mm, time, eng]
-    channels : set
-               The channels to be compared.
+    chan_type : Optional ChannelType
+                The channel type to be compared.
     """
-    if channels is None:
-        return max(superm, key=lambda x: x[3])
-    return max(filter(lambda x: x[0] in channels, superm), key=lambda y: y[3])
+    try:
+        if chan_type is None:
+            return max(superm, key=lambda x: x[3])
+        return max(filter(lambda x: x[1] is chan_type, superm), key=lambda y: y[3])
+    except ValueError:
+        return None
 
 
 def shift_to_centres(bin_low_edge):
@@ -312,7 +250,7 @@ def shift_to_centres(bin_low_edge):
     return bin_low_edge[:-1] + np.diff(bin_low_edge) * 0.5
 
 
-def time_of_flight(source_pos):
+def time_of_flight(source_pos: np.ndarray):
     """
     Function to calculate time of flight
     for a gamma emitted from source_pos.
@@ -320,36 +258,47 @@ def time_of_flight(source_pos):
                 source position (x, y, z) in mm.
     """
     c_mm_per_ps = c_vac * 1000 / 1e12
-    def flight_time(slab_pos):
+    def flight_time(slab_pos: Union[List, np.ndarray]):
         """
         Get the time of flight from source to
         the given slab position in mm.
         return flight time in ps
         """
-        distance = np.linalg.norm(np.array(slab_pos) - source_pos)        
+        distance = np.linalg.norm(np.asarray(slab_pos) - source_pos)        
         return distance / c_mm_per_ps
     return flight_time
 
 
-def mm_energy_centroids(events, c_calc, eng_ch, mod_sel=lambda sm: sm):
+def mm_energy_centroids(c_calc, sm_map, mm_map, mod_sel=lambda sm: sm):
     """
     Calculate centroid and energy for
     mini modules per event assuming
     one mini module per SM per event.
     """
-    mod_dicts = [{}, {}]
-    for evt in events:
-        sel_evt = tuple(map(mod_sel, evt))
-        for i, ((x, y, _), (_, eng)) in enumerate(zip(map(c_calc, sel_evt), map(get_supermodule_eng, sel_evt, repeat(eng_ch)))):
-            if evt[i]:
-                mm = evt[i][0][1]
+    def _mm_ecentroids(events):
+        mod_dicts = {}
+        for evt in events:
+            sel_evt = tuple(filter(lambda x: x, map(mod_sel, evt)))
+            for ev_sel in sel_evt:
+                sm = sm_map(ev_sel[0][0])
+                mm = mm_map(ev_sel[0][0])
+                x, y, _ = c_calc(ev_sel)
+                _, eng  = get_supermodule_eng(ev_sel)
+            # for ((x, y, _), (_, eng)) in zip(map(c_calc, sel_evt),
+            #                                  map(get_supermodule_eng, sel_evt)):
+            #     sm = sm_map(sel_evt[i][0][0])
+            #     mm = mm_map(sel_evt[i][0][0])
                 try:
-                    mod_dicts[i][mm]['x'].append(x)
-                    mod_dicts[i][mm]['y'].append(y)
-                    mod_dicts[i][mm]['energy'].append(eng)
+                    mod_dicts[sm][mm]['x'].append(x)
+                    mod_dicts[sm][mm]['y'].append(y)
+                    mod_dicts[sm][mm]['energy'].append(eng)
                 except KeyError:
-                    mod_dicts[i][mm] = {'x': [x], 'y': [y], 'energy': [eng]}
-    return mod_dicts
+                    try:
+                        mod_dicts[sm][mm] = {'x': [x], 'y': [y], 'energy': [eng]}
+                    except KeyError:
+                        mod_dicts[sm] = {mm: {'x': [x], 'y': [y], 'energy': [eng]}}
+        return mod_dicts
+    return _mm_ecentroids
 
 
 def all_mm_energy_centroids(events, c_calc, eng_ch):
@@ -374,30 +323,31 @@ def all_mm_energy_centroids(events, c_calc, eng_ch):
             
 
 
-def slab_energy_centroids(events, c_calc, time_ch):
+def slab_energy_centroids(events, c_calc):
     """
     Calculate centroids for mini module
     assuming one mini module per SM and
     save energy for the time channels.
     """
-    slab_dicts = [{}, {}]
+    slab_dicts = {}
     for evt in events:
-        for i, ((x, y, _), sm) in enumerate(zip(map(c_calc, evt), evt)):
-            for imp in filter(lambda x: x[0] in time_ch, sm):
+        for (x, y, _), sm in zip(map(c_calc, evt), evt):
+            for imp in filter(lambda x: x[1] is ChannelType.TIME, sm):
                 try:
-                    slab_dicts[i][imp[0]]['x'].append(x)
-                    slab_dicts[i][imp[0]]['y'].append(y)
-                    slab_dicts[i][imp[0]]['energy'].append(imp[3])
+                    slab_dicts[imp[0]]['x'].append(x)
+                    slab_dicts[imp[0]]['y'].append(y)
+                    slab_dicts[imp[0]]['energy'].append(imp[3])
                 except KeyError:
-                    slab_dicts[i][imp[0]] = {'x': [x], 'y': [y], 'energy': [imp[3]]}
+                    slab_dicts[imp[0]] = {'x': [x], 'y': [y], 'energy': [imp[3]]}
     return slab_dicts
 
 
-def calibrate_energies(time_ch, eng_ch, time_cal, eng_cal):
+def calibrate_energies(type_ids, time_cal, eng_cal, sep='\t'):
     """
     Equalize the energy for the channels
     given the peak positions in a file (for now)
     for time channels and energy channels.
+    OBSOLETE??
     """
     if not time_cal and not eng_cal:
         # No calibration.
@@ -406,17 +356,17 @@ def calibrate_energies(time_ch, eng_ch, time_cal, eng_cal):
     if time_cal:
         # Need to fix file format to remove space
         # time calibrated relative to 511 keV peak
-        tcal    = pd.read_csv(time_cal, sep='\t ').set_index('ID')['MU'].apply(lambda x: 511 / x)
+        tcal    = pd.read_csv(time_cal, sep=sep).set_index('ID')['MU'].apply(lambda x: 511 / x)
     else:
-        tcal    = pd.Series(1, index=time_ch)
+        tcal    = pd.Series(1, index=type_ids(ChannelType.TIME))
     if eng_cal:
         # Need to fix file format to remove space
         # Energy channels calibrated relative to mean. Maybe unstable between calibrations, review.
-        ecal    = pd.read_csv(eng_cal, sep='\t ').set_index('ID')['MU']
+        ecal    = pd.read_csv(eng_cal, sep=sep).set_index('ID')['MU']
         mu_mean = np.mean(ecal)
         ecal    = ecal.apply(lambda x: mu_mean / x)
     else:
-        ecal    = pd.Series(1, index=eng_ch)
+        ecal    = pd.Series(1, index=type_ids(ChannelType.ENERGY))
 
     cal = tcal.append(ecal).to_dict()
     def apply_calibration(event):
@@ -426,4 +376,39 @@ def calibrate_energies(time_ch, eng_ch, time_cal, eng_cal):
         return event
     return apply_calibration
 
+
+def bar_source_dt(bar_xy: np.ndarray, bar_r: float, slab_pos: Callable) -> Callable:
+    """
+    Define an axially infinite bar of radius bar_r centred on
+    bar_xy so that geometric dt can be predicted.
+
+    bar_xy : np.ndarray
+             XY postion of bar transverse centre
+    bar_r  : float
+             Radius of bar
+    slab_pos : Callable
+               Function returning pos
+    """
+    c_mm_per_ps = c_vac * 1000 / 1e12
+    c_corr = np.square(bar_xy).sum() - bar_r**2
+    def geom_dt(ref_id: int, coinc_id: int) -> float:
+        ref_pos   = slab_pos(  ref_id)
+        coinc_pos = slab_pos(coinc_id)
+        dir_norm  = np.linalg.norm(coinc_pos - ref_pos)
+        dir       = (coinc_pos - ref_pos) / dir_norm
+
+        a = np.square(dir[:2]).sum()
+        b = 2 * (dir[0] * (ref_pos[0] - bar_xy[0]) + dir[1] * (ref_pos[1] - bar_xy[1]))
+        c = ref_pos[0] * (ref_pos[0] - 2 * bar_xy[0]) + ref_pos[1] * (ref_pos[1] - 2 * bar_xy[1]) + c_corr
+
+        determ = b**2 - 4 * a * c
+        if determ < 0:
+            return
+
+        t1    = 0.5 * (-b + np.sqrt(determ)) / a
+        t2    = 0.5 * (-b - np.sqrt(determ)) / a
+        med_t = (t1 + t2) / 2
+        dt    = (2 * med_t  - dir_norm) / c_mm_per_ps
+        return dt
+    return geom_dt
 

@@ -1,23 +1,28 @@
 import struct
 import yaml
 
-import numpy as np
+import numpy  as np
+import pandas as pd
 
+from functools import lru_cache
 from itertools import chain, islice, repeat
+from warnings  import warn
 
+from . util    import ChannelType
 from . util    import slab_indx, slab_x, slab_y, slab_z
-from . io_util import coinc_evt_loop
+from . io_util import coinc_evt_loop, singles_evt
+
+from typing import List, Tuple, Union # Once upgraded to python 3.9 not necessary
 
 
-def read_petsys(mod_mapping, sm_filter=lambda x, y: True, singles=False):
+def read_petsys(type_dict, sm_filter=lambda x, y: True, singles=False):
     """
     Reader for petsys output for a list of input files.
     All files yielded in single generator.
-    mod_mapping: Lookup table for the channel id
-                 to mini module numbering.
-    energy_ch  : energy channels.
-    singles    : Is the file singles mode? default False.
-    sm_filter  : Function taking a tuple of smto filter the module data.
+    type_dict : Lookup for the channel id
+                to ChannelType.
+    singles   : Is the file singles mode? default False.
+    sm_filter : Function taking a tuple of sm to filter the module data.
     returns
     petsys_event: Fn, loops over input file list and yields
                       event information.
@@ -28,21 +33,17 @@ def read_petsys(mod_mapping, sm_filter=lambda x, y: True, singles=False):
                    List of strings with the paths to the files of interest.
         """
         for fn in file_list:
-            yield from _read_petsys_file(fn         ,
-                                         mod_mapping,
-                                         sm_filter  ,
-                                         singles    )
+            yield from _read_petsys_file(fn, type_dict, sm_filter, singles)
     return petsys_event
 
 
-def read_petsys_filebyfile(mod_mapping, sm_filter=lambda x, y: True, singles=False):
+def read_petsys_filebyfile(type_dict, sm_filter=lambda x, y: True, singles=False):
     """
     Reader for petsys output for a list of input files.
-    mod_mapping: Lookup table for the channel id
-                 to mini module numbering.
-    energy_ch  : energy channels.
-    singles    : Is the file singles mode? default False.
-    sm_filter  : Function taking a tuple of smto filter the module data.
+    type_dict : Lookup for the channel id
+                to ChannelType.
+    singles   : Is the file singles mode? default False.
+    sm_filter : Function taking a tuple of smto filter the module data.
     returns
     petsys_event: Fn, loops over input file list and yields
                       event information.
@@ -53,53 +54,55 @@ def read_petsys_filebyfile(mod_mapping, sm_filter=lambda x, y: True, singles=Fal
         file_name  : String
                      The path to the file to be read.
         """
-        yield from _read_petsys_file(file_name  ,
-                                     mod_mapping,
-                                     sm_filter  ,
-                                     singles    )
+        yield from _read_petsys_file(file_name, type_dict, sm_filter, singles)
     return petsys_event
 
 
-def read_petsys_singles(file_name, mod_mapping):
+def read_petsys_singles(file_name, type_dict):
     """
     Read a petsys singles mode file which
     contains only channel by channel time
     and energy info with no impact (singles)
     nor coincidence grouping.
-    file_name  : String
-                 ldat file name with petsys singles
-    mod_mapping: Lookup table for the channel id
-                 to mini module numbering.
+    file_name : String
+                ldat file name with petsys singles
+    type_dict : Lookup for the channel id
+                to ChannelType.
     returns a generator for line info [id, mm, tstp, eng]
     """
     line_struct = '<qfi'
     def petsys_event():
         with open(file_name, 'rb') as fbuff:
             for line in struct.iter_unpack(line_struct, fbuff.read()):
-                yield line[2], mod_mapping[line[2]], line[0], line[1]
+                yield line[2], type_dict[line[2]], line[0], line[1]
     return petsys_event
 
 
-def _read_petsys_file(file_name      ,
-                      mod_mapping    ,
-                      sm_filter      ,
-                      singles = False):
+def _read_petsys_file(file_name, type_dict, sm_filter, singles=False):
     """
     Read all events from a single petsys
     file yielding those meeting sm_filter
     conditions.
     """
-    line_struct = '<BBqfi'         if singles else '<BBqfiBBqfi'
-    evt_loop    = singles_evt_loop if singles else coinc_evt_loop
-    with open(file_name, 'rb') as fbuff:
-        b_iter = struct.iter_unpack(line_struct, fbuff.read())
-        for first_line in b_iter:
-            sm1, sm2 = evt_loop(first_line, b_iter, mod_mapping)
-            if sm_filter(sm1, sm2):
-                yield sm1, sm2
+    # line_struct = '<BBqfi'         if singles else '<BBqfiBBqfi'
+    line_struct = 'B, B, i8, f4, i' if singles else 'B, B, i8, f4, i, B, B, i8, f4, i'
+    # evt_loop    = singles_evt_loop if singles else coinc_evt_loop
+    evt_loop    = singles_evt if singles else coinc_evt_loop
+    # with open(file_name, 'rb') as fbuff:
+    #     b_iter = struct.iter_unpack(line_struct, fbuff.read())
+    #     for first_line in b_iter:
+    #         sm1, sm2 = evt_loop(first_line, b_iter, type_dict)
+    #         if sm_filter(sm1, sm2):
+    #             yield sm1, sm2
+    b_iter = np.nditer(np.memmap(file_name, np.dtype(line_struct), mode='r'))
+    for first_line in b_iter:
+        sm1, sm2 = evt_loop(first_line, b_iter, type_dict)
+        if sm_filter(sm1, sm2):
+            yield sm1, sm2
 
 
-def singles_evt_loop(first_line, line_it, mod_mapping):
+def singles_evt_loop(first_line, line_it, type_dict):
+# def singles_evt_loop(line_it, first_indx, type_dict):
     """
     Loop through the lines for an event
     of singles data.
@@ -107,13 +110,15 @@ def singles_evt_loop(first_line, line_it, mod_mapping):
     Should be for what PETSys calls 'grouped'
     which seems more like a PET single.
     """
+    # evt_end = first_indx + line_it[first_indx][0]
+    # return evt_end, list(map(unpack_supermodule, line_it[first_indx:evt_end], repeat(type_dict))), []
     nlines = first_line[0] - 1
     return list(map(unpack_supermodule                          ,
                     chain([first_line], islice(line_it, nlines)),
-                    repeat(mod_mapping)                         )), []
+                    repeat(type_dict)                           )), []
 
 
-def coincidences_evt_loop(first_line, line_it, mod_mapping):
+def coincidences_evt_loop(first_line, line_it, type_dict):
     """
     Loop through the lines for an event
     of coincidence data.
@@ -125,24 +130,24 @@ def coincidences_evt_loop(first_line, line_it, mod_mapping):
     nlines = first_line[0] + first_line[5] - 2
     for evt in chain([first_line], islice(line_it, nlines)):
         if evt[4] not in ch_sm1:
-            sm1.append(unpack_supermodule(evt[:5], mod_mapping))
+            sm1.append(unpack_supermodule(evt[:5], type_dict))
             ch_sm1.add(evt[4])
         if evt[-1] not in ch_sm2:
-            sm2.append(unpack_supermodule(evt[5:], mod_mapping))
+            sm2.append(unpack_supermodule(evt[5:], type_dict))
             ch_sm2.add(evt[-1])
     return sm1, sm2
 
 
-def unpack_supermodule(sm_info, mod_mapping):
+def unpack_supermodule(sm_info, type_dict):
     """
     For a super module readout line give the
     channel, module, time and energy info.
     """
-    id       =       sm_info[4]
-    mini_mod = mod_mapping[id]
-    tstp     =       sm_info[2]
-    eng      = float(sm_info[3])
-    return [id, mini_mod, tstp, eng]
+    id      =       sm_info[4]
+    ch_type = type_dict[id]
+    tstp    =       sm_info[2]
+    eng     = float(sm_info[3])
+    return [id, ch_type, tstp, eng]
 
 
 def _read_yaml_file(mapping_file):
@@ -219,51 +224,130 @@ def read_ymlmapping_brain(mapping_file):
     FEM_num_ch = 256
     no_sm      =   4
     for sm in range(no_sm):
-        mM_num   = 1
-        slab_num = 1
-        half     = 0
-        r_num    = 0
-        c_num    = 0
+        mM_num      = 1
+        slab_num    = 1
+        half        = 0
+        r_num       = 0
+        c_num       = 0
+        rc_num      = 0
+        change_flag = False
         for tch, ech in zip(channel_map["time_channels"], channel_map["energy_channels"]):
             absolut_tch = tch + sm * FEM_num_ch
             absolut_ech = ech + sm * FEM_num_ch
-            ALLSM_time_ch  .append(absolut_tch)
-            ALLSM_energy_ch.append(absolut_ech)
+            ALLSM_time_ch  .add(absolut_tch)
+            ALLSM_energy_ch.add(absolut_ech)
 
             mM_mapping[absolut_tch] = mM_num            
             mM_mapping[absolut_ech] = mM_num
             if   half == 0:
-                centroid_mapping[absolut_tch] = (0, round(1.6 + 3.2 *       c_num , 2))
-                centroid_mapping[absolut_ech] = (1, round(1.6 + 3.2 *       r_num , 2))
-            elif half == 1:
-                centroid_mapping[absolut_tch] = (0, round(1.6 + 3.2 * (15 - c_num), 2))
-                centroid_mapping[absolut_ech] = (1, round(1.6 + 3.2 * (63 - r_num), 2))
-            r_num += 1
-            c_num += 1
+                centroid_mapping[absolut_tch] = (0, round(1.6 + 3.2 *        c_num , 2))
+                centroid_mapping[absolut_ech] = (1, round(1.6 + 3.2 *        r_num , 2))
+            elif half == 1 and not change_flag:
+                centroid_mapping[absolut_tch] = (0, round(1.6 + 3.2 * (15 -  c_num), 2))
+                centroid_mapping[absolut_ech] = (1, round(1.6 + 3.2 * (31 - rc_num), 2))
+            elif half == 1 and     change_flag:
+                centroid_mapping[absolut_tch] = (0, round(1.6 + 3.2 * (15 -  c_num), 2))
+                centroid_mapping[absolut_ech] = (1, round(1.6 + 3.2 * (63 - rc_num), 2))
+            r_num  += 1
+            c_num  += 1
+            rc_num += 1
             if slab_num %  8 == 0:
                 mM_num += 1  
                 c_num   = 0              
             if slab_num % 64 == 0:
-                half  = 1
-                r_num = 0
+                half   = 1
+                r_num  = 0
+                rc_num = 0
+            if slab_num % 32 == 0 and half == 1 and rc_num != 0:
+                rc_num      = 0
+                change_flag = True
             slab_num += 1
             ## Need to add physical positions!
     return ALLSM_time_ch, ALLSM_energy_ch, mM_mapping, centroid_mapping, slab_positions
 
 
-def write_event_trace(file_buffer, centroid_map):
+class ChannelMap:
+    def __init__(self, map_file: str) -> None:
+        """
+        Initialize Channel map type reading from feather
+        mapping file with optional setting of channels
+        per FEM.
+        map_file : str
+                   Name of mapping file to be used.
+        """
+        self.mapping         = pd.read_feather(map_file).set_index('id')
+        self.mapping['type'] = self.mapping.type.map(lambda x: ChannelType[x])
+        if 'gain' not in self.mapping.columns:
+            ## Uncalibrated map.
+            warn('Imported map does not contain gains. Defaulting to uncalibrated.')
+            self.mapping['gain'] = 1.0
+        self.ch_type = self.mapping.type.to_dict()
+        self.plotp   = self.mapping[['local_x', 'local_y']].to_dict('index')
+        self.minimod = self.mapping.minimodule.to_dict()
+
+    def get_channel_type(self, id: int) -> ChannelType:
+        return self.mapping.at[id, 'type']
+
+    def get_chantype_ids(self, chan_type: ChannelType) -> np.ndarray:
+        sel_channels = self.mapping.type.map(lambda t: t is chan_type)
+        return self.mapping.index[sel_channels].values
+
+    def get_supermodule(self, id: int) -> int:
+        return self.mapping.at[id, 'supermodule']
+
+    def get_minimodule(self, id: int) -> int:
+        # return self.mapping.at[id, 'minimodule']
+        return self.minimod[id]
+
+    def get_minimodule_channels(self, sm: int, mm: int) -> np.ndarray:
+        mask = (self.mapping.supermodule == sm) & (self.mapping.minimodule == mm)
+        return self.mapping.index[mask].values
+
+    def get_channel_gain(self, id: int) -> float:
+        return self.mapping.at[id, 'gain']
+
+    def get_gains(self, ids: Union[List, Tuple, np.ndarray]) -> np.ndarray:
+        return self.mapping.loc[ids, 'gain'].values
+
+    def get_plot_position(self, id: int) -> np.ndarray:
+        """
+        Pseudo position for floodmap plotting.
+        """
+        return self.mapping.loc[id, ['local_x', 'local_y']].values
+
+    @lru_cache
+    def get_channel_position(self, id: int) -> np.ndarray:
+        return self.mapping.loc[id, ['X', 'Y', 'Z']].values.astype('float')
+
+
+def write_event_trace(file_buffer, sm_map, mm_lookup):#centroid_map, mm_map):
     """
     Writer for text output of mini-module
     information as tab separated list of:
     8 * time channels 8 * energy channels, module number
     """
+    nchan  = 8
+    isTIME = sm_map.type.map(lambda x: x is ChannelType.TIME)
+    ## Time as X hardwire? OK? 8 chans of type per minimodule hardwire? OK?
+    chan_ord = (sm_map[ isTIME].sort_values(['minimodule', 'local_x']).groupby('minimodule').head(nchan),
+                sm_map[~isTIME].sort_values(['minimodule', 'local_y']).groupby('minimodule').head(nchan))
     def write_minimod(mm_trace):
         channels = np.zeros(16)
+        mini_mod = mm_lookup(mm_trace[0][0])
         for imp in mm_trace:
-            en_t, pos = centroid_map[imp[0]]
-            indx      = slab_indx(pos)
+            en_t = 0 if imp[1] is ChannelType.TIME else 1
+            indx = np.argwhere(chan_ord[en_t].index == imp[0])[0][0] % nchan
             channels[indx + 8 * en_t] = imp[3]
         file_buffer.write('\t'.join("{:.6f}".format(round(val, 6)) for val in channels))
-        file_buffer.write('\t' + str(mm_trace[0][1]) + '\n')
+        file_buffer.write('\t' + str(mini_mod) + '\n')
     return write_minimod
-        
+
+
+## TEMP? Faster in Cython?
+def write_listmode(file_buffer):
+    """
+    Output linstmode binary with coincidence information
+    """
+    def write_coinc(*args):
+        pass
+    return write_coinc
