@@ -151,7 +151,7 @@ def process_raw_data(file_list: list[str]                ,
     elimits  = map(float, config.get('filter', 'elimits').split(','))
     eselect  = select_energy_range(*elimits)
 
-    setup    = config.get('mapping', 'setup', fallback='2SM')
+    setup    = config.get('mapping', 'setup', fallback='pointSource')
     minch    = config.getint('filter', 'min_channels')
     evt_filt = partial(filter_impacts_channel_list   ,
                        min_ch = minch                ,
