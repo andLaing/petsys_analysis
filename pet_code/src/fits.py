@@ -1,22 +1,36 @@
 from scipy.optimize import curve_fit
+from typing         import Callable
 
 from . util import np
 from . util import shift_to_centres
 
 
-def gaussian(x, amp, mu, sigma):
+def gaussian(x    : float | np.ndarray,
+             amp  : float             ,
+             mu   : float             ,
+             sigma: float
+             ) -> float | np.ndarray:
     if sigma <= 0.:
         return np.inf
     return amp * np.exp(-0.5 * (x - mu)**2 / sigma**2) / (np.sqrt(2 * np.pi) * sigma)
 
 
-def lorentzian(x, amp, x0, gamma):
+def lorentzian(x    : float | np.ndarray,
+               amp  : float             ,
+               x0   : float             ,
+               gamma: float
+               ) -> float | np.ndarray:
     if gamma <= 0:
         return np.inf
     return amp * gamma**2 / ((x - x0)**2 + gamma**2)
 
 
-def fit_gaussian(data, bins, cb=8, min_peak=150, yerr=None):
+def fit_gaussian(data    : np.ndarray              ,
+                 bins    : np.ndarray              ,
+                 cb      : int               =   8 ,
+                 min_peak: int               = 150 ,
+                 yerr    : np.ndarray | None = None
+                 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Tidy of existing function.
     Probably want to generalise so
@@ -44,12 +58,21 @@ def fit_gaussian(data, bins, cb=8, min_peak=150, yerr=None):
     return bin_centres, gaussian(bin_centres, *pars), pars, pcov
 
 
-def curve_fit_fn(fn, x, y, yerr, p0):
+def curve_fit_fn(fn  : Callable  ,
+                 x   : np.ndarray,
+                 y   : np.ndarray,
+                 yerr: np.ndarray,
+                 p0  : list
+                 ) -> tuple[np.ndarray, np.ndarray]:
     pars, pcov = curve_fit(fn, x, y, sigma=yerr, p0=p0)
     return pars, pcov
 
 
-def mean_around_max(data, bins, cb, yerr=None):
+def mean_around_max(data: np.ndarray     ,
+                    bins: np.ndarray     ,
+                    cb  : int            ,
+                    yerr: np.ndarray=None
+                    ) -> tuple:
     max_indx  = np.argmax(data)
     first_bin = max(max_indx - cb, 0)
     last_bin  = min(max_indx + cb, len(bins))

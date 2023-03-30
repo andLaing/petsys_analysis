@@ -6,17 +6,17 @@ TBPET.
 
 ## Requirements
 The code has the following minimum requirements:
- - python 3.8
- - scipy 1.7.1
- - numpy 1.21.2
- - matplotlib 3.5
+ - python 3.10
+ - scipy 1.10.0
+ - numpy 1.23.5
+ - matplotlib 3.7.1
  - pyyaml 6.0
- - natsort 7.1
- - pytest 6.2.5
- - pandas 1.3.5
+ - pytest 7.1.2
+ - pandas 1.5.3
  - docopt 0.6.2
  - configparser 5.0.2
  - cython 0.29.32
+ - pyarrow 8.0.0
 
  A script for environment set-up using `miniconda` is provided: `make_condaENV.sh` which checks if conda installed in the `$HOME` folder. Running with `conda` already
  activated will also create or update the environment.

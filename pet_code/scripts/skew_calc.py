@@ -23,6 +23,7 @@ import configparser
 import yaml
 
 from docopt import docopt
+from typing import Callable
 
 import numpy  as np
 import pandas as pd
@@ -51,16 +52,16 @@ from pet_code.src.util    import select_module
 from pet_code.src.util    import shift_to_centres
 
 
-def source_position(pos_conf):
+def source_position(pos_conf: dict) -> Callable:
     pos_to_mm  = pos_conf[ 'pos_to_mm']
     source_pos = pos_conf['source_pos']
-    def _source_position(pos_num):
+    def _source_position(pos_num: int) -> tuple[int, list, np.ndarray]:
         sm, mms = pos_to_mm[pos_num]
         return sm, mms, np.asarray(source_pos[pos_num])
     return _source_position
 
 
-def get_references(file_name, source_p):
+def get_references(file_name: str, source_p: Callable) -> tuple[int, list, np.ndarray]:
     """
     Extract supermodule and minimodule
     numbers for reference channels and
@@ -81,7 +82,7 @@ def get_references(file_name, source_p):
     return SM_lab, mM_nums, s_pos
 
 
-def geom_loc_point(file_name, ch_map, source_yml, corr_sm_no=0):
+def geom_loc_point(file_name: str, ch_map: ChannelMap, source_yml: dict) -> tuple:
     """
     Get functions for the reference index
     and geometric dt for the 2 SM setup.
@@ -93,18 +94,18 @@ def geom_loc_point(file_name, ch_map, source_yml, corr_sm_no=0):
     mm_channels = np.concatenate([ch_map.get_minimodule_channels(SM_lab, mm)
                                   for mm in mM_nums])
     valid_ids   = set(filter(lambda x: ch_map.get_channel_type(x) is ChannelType.TIME, mm_channels))
-    def find_indx(evt):
+    def find_indx(evt: tuple) -> int:
         return 0 if evt[0][0] in valid_ids else 1
 
     flight_time = time_of_flight(s_pos)
-    def geom_dt(ref_id, coinc_id):
+    def geom_dt(ref_id: int, coinc_id: int) -> float:
         ref_pos   = ch_map.get_channel_position(  ref_id)
         coinc_pos = ch_map.get_channel_position(coinc_id)
         return flight_time(ref_pos) - flight_time(coinc_pos)
     return mm_channels, find_indx, geom_dt
 
 
-def geom_loc_bar(file_name, ch_map, source_yml):
+def geom_loc_bar(file_name: str, ch_map: ChannelMap, source_yml: dict) -> tuple:
     """
     Get functions for the reference index
     and geometric dt for setups with bar source.
@@ -120,14 +121,17 @@ def geom_loc_bar(file_name, ch_map, source_yml):
     ids    = np.concatenate([ch_map.get_minimodule_channels(*v)
                              for v in np.vstack(np.stack(np.meshgrid(SM_no, mms)).T)])
     s_ids  = set(filter(lambda x: ch_map.get_channel_type(x) is ChannelType.TIME, ids))
-    def find_indx(evt):
+    def find_indx(evt: tuple) -> int:
         return 0 if evt[0][0] in s_ids else 1
 
     geom_dt = bar_source_dt(bar_xy, bar_r, ch_map.get_channel_position)
     return ids, find_indx, geom_dt
 
 
-def process_raw_data(file_list, config, ch_map):
+def process_raw_data(file_list: list[str]                ,
+                     config   : configparser.ConfigParser,
+                     ch_map   : ChannelMap
+                     ) -> list[str]:
     """
     Read the binaries corresponding to file_list,
     filter selecting events in the slab spectra
@@ -139,7 +143,8 @@ def process_raw_data(file_list, config, ch_map):
     eng_cal  = config.get('calibration', 'energy_channels', fallback='')
     cal_func = calibrate_energies(ch_map.get_chantype_ids, time_cal, eng_cal)
     sel_mod  = select_module(ch_map.get_minimodule)
-    def cal_and_select(evt):
+
+    def cal_and_select(evt: tuple) -> tuple:
         cal_evt = cal_func(evt)
         return tuple(map(sel_mod, cal_evt))
 
@@ -153,13 +158,11 @@ def process_raw_data(file_list, config, ch_map):
                        mm_map = ch_map.get_minimodule)
     if   setup == 'pointSource':
         ## For backwards compatibility.
-        correct_sm = config.getint('mapping', 'SM_NO_CORR', fallback=0)
         with open(config.get('mapping', 'source_pos')) as s_yml:
             yml_positions = yaml.safe_load(s_yml)
             geom_func     = partial(geom_loc_point            ,
                                     ch_map     = ch_map       ,
-                                    source_yml = yml_positions,
-                                    corr_sm_no = correct_sm   )
+                                    source_yml = yml_positions)
     elif setup == 'barSource'  :
         with open(config.get('mapping', 'source_pos')) as s_yml:
             yml_positions = yaml.safe_load(s_yml)
@@ -194,7 +197,11 @@ def process_raw_data(file_list, config, ch_map):
     return dt_filenames
 
 
-def calculate_skews(file_list, config, skew_values, it=0):
+def calculate_skews(file_list  : list[str]                ,
+                    config     : configparser.ConfigParser,
+                    skew_values: pd.Series                ,
+                    it         : int=0
+                    ) -> pd.Series:
     """
     Read files with channel numbers and calculated
     delta_t - delta_t_geom and calculate the bias
@@ -219,12 +226,17 @@ def calculate_skews(file_list, config, skew_values, it=0):
     return corr_skews
 
 
-def peak_position(hist_bins, min_stats, skew, mon_ids={}, out_base='dt_monitor'):
+def peak_position(hist_bins: np.ndarray             ,
+                  min_stats: int                    ,
+                  skew     : pd.Series              ,
+                  mon_ids  : dict[int] = {}         ,
+                  out_base : str      = 'dt_monitor'
+                  ) -> Callable:
     """
     Calculate the mean position of the delta time distribution
     corrected for theoretical difference and, optionally, skew.
     """
-    def calculate_bias(delta_t):
+    def calculate_bias(delta_t: pd.DataFrame) -> float:
         """
         Do the calculation for every row of delta t.
         Assumes that the ref_ch is the same for all.
@@ -240,13 +252,17 @@ def peak_position(hist_bins, min_stats, skew, mon_ids={}, out_base='dt_monitor')
             *_, pars, _ = fit_gaussian(bin_vals, bin_edges, min_peak=min_stats)
         except RuntimeError:
             print(f'Ref channel {ref_ch} fit fail', flush=True)
-            peak_mean, *_ = mean_around_max(bin_vals, bin_edges[:-1], 6)
+            peak_mean, *_ = mean_around_max(bin_vals, shift_to_centres(bin_edges), 6)
             return peak_mean if peak_mean else 0
         return pars[1]
     return calculate_bias
 
 
-def output_plot(id, dt_data, dt_binedges, plot_file):
+def output_plot(id         : int       ,
+                dt_data    : np.ndarray,
+                dt_binedges: np.ndarray,
+                plot_file  : str
+                ) -> None:
     """
     Plots and saves a corrected dt distribution.
     """

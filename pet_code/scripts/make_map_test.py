@@ -94,7 +94,7 @@ def test_single_ring(channel_types):
     # Approx centre of SM with means
     xyz        = ['X', 'Y', 'Z']
     yx_df      = pd.DataFrame(ring_yx, index=['Y', 'X']).T
-    sm_centres = ring_df.groupby('supermodule')[xyz].apply(np.mean)
+    sm_centres = ring_df.groupby('supermodule')[xyz].mean()
     assert_allclose(sm_centres.Z,       0, atol=1e-4)
     assert_allclose(sm_centres.X, yx_df.X, rtol=1e-5)
     assert_allclose(sm_centres.Y, yx_df.Y, rtol=1e-5)
@@ -186,7 +186,6 @@ def test_n_rings(channel_types):
                 112: {'X': -156.9002, 'Y':  378.7906, 'Z':  305.5312}}
     sm_mask  = five_rings.supermodule.isin(exp_cent.keys())
     sm_cols  = ['supermodule', 'X', 'Y', 'Z']
-    mean_xyz = five_rings.loc[sm_mask, sm_cols].groupby('supermodule').apply(np.mean)
-    pd.testing.assert_frame_equal(mean_xyz.drop(columns='supermodule'),
-                                  pd.DataFrame(exp_cent).T            ,
+    mean_xyz = five_rings.loc[sm_mask, sm_cols].groupby('supermodule').mean()
+    pd.testing.assert_frame_equal(mean_xyz         , pd.DataFrame(exp_cent).T    ,
                                   check_names=False, check_exact=False, atol=1e-4)

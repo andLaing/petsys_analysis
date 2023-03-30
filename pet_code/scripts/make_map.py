@@ -16,6 +16,7 @@ Options:
 import yaml
 
 from docopt import docopt
+from typing import Callable, Iterator
 
 import numpy  as np
 import pandas as pd
@@ -34,18 +35,18 @@ mM_energyMapping = {0:0,  1:4,  2:8 ,  3:12,  4:1,  5:5,  6:9 ,  7:13,
                     8:2,  9:6, 10:10, 11:14, 12:3, 13:7, 14:11, 15:15}
 
 
-def echan_x(rc_num):
+def echan_x(rc_num: int) -> float:
     mm_wrap = round(0.3 * (rc_num // 8), 2)
     return round(1.75 + mm_wrap + 3.2 * rc_num, 2)
 
 
-def echan_y(sm, row):
+def echan_y(sm: int, row: int) -> float:
     if sm == 0:
         return round(-25.9 * (0.5 + (3 - row % 4)), 2)
     return round(-25.9 * (0.5 + row % 4), 2)
 
 
-def brain_map(nFEM, chan_per_mm, tchans, echans):
+def brain_map(nFEM: int, chan_per_mm: int, tchans: list, echans: list) -> Iterator:
     chan_per_sec = 4 * chan_per_mm
     chan_per_col = 8 * chan_per_mm
     for i in (0, 2):
@@ -77,7 +78,7 @@ def brain_map(nFEM, chan_per_mm, tchans, echans):
             yield id, 'ENERGY', i, mm, loc_x, loc_y, loc_x, loc_y, z
 
 
-def row_gen(nFEM, chan_per_mm, tchans, echans):
+def row_gen(nFEM: int, chan_per_mm: int, tchans: list, echans: list) -> Iterator:
     superm_gen = sm_gen(nFEM, chan_per_mm, tchans, echans,
                         mM_energyMapping, {0: [0, 0], 2: [0, 2]})
     for i in (0, 2):
@@ -94,7 +95,10 @@ def row_gen(nFEM, chan_per_mm, tchans, echans):
             yield id, typ, i, mm, loc_x, loc_y, x, y, z
 
 
-def channel_sm_coordinate(mm_rowcol, ch_indx, type):
+def channel_sm_coordinate(mm_rowcol: int        ,
+                          ch_indx  : int        ,
+                          chtype   : ChannelType
+                          ) -> tuple[float, float]:
     """
     mm_rowcol : Either row or col depending on type: TIME row, ENERGY col.
     ch_indx   : index along row/column
@@ -103,13 +107,13 @@ def channel_sm_coordinate(mm_rowcol, ch_indx, type):
     ch_start     = (slab_width + mm_spacing) / 2
     local_fine   = round(ch_start + mm_shift + slab_width * (31 - ch_indx), 3)
     local_coarse = round(mm_edge * (3.5 - mm_rowcol), 3)
-    if type is ChannelType.TIME:
+    if chtype is ChannelType.TIME:
         # local y course, local_x fine
         return local_fine, local_coarse
     return local_coarse, local_fine
 
 
-def sm_centre_pos(SM_r, SM_yx):
+def sm_centre_pos(SM_r: float, SM_yx: dict) -> Callable:
     """
     Gives polar angle position (and r; fixed)
     for the centres of the SMs.
@@ -118,12 +122,18 @@ def sm_centre_pos(SM_r, SM_yx):
     SM_r  : Radius of ring
     SM_yx : YX values of the SM centres.
     """
-    def get_rtheta(SM):
+    def get_rtheta(SM: int) -> tuple[float, float]:
         return SM_r, np.arctan2(*SM_yx[SM])
     return get_rtheta
 
 
-def sm_gen(nFEM, chan_per_mm, tchans, echans, mm_emap, sm_to_febport):
+def sm_gen(nFEM         : int ,
+           chan_per_mm  : int ,
+           tchans       : list,
+           echans       : list,
+           mm_emap      : dict,
+           sm_to_febport: dict
+           ) -> Callable:
     """
     Generate local coordinates with electronics ids for
     supermodules.
@@ -134,7 +144,7 @@ def sm_gen(nFEM, chan_per_mm, tchans, echans, mm_emap, sm_to_febport):
     mm_emap       : time minimodule to energy minimodule
     sm_to_febport : Dict with [slaveID, FEBport] for each supermodule
     """
-    def _sm_gen(sm_no):
+    def _sm_gen(sm_no: int) -> Iterator:
         slaveID, febport = sm_to_febport[sm_no]
         sm_min_chan      = 4096 * slaveID + nFEM * febport
         for i, (tch, ech) in enumerate(zip(tchans, echans)):
@@ -149,7 +159,10 @@ def sm_gen(nFEM, chan_per_mm, tchans, echans, mm_emap, sm_to_febport):
     return _sm_gen
 
 
-def local_translation(df, sm_r, sm_half_len):
+def local_translation(df         : pd.DataFrame,
+                      sm_r       : float       ,
+                      sm_half_len: float
+                      ) -> np.ndarray:
     """
     Translate local coordinates to coordinates
     centred on supermodule.
@@ -162,21 +175,22 @@ def local_translation(df, sm_r, sm_half_len):
     return coords.T
 
 
-def single_ring(nFEM       ,
-                chan_per_mm,
-                tchans     ,
-                echans     ,
-                ring_r     ,
-                ring_yx    ,
-                sm_feb     ,
-                first_sm=0 ):
+def single_ring(nFEM       : int  ,
+                chan_per_mm: int  ,
+                tchans     : list ,
+                echans     : list ,
+                ring_r     : float,
+                ring_yx    : dict ,
+                sm_feb     : dict ,
+                first_sm   : int=0
+                ) -> Callable:
     sm_angle    = sm_centre_pos(ring_r, ring_yx)
     superm_gen  = sm_gen(nFEM, chan_per_mm, tchans, echans, mM_energyMapping, sm_feb)
     # Hardwired, fix.
     SM_half_len = mm_edge * 2
     coords      = ['X', 'Y', 'Z']
     sm_per_ring = 24
-    def ring_gen():
+    def ring_gen() -> Iterator:
         local_cols = ['id', 'type', 'minimodule', 'local_x', 'local_y']
         for sm in range(first_sm, first_sm + sm_per_ring):
             sm_local                = pd.DataFrame((ch for ch in superm_gen(sm)),
@@ -194,14 +208,15 @@ def single_ring(nFEM       ,
     return pd.concat((sm for sm in ring_gen()), ignore_index=True)
 
 
-def n_rings(ring_pos   ,
-            nFEM       ,
-            chan_per_mm,
-            tchans     ,
-            echans     ,
-            ring_r     ,
-            ring_yx    ,
-            sm_feb     ):
+def n_rings(ring_pos   : list ,
+            nFEM       : int  ,
+            chan_per_mm: int  ,
+            tchans     : dict ,
+            echans     : dict ,
+            ring_r     : float,
+            ring_yx    : dict ,
+            sm_feb     : dict
+            ) -> pd.DataFrame:
     """
     Generate len(ring_pos) 24 sm rings.
 
@@ -209,7 +224,7 @@ def n_rings(ring_pos   ,
                 Axial position of centre of the rings
     """
     sm_per_ring  = 24
-    def ring_at_z(ring_no, ring_z):
+    def ring_at_z(ring_no: int, ring_z: float) -> pd.DataFrame:
         df      = single_ring(nFEM  , chan_per_mm, tchans ,
                               echans, ring_r     , ring_yx,
                               sm_feb, ring_no * sm_per_ring)

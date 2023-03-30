@@ -99,8 +99,8 @@ def test_calculate_skews_nobias(TEST_DATA_DIR, TMP_OUT):
     assert skews[skews != 0].shape[0] == ref_chs.shape[0]
     assert all(skews[skews != 0].index.isin(ref_chs))
     # Too much hardwiring as normal!
-    exp_bias = np.array([326.666667, 364.000000, 202.222222, 681.333333,
-                         622.758621, 513.333333,  90.588235, 580.000000])
+    exp_bias = np.array([326.666667, 364.000000, 482.222222, 681.333333,
+                         622.758621, 513.333333,  370.588235, 580.000000])
     np.testing.assert_allclose(skews[skews != 0], exp_bias)
 
 
@@ -114,7 +114,7 @@ def test_geom_loc_point(TEST_DATA_DIR):
     ch_map = ChannelMap(map_file)
     with open(source_file) as sfile:
         source_yml = yaml.safe_load(sfile)
-    chan_list, find_indx, geom_dt = geom_loc_point(test_file, ch_map, source_yml, -1)
+    chan_list, find_indx, geom_dt = geom_loc_point(test_file, ch_map, source_yml)
 
     exp_chans = (245, 243, 242, 233, 240, 238, 241, 239,
                  253, 250, 251, 248, 249, 246, 247, 244)

@@ -1,4 +1,4 @@
-from typing import Callable, List, Tuple, Union
+from typing import Callable
 
 import matplotlib.pyplot as plt
 
@@ -10,7 +10,7 @@ from . util import ChannelType
 from . util import select_energy_range
 from . util import select_max_energy
 
-def plot_settings():
+def plot_settings() -> None:
     plt.rcParams[ 'lines.linewidth' ] =  2
     plt.rcParams[ 'font.size'       ] = 11
     plt.rcParams[ 'axes.titlesize'  ] = 19
@@ -19,7 +19,13 @@ def plot_settings():
     plt.rcParams[ 'xtick.major.pad' ] = 14
     plt.rcParams[ 'legend.fontsize' ] = 11
 
-def hist1d(axis, data, bins=200, range=(0, 300), histtype='step', label='histo'):
+def hist1d(axis    : plt.Axes                  ,
+           data    : np.ndarray                ,
+           bins    : int             = 200     ,
+           range   : tuple[int, int] = (0, 300),
+           histtype: str             = 'step'  ,
+           label   : str             = 'histo'
+           ) -> tuple[np.ndarray, np.ndarray]:
     """
     plot a 1d histogram and return its
     """
@@ -27,7 +33,12 @@ def hist1d(axis, data, bins=200, range=(0, 300), histtype='step', label='histo')
     return pbins, weights
 
 
-def mm_energy_spectra(setup='tbpet', plot_output=None, min_peak=150, brange=(0, 300), nsigma=2):
+def mm_energy_spectra(setup      : str             = 'tbpet' ,
+                      plot_output: str | None      = None    ,
+                      min_peak   : int             = 150     ,
+                      brange     : tuple[int, int] = (0, 300),
+                      nsigma     : int             = 2
+                      ) -> Callable:
     """
     Generate the energy spectra and select the photopeak
     for each module. Optionally plot and save spectra
@@ -66,7 +77,7 @@ def mm_energy_spectra(setup='tbpet', plot_output=None, min_peak=150, brange=(0, 
         psize   = (15, 15)
         flbins  = 500
         flrange = [[0, 104], [0, 104]]
-    def _make_plot(sm_label, module_xye):
+    def _make_plot(sm_label: int, module_xye: dict) -> list:
         """
         module_xye  : Dict
                       Supermodule xyz lists for each mm
@@ -93,7 +104,7 @@ def mm_energy_spectra(setup='tbpet', plot_output=None, min_peak=150, brange=(0, 
                 try:
                     bcent, gvals, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
                     minE, maxE = pars[1] - nsigma * pars[2], pars[1] + nsigma * pars[2]
-                    ax.plot(bcent, gvals, label=f'fit $\mu$ = {round(pars[1], 3)},  $\sigma$ = {round(pars[2], 3)}')
+                    ax.plot(bcent, gvals, label=f'fit mu = {round(pars[1], 3)},  sigma = {round(pars[2], 3)}')
                 except RuntimeError:
                     minE, maxE = 0, 300
                 eng_arr = np.array(module_xye[j]['energy'])
@@ -139,7 +150,11 @@ def mm_energy_spectra(setup='tbpet', plot_output=None, min_peak=150, brange=(0, 
     return _make_plot
 
 
-def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150, bins=np.arange(9, 25, 0.2)):
+def slab_energy_spectra(slab_xye   : dict                              ,
+                        plot_output: str        = None                 ,
+                        min_peak   : int        = 150                  ,
+                        bins       : np.ndarray = np.arange(9, 25, 0.2)
+                        ) -> dict:
     """
     Make energy spectra of slab time channels.
     slab_xye : Dict
@@ -169,7 +184,7 @@ def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150, bins=np.arange
                     minE, maxE = -1, 1
                 else:
                     minE, maxE = pars[1] - 2 * pars[2], pars[1] + 2 * pars[2]
-                plt.plot(bcent, gvals, label=f'fit $\mu$ = {round(pars[1], 3)},  $\sigma$ = {round(pars[2], 3)}')
+                plt.plot(bcent, gvals, label=f'fit mu = {round(pars[1], 3)},  sigma = {round(pars[2], 3)}')
             except RuntimeError:
                 print(f'Failed fit, slab {slab}')
                 minE, maxE = -1, 0
@@ -195,7 +210,11 @@ def slab_energy_spectra(slab_xye, plot_output=None, min_peak=150, bins=np.arange
     return photo_peak
 
 
-def group_times(filtered_events, peak_select, mm_map, ref_indx):
+def group_times(filtered_events: list    ,
+                peak_select    : list    ,
+                mm_map         : Callable,
+                ref_indx       : int
+                ) -> dict:
     """
     Group the first time signals for each slab
     in a reference super module with all slabs
@@ -247,7 +266,10 @@ def group_times(filtered_events, peak_select, mm_map, ref_indx):
     return reco_dt
 
 
-def group_times_slab(filtered_events, peak_select, ref_indx):
+def group_times_slab(filtered_events: list,
+                     peak_select    : list,
+                     ref_indx       : int
+                     ) -> dict:
     """
     Group the first time signals for each slab
     in a reference super module with all slabs
@@ -293,7 +315,15 @@ def group_times_slab(filtered_events, peak_select, ref_indx):
     return reco_dt
 
 
-def group_times_list(filtered_events, peaks, ref_indx):
+def group_times_list(filtered_events: list,
+                     peaks          : list,
+                     ref_indx       : int
+                     ) -> list:
+    """
+    Find the time channel with highest charge
+    for each side of every event in
+    filtered_events.
+    """
     coinc_indx = 0 if ref_indx == 1 else 1
     def get_times(evt):
         try:
@@ -310,7 +340,8 @@ def group_times_list(filtered_events, peaks, ref_indx):
 def corrected_time_difference(impact_sel: Callable[[   tuple], tuple],
                               ref_ch    : Callable[[   tuple], int  ],
                               energy_sel: Callable[[   float], bool ],
-                              geom_dt   : Callable[[int, int], float]):
+                              geom_dt   : Callable[[int, int], float]
+                              ) -> Callable:
     """
     Calculate the time stamp difference of the
     two impacts corrected for the expectation
@@ -328,7 +359,7 @@ def corrected_time_difference(impact_sel: Callable[[   tuple], tuple],
                     Calculates the geometric dt for
                     the two channels.
     """
-    def _correct_dt(evt):
+    def _correct_dt(evt: tuple[list]) -> tuple[int, int, float]:
         sel_sms = impact_sel(evt)
         chns    = list(map(select_max_energy, sel_sms, [ChannelType.TIME] * 2))
         if any(ch is None for ch in chns) or not all(energy_sel(ch[3]) for ch in chns):
@@ -346,14 +377,16 @@ def corrected_time_difference(impact_sel: Callable[[   tuple], tuple],
     return _correct_dt
 
 
-def ctr(eselect, skew=pd.Series(dtype=float)):
+def ctr(eselect: Callable                        ,
+        skew   : pd.Series=pd.Series(dtype=float)
+        ) -> Callable:
     """
     CTR function.
     Returns a function that calculates the timestamp
     difference for a coincidence event given the
     energy selection (eselect) and skew correction values (skew)
     """
-    def timestamp_difference(evt):
+    def timestamp_difference(evt: tuple[list]) -> float:
         chns = [chn for sm in evt if (chn := select_max_energy(sm, ChannelType.TIME))]
         if len(chns) == 2 and eselect(chns[0][3]) and eselect(chns[1][3]):
             skew_corr = skew.get(chns[1][0], 0.0) - skew.get(chns[0][0], 0.0)
@@ -389,14 +422,14 @@ class ChannelEHistograms:
             self.underflow[id]  = 1
 
     @staticmethod
-    def __fill_histo(id: int, indx: int, hist_dict: dict, nbins) -> None:
+    def __fill_histo(id: int, indx: int, hist_dict: dict, nbins: int) -> None:
         try:
             hist_dict[id][indx] += 1
         except KeyError:
             hist_dict[id]        = np.zeros(nbins, int)
             hist_dict[id][indx] += 1
 
-    def __get_bin(self, id: int, type: Union[ChannelType, str], eng: float) -> Union[int, None]:
+    def __get_bin(self, id: int, type: ChannelType | str, eng: float) -> int | None:
         if eng >= self.edges[type][-1]:
             self.add_overflow(id)
             return
@@ -406,17 +439,17 @@ class ChannelEHistograms:
             return
         return bin_indx
 
-    def fill_time_channel(self, impact: List) -> None:
+    def fill_time_channel(self, impact: list) -> None:
         bin_indx = self.__get_bin(impact[0], impact[1], impact[3])
         if bin_indx is not None:
             self.__fill_histo(impact[0], bin_indx, self.tdist, self.nbin_time)
 
-    def fill_energy_channel(self, impact: List) -> None:
+    def fill_energy_channel(self, impact: list) -> None:
         bin_indx = self.__get_bin(impact[0], impact[1], impact[3])
         if bin_indx is not None:
             self.__fill_histo(impact[0], bin_indx, self.edist, self.nbin_eng)
 
-    def fill_esum(self, sm_impacts: List, id_val: int) -> None:
+    def fill_esum(self, sm_impacts: list, id_val: int) -> None:
         ## Needs to be sorted for new types and improved.
         efilt    = filter(lambda y: y[1] is ChannelType.ENERGY, sm_impacts)
         esum     = sum(map(lambda x: x[3], efilt))
@@ -425,7 +458,7 @@ class ChannelEHistograms:
 
     # Used for channel equalization/peak value plots
     # Will normally be used with singles but general just in case
-    def add_emax_evt(self, evt: Tuple[List, List]) -> None:
+    def add_emax_evt(self, evt: tuple[list, list]) -> None:
         # time channels
         tchn_map = map(select_max_energy, evt, [ChannelType.TIME]*2)
         chns = list(filter(lambda x: x, tchn_map))
@@ -438,7 +471,7 @@ class ChannelEHistograms:
             for echn in filter(lambda x: x, echn_map):
                 self.fill_energy_channel(echn)
 
-    def add_all_energies(self, evt: Tuple[List, List], sms: List[Tuple]) -> None:
+    def add_all_energies(self, evt: tuple[list, list], sms: list[tuple]) -> None:
         """
         Time channel energy plots for all occurences and
         energy sums for each minimodule.
