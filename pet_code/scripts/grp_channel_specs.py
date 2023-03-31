@@ -54,7 +54,7 @@ def slab_plots(out_file     : str               ,
                 plt.ylabel('au')
                 plt.savefig(out_file + f'NoSourceZero_ch{id}.png')
                 plt.clf()
-                continue
+                ns_vals = np.zeros_like(s_vals)
             bin_errs  = np.sqrt(s_vals + ns_vals)
             diff_data = s_vals - ns_vals
             try:
@@ -208,7 +208,7 @@ def channel_plots(config : configparser.ConfigParser,
             _ = tuple(map(nsplots, reader(fn)))
         else:
             _ = tuple(map(splots , reader(fn)))
-    
+
     return plotS, plotNS
 
 
@@ -255,7 +255,7 @@ if __name__ == '__main__':
         out_dir  = os.path.join(*out_file.split(os.sep)[:-1])
     if not os.path.isdir(out_dir):
         os.makedirs(out_dir)
-    
+
     plotS, plotNS = channel_plots(conf, infiles)
 
     min_peak  = conf.getint('filter', 'min_stats', fallback=300)
