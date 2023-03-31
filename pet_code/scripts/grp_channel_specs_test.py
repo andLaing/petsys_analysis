@@ -103,7 +103,7 @@ def test_energy_plots(TMP_OUT, gauss_plots):
 
     _, _, Emu, _, plot_source, plot_nsource = gauss_plots
 
-    energy_plots(out_file, plot_source, plot_nsource)
+    energy_plots(out_file, plot_source, plot_nsource, 100)
 
     eng_fits = out_file + 'eChannelPeaks.txt'
     assert os.path.isfile(eng_fits)

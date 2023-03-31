@@ -38,7 +38,8 @@ from pet_code.src.util     import shift_to_centres
 def slab_plots(out_file     : str               ,
                plot_source  : ChannelEHistograms,
                plot_wosource: ChannelEHistograms,
-               min_stats    : int
+               min_stats    : int               ,
+               pk_finder    : str = 'max'
                ) -> None:
     bin_edges = plot_source.edges[ChannelType.TIME]
     with open(out_file + 'timeSlabPeaks.txt', 'w') as par_out:
@@ -59,7 +60,11 @@ def slab_plots(out_file     : str               ,
             diff_data = s_vals - ns_vals
             try:
                 (bcent   , g_vals,
-                 fit_pars, cov   ) = fit_gaussian(diff_data, bin_edges, yerr=bin_errs, min_peak=min_stats)
+                 fit_pars, cov   ) = fit_gaussian(diff_data            ,
+                                                  bin_edges            ,
+                                                  yerr      = bin_errs ,
+                                                  min_peak  = min_stats,
+                                                  pk_finder = pk_finder)
                 ## hack
                 if fit_pars[1] <= bin_edges[3]:
                     refit = refit_slab(out_file, id, bin_edges, s_vals, ns_vals, diff_data, bin_errs)
@@ -113,7 +118,8 @@ def refit_slab(out_file : str               ,
 
 def energy_plots(out_file     : str               ,
                  plot_source  : ChannelEHistograms,
-                 plot_wosource: ChannelEHistograms
+                 plot_wosource: ChannelEHistograms,
+                 min_peak     : int
                  ) -> None:
     bin_edges = plot_source.edges[ChannelType.ENERGY]
     bin_wid   = np.diff(bin_edges[:2])[0]
@@ -128,7 +134,7 @@ def energy_plots(out_file     : str               ,
             bin_cent  = shift_to_centres(bin_edges)
             hdiff     = vals - valsNS
             hdiff_err = np.sqrt(vals + valsNS)
-            peaks, _  = find_peaks(hdiff, height=100, distance=5)
+            peaks, _  = find_peaks(hdiff, height=min_peak, distance=5)
             if peaks.shape[0] > 1:
                 peak   = np.argmax(hdiff[peaks])
                 p_indx = peaks[peak]
@@ -258,8 +264,9 @@ if __name__ == '__main__':
 
     plotS, plotNS = channel_plots(conf, infiles)
 
-    min_peak  = conf.getint('filter', 'min_stats', fallback=300)
+    min_peak  = conf.getint('filter', 'min_stats'  , fallback=300  )
+    pk_finder = conf.get   ('filter', 'peak_finder', fallback='max')
 
     # Plotting and fitting.
     slab_plots  (out_file, plotS, plotNS, min_peak)
-    energy_plots(out_file, plotS, plotNS)
+    energy_plots(out_file, plotS, plotNS, min_peak)
