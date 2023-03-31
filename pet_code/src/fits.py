@@ -1,4 +1,5 @@
 from scipy.optimize import curve_fit
+from scipy.signal   import find_peaks
 from typing         import Callable
 
 from . util import np
@@ -25,11 +26,12 @@ def lorentzian(x    : float | np.ndarray,
     return amp * gamma**2 / ((x - x0)**2 + gamma**2)
 
 
-def fit_gaussian(data    : np.ndarray              ,
-                 bins    : np.ndarray              ,
-                 cb      : int               =   8 ,
-                 min_peak: int               = 150 ,
-                 yerr    : np.ndarray | None = None
+def fit_gaussian(data     : np.ndarray              ,
+                 bins     : np.ndarray              ,
+                 cb       : int               =   8 ,
+                 min_peak : int               = 150 ,
+                 yerr     : np.ndarray | None = None,
+                 pk_finder: str = 'max'
                  ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Tidy of existing function.
@@ -44,7 +46,29 @@ def fit_gaussian(data    : np.ndarray              ,
     if data[np.argmax(data)] < min_peak:
         raise RuntimeError('Peak max below requirement.')
 
-    mu0, wsum, x, y, err = mean_around_max(data, bin_centres, cb, yerr)
+    if 'peak' in pk_finder:
+        peaks, _ = find_peaks(data                      ,
+                              height     = min_peak     ,
+                              distance   = cb           ,
+                              prominence = min_peak // 4,
+                              width      = cb       // 4)
+        if peaks.shape[0] == 0:
+            mu0, wsum, x, y, err = mean_around_max(data, bin_centres, cb, yerr)
+        else:
+            pk_indx  = peaks.max()# Use the peak furthest to the right
+            mu0      = bin_centres[pk_indx]
+            min_indx = max(pk_indx - cb, 0)
+            max_indx = min(pk_indx + cb, len(bin_centres))
+            x        = bin_centres[min_indx:max_indx]
+            y        = data       [min_indx:max_indx]
+            wsum     = y.sum()
+            if yerr is None:
+                err = np.sqrt(y, out=np.abs(y).astype('float'), where=y>=0)
+            else:
+                err = yerr[min_indx:max_indx]
+    else:
+        mu0, wsum, x, y, err = mean_around_max(data, bin_centres, cb, yerr)
+
     if mu0 is None:
         raise RuntimeError('No useful data available.')
 
