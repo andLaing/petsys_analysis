@@ -268,5 +268,5 @@ if __name__ == '__main__':
     pk_finder = conf.get   ('filter', 'peak_finder', fallback='max')
 
     # Plotting and fitting.
-    slab_plots  (out_file, plotS, plotNS, min_peak)
+    slab_plots  (out_file, plotS, plotNS, min_peak, pk_finder=pk_finder)
     energy_plots(out_file, plotS, plotNS, min_peak)
