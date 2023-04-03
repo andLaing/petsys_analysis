@@ -28,7 +28,7 @@ from pet_code.src.plots   import ChannelEHistograms
 from pet_code.src.util    import ChannelType
 from pet_code.src.util    import calibrate_energies
 from pet_code.src.util    import select_module
-    
+
 
 def cal_and_sel(cal_func: Callable, sel_func: Callable):
     def _cal_and_sel(evt: tuple[list]) -> tuple:
@@ -53,7 +53,7 @@ def output_time_plots(histos   : ChannelEHistograms,
     for id, dist in histos.tdist.items():
         slab_sum += dist
         try:
-            *_, fit_pars, _ = fit_gaussian(dist, histos.edges[htype], min_peak=min_stats)
+            *_, fit_pars, _ = fit_gaussian(dist, histos.edges[htype], min_peak=min_stats, pk_finder='peak')
             mu_vals .append(fit_pars[1])
             sig_vals.append(fit_pars[2])
         except RuntimeError:
@@ -62,7 +62,7 @@ def output_time_plots(histos   : ChannelEHistograms,
             #     plt.errorbar(histos.edges[htype][:-1], dist, yerr=np.sqrt(dist))
             #     plt.show()
             #     plt.clf()
-    
+
     ## Fit distributions
     bins = min(mu_vals) - 2, max(mu_vals) + 2, np.diff(histos.edges[htype][:2])[0]
     plt.hist(mu_vals, bins=np.arange(*bins),
@@ -81,7 +81,7 @@ def output_time_plots(histos   : ChannelEHistograms,
     plt.savefig(os.path.join(out_dir, file_name.split('/')[-1].replace('.ldat', f'{cal_name}_timeEngSig.png')))
     plt.clf()
 
-    bcent, gvals, pars, _ = fit_gaussian(slab_sum, histos.edges[htype])
+    bcent, gvals, pars, _ = fit_gaussian(slab_sum, histos.edges[htype], pk_finder='peak')
     plt.errorbar(bcent, slab_sum, yerr=np.sqrt(slab_sum), label='Energy distribution')
     plt.plot(bcent, gvals, label=f'Fit: mu = {round(pars[1], 3)}, sigma = {round(pars[2], 3)}')
     plt.xlabel('Time channel energy (keV)')
@@ -120,7 +120,7 @@ def output_energy_plots(histos   : ChannelEHistograms,
 
             all_eng += dist
             try:
-                bcent, gvals, pars, _ = fit_gaussian(dist, histos.edges[htype])
+                bcent, gvals, pars, _ = fit_gaussian(dist, histos.edges[htype], pk_finder='peak')
             except RuntimeError:
                 continue
             fig_ax[sm][1].flatten()[mm].errorbar(bcent                ,
@@ -158,7 +158,7 @@ def output_energy_plots(histos   : ChannelEHistograms,
     plt.savefig(os.path.join(out_dir, file_name.split('/')[-1].replace('.ldat', f'{cal_name}_mmEngSig.png')))
     plt.clf()
 
-    bcent, gvals, pars, _ = fit_gaussian(all_eng, histos.edges[htype])
+    bcent, gvals, pars, _ = fit_gaussian(all_eng, histos.edges[htype], pk_finder='peak')
     plt.errorbar(bcent, all_eng, yerr=np.sqrt(all_eng), label='Energy distribution')
     plt.plot(bcent, gvals, label=f'Fit: mu = {round(pars[1], 3)}, sigma = {round(pars[2], 3)}')
     plt.xlabel('All MM sum energy (keV)')
