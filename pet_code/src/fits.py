@@ -47,11 +47,12 @@ def fit_gaussian(data     : np.ndarray              ,
         raise RuntimeError('Peak max below requirement.')
 
     if 'peak' in pk_finder:
+        max_val  = data.max()
         peaks, _ = find_peaks(data                      ,
-                              height     = min_peak     ,
+                              height     = max_val  /  2,
                               distance   = cb           ,
-                              prominence = min_peak // 4,
-                              width      = cb       // 4)
+                              prominence = min_peak // 2,
+                              width      = cb       // 2)
         if peaks.shape[0] == 0:
             mu0, wsum, x, y, err = mean_around_max(data, bin_centres, cb, yerr)
         else:
