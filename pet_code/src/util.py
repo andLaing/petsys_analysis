@@ -398,6 +398,20 @@ def calibrate_energies(type_ids: Callable           ,
     return apply_calibration
 
 
+def convert_to_kev(kev_file: str     ,
+                   mod_func: Callable
+                   ) -> Callable:
+    """
+    Return factor for conversion to keV.
+    """
+    # Ok like this?
+    kev_factors = pd.read_feather(kev_file).set_index(['supermodule', 'minimodule'])
+    def _convert(id: int) -> float:
+        mods = mod_func(id)
+        return kev_factors.loc[mods]
+    return _convert
+
+
 def read_skewfile(skew_file: str) -> pd.Series:
     """
     Read PETsys skew file and return a Series
