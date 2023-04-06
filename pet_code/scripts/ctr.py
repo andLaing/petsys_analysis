@@ -31,23 +31,9 @@ from pet_code.src.fits    import fit_gaussian
 from pet_code.src.io      import ChannelMap
 from pet_code.src.io      import read_petsys_filebyfile
 from pet_code.src.plots   import ctr
-from pet_code.src.plots   import slab_energy_spectra
 from pet_code.src.util    import calibrate_energies
-from pet_code.src.util    import centroid_calculation
-from pet_code.src.util    import get_absolute_id
+from pet_code.src.util    import read_skewfile
 from pet_code.src.util    import select_energy_range
-from pet_code.src.util    import slab_energy_centroids
-
-
-def read_skewfile(file_name):
-    """
-    Make utility?
-    """
-    elec_cols       = ['#portID', 'slaveID', 'chipID', 'channelID']
-    skew_vals       = pd.read_csv(skew_file, sep='\t')
-    skew_vals['id'] = skew_vals.apply(lambda r: get_absolute_id(*r[elec_cols]),
-                                      axis=1).astype('int')
-    return skew_vals.set_index('id')['tOffset (ps)']
 
 
 if __name__ == '__main__':
