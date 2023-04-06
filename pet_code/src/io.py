@@ -309,6 +309,12 @@ class ChannelMap:
         # return self.mapping.at[id, 'minimodule']
         return self.minimod[id]
 
+    def get_modules(self, id: int) -> tuple[int, int]:
+        """
+        Get supermodule and minimodule for given id
+        """
+        return tuple(self.mapping.loc[id, ['supermodule', 'minimodule']])
+
     def get_minimodule_channels(self, sm: int, mm: int) -> np.ndarray:
         mask = (self.mapping.supermodule == sm) & (self.mapping.minimodule == mm)
         return self.mapping.index[mask].values
