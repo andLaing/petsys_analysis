@@ -2,13 +2,16 @@
 
 """Make plots under given (conf) calibration conditions and return plots
 
-Usage: cal_monitor.py (--conf CONFFILE) INPUT ...
+Usage: cal_monitor.py (--conf CONFFILE) [-j] INPUT ...
 
 Arguments:
     INPUT  File(s) to be analysed
 
 Required:
     --conf=CONFFILE  Configuration file for run.
+
+Options:
+    -j  Join data from multiple files instead of treating them as separate.
 """
 
 import os
@@ -70,7 +73,7 @@ def output_time_plots(histos   : ChannelEHistograms,
     plt.xlabel('Time channel peak positions (keV)')
     plt.ylabel('AU')
     plt.legend()
-    plt.savefig(os.path.join(out_dir, file_name.split('/')[-1].replace('.ldat', f'{cal_name}_timeEngMu.png')))
+    plt.savefig(os.path.join(out_dir, file_name.split(os.sep)[-1].replace('.ldat', f'{cal_name}_timeEngMu.png')))
     plt.clf()
     bins = min(sig_vals) - 2, max(sig_vals) + 2, np.diff(histos.edges[htype][:2])[0]
     plt.hist(sig_vals, bins=np.arange(*bins),
@@ -78,7 +81,7 @@ def output_time_plots(histos   : ChannelEHistograms,
     plt.xlabel('Time channel peak sigmas (keV)')
     plt.ylabel('AU')
     plt.legend()
-    plt.savefig(os.path.join(out_dir, file_name.split('/')[-1].replace('.ldat', f'{cal_name}_timeEngSig.png')))
+    plt.savefig(os.path.join(out_dir, file_name.split(os.sep)[-1].replace('.ldat', f'{cal_name}_timeEngSig.png')))
     plt.clf()
 
     bcent, gvals, pars, _ = fit_gaussian(slab_sum, histos.edges[htype], pk_finder='peak')
@@ -87,9 +90,10 @@ def output_time_plots(histos   : ChannelEHistograms,
     plt.xlabel('Time channel energy (keV)')
     plt.ylabel('AU')
     plt.legend()
-    plt.savefig(os.path.join(out_dir, file_name.split('/')[-1].replace('.ldat', f'{cal_name}_timeAllDist.png')))
+    plt.savefig(os.path.join(out_dir, file_name.split(os.sep)[-1].replace('.ldat', f'{cal_name}_timeAllDist.png')))
     plt.clf()
     ##
+    plt.close('all')
 
 
 def output_energy_plots(histos   : ChannelEHistograms,
@@ -112,7 +116,7 @@ def output_energy_plots(histos   : ChannelEHistograms,
     fig_ax   = {k: plt.subplots(nrows=fig_rows, ncols=fig_cols, figsize=psize)
                 for k in no_super}
     htype    = 'ESUM'
-    txt_file = os.path.join(out_dir, file_name.split('/')[-1].replace('.ldat', f'{cal_name}_MMEngPeaks.txt'))
+    txt_file = os.path.join(out_dir, file_name.split(os.sep)[-1].replace('.ldat', f'{cal_name}_MMEngPeaks.txt'))
     with open(txt_file, 'w') as peak_out:
         peak_out.write('Supermod\tMinimod\tEnergy Peak\tSigma\n')
         for id, dist in histos.sum_dist.items():
@@ -136,9 +140,10 @@ def output_energy_plots(histos   : ChannelEHistograms,
             peak_out.write(f'{sm}\t{mm}\t{round(pars[1], 3)}\t{round(pars[2], 3)}\n')
 
     for i, (fig, _) in fig_ax.items():
-        out_name = os.path.join(out_dir, file_name.split('/')[-1].replace('.ldat', f'{cal_name}_MMEngs_sm{i}.png'))
+        out_name = os.path.join(out_dir, file_name.split(os.sep)[-1].replace('.ldat', f'{cal_name}_MMEngs_sm{i}.png'))
         fig.savefig(out_name)
     plt.clf()
+    plt.close('all')
 
     ## Fit distributions
     bins = min(mu_vals) - 2, max(mu_vals) + 2, np.diff(histos.edges[htype][:2])[0]
@@ -147,7 +152,7 @@ def output_energy_plots(histos   : ChannelEHistograms,
     plt.xlabel('Minimodule energy channel peak positions (au)')
     plt.ylabel('AU')
     plt.legend()
-    plt.savefig(os.path.join(out_dir, file_name.split('/')[-1].replace('.ldat', f'{cal_name}_mmEngMu.png')))
+    plt.savefig(os.path.join(out_dir, file_name.split(os.sep)[-1].replace('.ldat', f'{cal_name}_mmEngMu.png')))
     plt.clf()
     bins = min(sig_vals) - 2, max(sig_vals) + 2, np.diff(histos.edges[htype][:2])[0]
     plt.hist(sig_vals, bins=np.arange(*bins),
@@ -155,7 +160,7 @@ def output_energy_plots(histos   : ChannelEHistograms,
     plt.xlabel('Minimodule energy channel peak sigmas (au)')
     plt.ylabel('AU')
     plt.legend()
-    plt.savefig(os.path.join(out_dir, file_name.split('/')[-1].replace('.ldat', f'{cal_name}_mmEngSig.png')))
+    plt.savefig(os.path.join(out_dir, file_name.split(os.sep)[-1].replace('.ldat', f'{cal_name}_mmEngSig.png')))
     plt.clf()
 
     bcent, gvals, pars, _ = fit_gaussian(all_eng, histos.edges[htype], pk_finder='peak')
@@ -164,9 +169,10 @@ def output_energy_plots(histos   : ChannelEHistograms,
     plt.xlabel('All MM sum energy (keV)')
     plt.ylabel('AU')
     plt.legend()
-    plt.savefig(os.path.join(out_dir, file_name.split('/')[-1].replace('.ldat', f'{cal_name}_engAllDist.png')))
+    plt.savefig(os.path.join(out_dir, file_name.split(os.sep)[-1].replace('.ldat', f'{cal_name}_engAllDist.png')))
     plt.clf()
     ##
+    plt.close('all')
 
 
 if __name__ == '__main__':
@@ -206,12 +212,19 @@ if __name__ == '__main__':
     min_stats = conf.getint('filter', 'min_stats')
     for fn in infiles:
         print(f'Reading file {fn}')
-        plotter = ChannelEHistograms(tbins, ebins, ebins)
+        if 'plotter' not in dir() or args['-j'] is None:
+            plotter = ChannelEHistograms(tbins, ebins, ebins)
         for evt in map(cal_sel, reader(fn)):
             sm_mm = tuple(map(lambda i: (chan_map.get_supermodule(i[0][0]),
                                          chan_map.get_minimodule (i[0][0])),
                               filter(lambda j: j, evt)                     ))
             plotter.add_all_energies(evt, sm_mm)
 
+        if args['-j'] is None:
+            output_time_plots  (plotter, cal_name, out_dir, fn, min_stats)
+            output_energy_plots(plotter, cal_name, out_dir, fn, map_file, sm_nums)
+
+    if args['-j'] is not None:
+        fn = os.path.join(out_dir, 'combinedstats.ldat')#Review, better to use config variable?
         output_time_plots  (plotter, cal_name, out_dir, fn, min_stats)
         output_energy_plots(plotter, cal_name, out_dir, fn, map_file, sm_nums)
