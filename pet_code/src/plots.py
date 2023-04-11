@@ -9,6 +9,7 @@ from . util import pd
 from . util import ChannelType
 from . util import select_energy_range
 from . util import select_max_energy
+from . util import shift_to_centres
 
 def plot_settings() -> None:
     plt.rcParams[ 'lines.linewidth' ] =  2
@@ -31,6 +32,93 @@ def hist1d(axis    : plt.Axes                  ,
     """
     weights, pbins, _ = axis.hist(data, bins=bins, range=range, histtype=histtype, label=label)
     return pbins, weights
+
+
+def sm_floodmaps(setup   : str = 'tbpet'                        ,
+                 out_base: str = 'maps.ldat'                    ,
+                 min_peak: int = 100                            ,
+                 nsigma  : int =   2                            ,
+                 xbins   : np.ndarray = np.linspace(0, 104, 200),
+                 ybins   : np.ndarray = np.linspace(0, 104, 200),
+                 ebins   : np.ndarray = np.linspace(0, 300, 200)
+                 ) -> Callable:
+    """
+    Plot energy spectra for each minimodule
+    and a floodmap for the supermodule based
+    on the peak selection in each of the spectra
+    using the setup and binning set and a 3D (XYE)
+    histogram for each minimodule.
+
+    setup    : str
+               Name of the setup: tbpet, ebrain.
+    out_base : str
+               The output base name for
+               the plots. When None, no plots made.
+    min_peak : int
+               Minimum entries in peak bin for fit.
+    nsigma   : int
+               Number of sigmas in peak selection.
+    xbins    : np.ndarray
+               x axis bin edges
+    ybins    : np.ndarray
+               y axis bin edges
+    ebins    : np.ndarray
+               energy axis bin edges
+    return
+                 Callable for SM level plotting.
+    """
+    if   setup == 'tbpet' :
+        nrow  = 4
+        ncol  = 4
+        psize = (15, 15)
+    elif setup == 'ebrain':
+        nrow  = 8
+        ncol  = 2
+        psize = (20, 15)
+    else:
+        print('Setup not found, defaulting to tbpet')
+        nrow    = 4
+        ncol    = 4
+        psize   = (15, 15)
+    plot_settings()
+    def _make_plot(sm_label: int, module_xye: dict) -> None:
+        fig, axes = plt.subplots(nrows=nrow, ncols=ncol, figsize=psize)
+        flmap     = np.zeros((xbins.size - 1, ybins.size - 1), np.uint)
+        for j, ax in enumerate(axes.flatten()):
+            if not module_xye[j].any():
+                print(f'No data for super module {sm_label}, mini module {j}, skipping')
+                continue
+            espec = module_xye[j].sum(axis=(0, 1))
+            ax.plot(shift_to_centres(ebins), espec, label=f'Det: {sm_label}\n mM: {j}')
+            try:
+                bcent, gvals, pars, _ = fit_gaussian(espec, ebins,
+                                                     cb=6, min_peak=min_peak, pk_finder='peak')
+                minE, maxE = pars[1] - nsigma * pars[2], pars[1] + nsigma * pars[2]
+                ax.plot(bcent, gvals, label=f'fit mu = {round(pars[1], 3)},  sigma = {round(pars[2], 3)}')
+            except RuntimeError:
+                minE, maxE = 0, 300
+            ax.set_xlabel('Energy (au)')
+            ## Filters for floodmaps
+            ax.axvspan(minE, maxE, facecolor='#00FF00' , alpha = 0.3, label='Selected range')
+            ax.legend()
+            eslice = slice(np.searchsorted(ebins, minE, side='right') - 1,
+                           np.searchsorted(ebins, maxE, side='right')    )
+            flmap  = np.add(flmap, module_xye[j][:, :, eslice].sum(axis=2))
+        out_name = out_base.replace(".ldat","_EnergyModuleSMod" + str(sm_label) + ".png")
+        fig.savefig(out_name)
+        plt.clf()
+
+        plt.imshow(flmap.T, cmap='Reds', interpolation='none',
+                   origin='lower', extent=[xbins[0], xbins[-1], ybins[0], ybins[-1]])
+        plt.xlabel('X position (pixelated) [mm]')
+        plt.ylabel('Y position (monolithic) [mm]')
+        plt.colorbar()
+        plt.tight_layout()
+        out_name = out_base.replace(".ldat","_FloodModule" + str(sm_label) + ".png")
+        plt.savefig(out_name)
+        plt.clf()
+        plt.close('all')
+    return _make_plot
 
 
 def mm_energy_spectra(setup      : str             = 'tbpet' ,
@@ -482,4 +570,3 @@ class ChannelEHistograms:
                 self.fill_time_channel(imp)
 
             self.fill_esum(imps, sm_mm)
-
