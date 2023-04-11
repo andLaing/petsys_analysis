@@ -14,26 +14,23 @@ Required:
 import os
 import configparser
 
-from docopt import docopt
-from typing import Callable, Iterator
+from docopt    import docopt
+from functools import partial
+from typing    import Callable
 
 from pet_code.src.filters import filter_event_by_impacts
 from pet_code.src.filters import filter_event_by_impacts_noneg
 from pet_code.src.filters import filter_max_coin_event
 from pet_code.src.filters import filter_impacts_one_minimod
-from pet_code.src.fits    import fit_gaussian
 from pet_code.src.io      import ChannelMap
 from pet_code.src.io      import read_petsys_filebyfile
-from pet_code.src.plots   import plt
-from pet_code.src.plots   import mm_energy_spectra
-from pet_code.src.plots   import plot_settings
+from pet_code.src.plots   import sm_floodmaps
 from pet_code.src.util    import np
 from pet_code.src.util    import calibrate_energies
 from pet_code.src.util    import centroid_calculation
 from pet_code.src.util    import get_supermodule_eng
 from pet_code.src.util    import mm_energy_centroids
 from pet_code.src.util    import select_module
-from pet_code.src.util    import shift_to_centres
 
 
 def _get_bin(bin_edges, val):
@@ -69,8 +66,6 @@ def xyE_binning(chan_map: ChannelMap,
                 sm_specs[sm][mm][xb, yb, eb] += 1
 
     def make_plots(plotter: Callable) -> None:
-        # for sm, mms in sm_specs.items():
-        #     plotter(sm, mms)
         for sm in list(sm_specs.keys()):
             plotter(sm, sm_specs[sm])
             del sm_specs[sm]
@@ -128,22 +123,21 @@ if __name__ == '__main__':
 
     pet_reader = read_petsys_filebyfile(chan_map.ch_type, evt_select)
     end_sec    = time.time()
+
+    xbins     = np.linspace(*map(int, conf.get('output', 'xbinning', fallback='0,104,500').split(',')))
+    ybins     = np.linspace(*map(int, conf.get('output', 'ybinning', fallback='0,104,500').split(',')))
+    ebins     = np.linspace(*map(int, conf.get('output', 'ebinning', fallback='0,300,200').split(',')))
+    min_stats = conf.getint('output', 'min_stats', fallback=100)
     print(f'Time elapsed in setups: {end_sec - start} s')
     start_sec  = end_sec
     for fn in infiles:
         print(f'Reading file {fn}')
-        xbins = np.linspace(0, 104, 500)
-        ybins = np.linspace(0, 104, 500)
-        ebins = np.linspace(0, 300, 200)
         binner, plotter = xyE_binning(chan_map, xbins, ybins, ebins, cal_func, max_sel, c_calc)
-        _ = tuple(map(binner, pet_reader(fn)))
-        # filtered_events = list(map(cal_func, pet_reader(fn)))
+        _               = tuple(map(binner, pet_reader(fn)))
         end_sec         = time.time()
         print(f'Time enlapsed reading: {end_sec - start_sec} s')
-        #print("length check: ", len(filtered_events))
 
         start_sec = end_sec
-        # mod_dicts = mm_ecent(filtered_events)
 
         cal     = 'cal' if time_cal else 'noCal'
         set_end = f'_{cal}_filt{filt_type}.ldat'
@@ -153,11 +147,8 @@ if __name__ == '__main__':
         else:
             fbase    = out_form + fn.split(os.sep)[-1].replace('.ldat', set_end)
             out_base = os.path.join(out_dir, fbase)
-        # for sm, specs in yielder():
-        #     plot_floodmap(sm, specs, xbins, ybins, ebins, min_peak=100, nsigma=nsigma, plot_output=out_base)
-        plotter(mm_energy_spectra(sm_setup, out_base, 100, nsigma=nsigma))
-        # plotter  = mm_energy_spectra(sm_setup, out_base, 100, nsigma=nsigma)
-        # photo_peak = {i: plotter(i, vals) for i, vals in mod_dicts.items()}
-        # photo_peak = dict(map(lambda i: i[0]: plotter(*i), mod_dicts.items()))
+
+        plotter(sm_floodmaps(sm_setup, out_base, min_peak=min_stats, nsigma=nsigma,
+                             xbins=xbins, ybins=ybins, ebins=ebins))
         end_p = time.time()
         print("Time enlapsed plotting: {} s".format(int(end_p - start_sec)))
