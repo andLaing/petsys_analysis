@@ -17,6 +17,7 @@ from . plots import group_times_list
 from . plots import group_times_slab
 from . plots import mm_energy_spectra
 from . plots import slab_energy_spectra
+from . plots import sm_floodmaps
 
 
 def test_hist1d():
@@ -105,7 +106,7 @@ def test_group_times(TEST_DATA_DIR, DUMMY_EVT):
     # Dummy peak filters
     peak_sel = [[lambda x: (x >  50) & (x <  60) for _ in range(10)],
                 [lambda x: (x > 100) & (x < 110) for _ in range(10)]]
-    
+
     reco_dt  = group_times([dummy_with_enum], peak_sel, lambda id: mm_map[id], 1)
 
     assert len(reco_dt) == 1
@@ -234,10 +235,10 @@ def test_ChannelEHistograms_ehist(TEST_DATA_DIR, DUMMY_EVT):
     eunder   = [imp[0] for imp in filter(lambda x: x[3] <  erange[0]            , echans)]
     eover    = [imp[0] for imp in filter(lambda x: x[3] >= erange[1] - erange[2], echans)]
     ehist    = partial(np.histogram, bins=ebins)
-    
+
     for imp in echans:
         e_histos.fill_energy_channel(imp)
-    
+
     nechan   = np.unique([imp[0] for imp in echans]).shape[0]
     ch_under = len(e_histos.underflow)
     assert np.unique(eunder).shape[0] == ch_under
@@ -299,3 +300,33 @@ def test_ChannelEHistograms_maxes(DUMMY_EVT):
         mask       = np.ones(e_histos.edist[id].size, bool)
         mask[indx] = False
         assert all(e_histos.edist[id][mask] == 0)
+
+
+def test_sm_floodmaps(TMP_OUT):
+    gen_stats = 10000
+    mm_pitch  =    25.9
+    xbins     = np.arange(105)
+    ybins     = np.arange(105)
+    ebins     = np.arange(200)
+    mm_e = {i: np.zeros((xbins.size - 1, ybins.size - 1, ebins.size - 1), dtype=np.uint)
+            for i in range(16)}
+    for j in range(16):
+        for e, x, y in zip(np.random.normal(100 + 2 * j, 5, gen_stats),
+                           np.random.uniform(mm_pitch *  j % 4      ,
+                                             mm_pitch * (j % 4 + 1) ,
+                                             gen_stats                    ),
+                           np.random.uniform(mm_pitch * (3 - j // 4),
+                                             mm_pitch * (4 - j // 4),
+                                             gen_stats                    )):
+            mm_e[j][int(np.floor(x)), int(np.floor(y)), int(np.floor(e))] += 1
+
+    out_base = os.path.join(TMP_OUT, 'testplots.ldat')
+    eplots   = sm_floodmaps(min_peak=100, out_base=out_base,
+                            ebins=ebins, xbins=xbins, ybins=ybins)
+    _        = eplots(0, mm_e)
+
+    # mM energy spectra plots created?
+    spec_plot  = out_base.replace('.ldat', '_EnergyModuleSMod0.png')
+    flood_plot = out_base.replace(".ldat",      '_FloodModule0.png')
+    assert os.path.isfile( spec_plot)
+    assert os.path.isfile(flood_plot)
