@@ -246,7 +246,7 @@ def read_ymlmapping_brain(mapping_file: str) -> tuple[set, set, dict, dict, dict
             ALLSM_time_ch  .add(absolut_tch)
             ALLSM_energy_ch.add(absolut_ech)
 
-            mM_mapping[absolut_tch] = mM_num            
+            mM_mapping[absolut_tch] = mM_num
             mM_mapping[absolut_ech] = mM_num
             if   half == 0:
                 centroid_mapping[absolut_tch] = (0, round(1.6 + 3.2 *        c_num , 2))
@@ -261,8 +261,8 @@ def read_ymlmapping_brain(mapping_file: str) -> tuple[set, set, dict, dict, dict
             c_num  += 1
             rc_num += 1
             if slab_num %  8 == 0:
-                mM_num += 1  
-                c_num   = 0              
+                mM_num += 1
+                c_num   = 0
             if slab_num % 64 == 0:
                 half   = 1
                 r_num  = 0
@@ -341,8 +341,9 @@ def write_event_trace(file_buffer: TextIO      ,
     nchan  = 8
     isTIME = sm_map.type.map(lambda x: x is ChannelType.TIME)
     ## Time as X hardwire? OK? 8 chans of type per minimodule hardwire? OK?
-    chan_ord = (sm_map[ isTIME].sort_values(['minimodule', 'local_x']).groupby('minimodule').head(nchan),
-                sm_map[~isTIME].sort_values(['minimodule', 'local_y']).groupby('minimodule').head(nchan))
+    cols = ['supermodule', 'minimodule']
+    chan_ord = (sm_map[ isTIME].sort_values(cols + ['local_x']).groupby(cols).head(nchan),
+                sm_map[~isTIME].sort_values(cols + ['local_y']).groupby(cols).head(nchan))
     def write_minimod(mm_trace: list[list]) -> None:
         channels = np.zeros(16)
         mini_mod = mm_lookup(mm_trace[0][0])
