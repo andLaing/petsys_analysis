@@ -127,7 +127,18 @@ if __name__ == '__main__':
     xbins     = np.linspace(*map(int, conf.get('output', 'xbinning', fallback='0,104,500').split(',')))
     ybins     = np.linspace(*map(int, conf.get('output', 'ybinning', fallback='0,104,500').split(',')))
     ebins     = np.linspace(*map(int, conf.get('output', 'ebinning', fallback='0,300,200').split(',')))
-    min_stats = conf.getint('output', 'min_stats', fallback=100)
+    min_stats = conf.getint    ('output', 'min_stats', fallback=100)
+    log_plot  = conf.getboolean('output',  'log_plot', fallback=False)
+    cmap      = conf.get       ('output',  'colormap', fallback='Reds')
+    fl_plot   = partial(sm_floodmaps        ,
+                        setup    = sm_setup ,
+                        min_peak = min_stats,
+                        nsigma   = nsigma   ,
+                        xbins    = xbins    ,
+                        ybins    = ybins    ,
+                        ebins    = ebins    ,
+                        log      = log_plot ,
+                        cmap     = cmap     )
     print(f'Time elapsed in setups: {end_sec - start} s')
     start_sec  = end_sec
     for fn in infiles:
@@ -148,7 +159,6 @@ if __name__ == '__main__':
             fbase    = out_form + fn.split(os.sep)[-1].replace('.ldat', set_end)
             out_base = os.path.join(out_dir, fbase)
 
-        plotter(sm_floodmaps(sm_setup, out_base, min_peak=min_stats, nsigma=nsigma,
-                             xbins=xbins, ybins=ybins, ebins=ebins))
+        plotter(fl_plot(out_base=out_base))
         end_p = time.time()
         print("Time enlapsed plotting: {} s".format(int(end_p - start_sec)))
