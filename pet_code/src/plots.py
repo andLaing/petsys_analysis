@@ -34,13 +34,15 @@ def hist1d(axis    : plt.Axes                  ,
     return pbins, weights
 
 
-def sm_floodmaps(setup   : str = 'tbpet'                        ,
-                 out_base: str = 'maps.ldat'                    ,
-                 min_peak: int = 100                            ,
-                 nsigma  : int =   2                            ,
+def sm_floodmaps(setup   : str        = 'tbpet'                 ,
+                 out_base: str        = 'maps.ldat'             ,
+                 min_peak: int        = 100                     ,
+                 nsigma  : int        =   2                     ,
                  xbins   : np.ndarray = np.linspace(0, 104, 200),
                  ybins   : np.ndarray = np.linspace(0, 104, 200),
-                 ebins   : np.ndarray = np.linspace(0, 300, 200)
+                 ebins   : np.ndarray = np.linspace(0, 300, 200),
+                 log     : bool       = False                   ,
+                 cmap    : str        = 'Reds'
                  ) -> Callable:
     """
     Plot energy spectra for each minimodule
@@ -64,6 +66,10 @@ def sm_floodmaps(setup   : str = 'tbpet'                        ,
                y axis bin edges
     ebins    : np.ndarray
                energy axis bin edges
+    log      : bool
+               Log scale for floodmap
+    cmap     : str
+               Floodmap color scale
     return
                  Callable for SM level plotting.
     """
@@ -80,6 +86,10 @@ def sm_floodmaps(setup   : str = 'tbpet'                        ,
         nrow    = 4
         ncol    = 4
         psize   = (15, 15)
+    flood_extent = [xbins[0], xbins[-1], ybins[0], ybins[-1]]
+    flood_norm   = 'linear'
+    if log:
+        flood_norm = 'log'
     plot_settings()
     def _make_plot(sm_label: int, module_xye: dict) -> None:
         fig, axes = plt.subplots(nrows=nrow, ncols=ncol, figsize=psize)
@@ -108,8 +118,8 @@ def sm_floodmaps(setup   : str = 'tbpet'                        ,
         fig.savefig(out_name)
         plt.clf()
 
-        plt.imshow(flmap.T, cmap='Reds', interpolation='none',
-                   origin='lower', extent=[xbins[0], xbins[-1], ybins[0], ybins[-1]])
+        plt.imshow(flmap.T, cmap=cmap, interpolation='none',
+                   origin='lower', extent=flood_extent, norm=flood_norm)
         plt.xlabel('X position (pixelated) [mm]')
         plt.ylabel('Y position (monolithic) [mm]')
         plt.colorbar()
