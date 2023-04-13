@@ -111,8 +111,8 @@ def sm_floodmaps(setup   : str        = 'tbpet'                 ,
             ## Filters for floodmaps
             ax.axvspan(minE, maxE, facecolor='#00FF00' , alpha = 0.3, label='Selected range')
             ax.legend()
-            eslice = slice(np.searchsorted(ebins, minE, side='right') - 1,
-                           np.searchsorted(ebins, maxE, side='right')    )
+            eslice = slice(max(0, np.searchsorted(ebins, minE, side='right') - 1),
+                                  np.searchsorted(ebins, maxE, side='right')     )
             flmap  = np.add(flmap, module_xye[j][:, :, eslice].sum(axis=2))
         out_name = out_base.replace(".ldat","_EnergyModuleSMod" + str(sm_label) + ".png")
         fig.savefig(out_name)
