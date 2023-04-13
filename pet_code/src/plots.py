@@ -119,7 +119,7 @@ def sm_floodmaps(setup   : str        = 'tbpet'                 ,
         plt.clf()
 
         plt.imshow(flmap.T, cmap=cmap, interpolation='none',
-                   origin='lower', extent=flood_extent, norm=flood_norm)
+                   origin='lower', extent=flood_extent, norm=flood_norm, aspect='auto')
         plt.xlabel('X position (pixelated) [mm]')
         plt.ylabel('Y position (monolithic) [mm]')
         plt.colorbar()
