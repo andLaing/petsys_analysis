@@ -29,7 +29,6 @@ from pet_code.src.util    import np
 from pet_code.src.util    import calibrate_energies
 from pet_code.src.util    import centroid_calculation
 from pet_code.src.util    import get_supermodule_eng
-from pet_code.src.util    import mm_energy_centroids
 from pet_code.src.util    import select_module
 
 
@@ -114,8 +113,6 @@ if __name__ == '__main__':
         os.makedirs(out_dir)
     nsigma   = conf.getint('output', 'nsigma', fallback=2)
     sm_setup = 'ebrain' if 'brain' in map_file else 'tbpet'
-    mm_ecent = mm_energy_centroids(c_calc, chan_map.get_supermodule,
-                                   chan_map.get_minimodule, mod_sel=max_sel)
     try:
         out_form = conf.get('output', 'out_file')
     except configparser.NoOptionError:
