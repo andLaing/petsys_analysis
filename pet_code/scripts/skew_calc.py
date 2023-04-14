@@ -139,9 +139,10 @@ def process_raw_data(file_list: list[str]                ,
     and output to feather files.
     """
     ## This needs to be improved. In principle it can be in the map.
-    time_cal = config.get('calibration',   'time_channels', fallback='')
-    eng_cal  = config.get('calibration', 'energy_channels', fallback='')
-    cal_func = calibrate_energies(ch_map.get_chantype_ids, time_cal, eng_cal)
+    time_cal = config.get     ('calibration',   'time_channels' , fallback='')
+    eng_cal  = config.get     ('calibration', 'energy_channels' , fallback='')
+    eref     = config.getfloat('calibration', 'energy_reference', fallback=None)
+    cal_func = calibrate_energies(ch_map.get_chantype_ids, time_cal, eng_cal, eref=eref)
     sel_mod  = select_module(ch_map.get_minimodule)
 
     def cal_and_select(evt: tuple) -> tuple:

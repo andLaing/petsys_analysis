@@ -46,9 +46,10 @@ if __name__ == '__main__':
     out_fldr = conf.get('output',  'out_dir', fallback='')
     out_name = conf.get('output', 'out_name', fallback='all_impacts')
 
-    time_cal = conf.get('calibration',   'time_channels', fallback='')
-    eng_cal  = conf.get('calibration', 'energy_channels', fallback='')
-    cal_func = calibrate_energies(chan_map.get_chantype_ids, time_cal, eng_cal)
+    time_cal = conf.get     ('calibration',   'time_channels' , fallback='')
+    eng_cal  = conf.get     ('calibration', 'energy_channels' , fallback='')
+    eref     = conf.getfloat('calibration', 'energy_reference', fallback=None)
+    cal_func = calibrate_energies(chan_map.get_chantype_ids, time_cal, eng_cal, eref=eref)
 
     for fn in file_list:
         in_parts = os.path.normpath(fn).split(os.sep)
@@ -69,4 +70,3 @@ if __name__ == '__main__':
             for evt in reader(fn):
                 sel_mods = mod_select(cal_func(evt)[control_indx])
                 writer(sel_mods)
-

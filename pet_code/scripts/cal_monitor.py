@@ -190,8 +190,9 @@ if __name__ == '__main__':
     singles    = 'coinc' not in infiles[0]
     evt_filter = filter_event_by_impacts(min_chan, singles=singles)
 
-    time_cal = conf.get('calibration',   'time_channels', fallback='')
-    eng_cal  = conf.get('calibration', 'energy_channels', fallback='')
+    time_cal = conf.get     ('calibration',   'time_channels', fallback='')
+    eng_cal  = conf.get     ('calibration', 'energy_channels', fallback='')
+    eref     = conf.getfloat('calibration', 'energy_reference', fallback=None)
     cal_name = ''
     if       time_cal and     eng_cal:
         cal_name = '_calEngTime_'
@@ -199,7 +200,7 @@ if __name__ == '__main__':
         cal_name = '_calTime_'
     elif not time_cal and     eng_cal:
         cal_name = '_calEng_'
-    cal_func = calibrate_energies(chan_map.get_chantype_ids, time_cal, eng_cal)
+    cal_func = calibrate_energies(chan_map.get_chantype_ids, time_cal, eng_cal, eref=eref)
 
     ebins   = np.arange(*map(float, conf.get('output', 'ebinning', fallback='0,300,1.5').split(',')))
     tbins   = np.arange(*map(float, conf.get('output', 'tbinning', fallback='9,25,0.2') .split(',')))

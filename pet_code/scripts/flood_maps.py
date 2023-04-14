@@ -102,9 +102,10 @@ if __name__ == '__main__':
         print('No valid filter found, fallback to 4 minimum energy channels')
         evt_select = filter_event_by_impacts(4)
 
-    time_cal = conf.get('calibration',   'time_channels', fallback='')
-    eng_cal  = conf.get('calibration', 'energy_channels', fallback='')
-    cal_func = calibrate_energies(chan_map.get_chantype_ids, time_cal, eng_cal)
+    time_cal = conf.get     ('calibration',   'time_channels' , fallback='')
+    eng_cal  = conf.get     ('calibration', 'energy_channels' , fallback='')
+    eref     = conf.getfloat('calibration', 'energy_reference', fallback=None)
+    cal_func = calibrate_energies(chan_map.get_chantype_ids, time_cal, eng_cal, eref=eref)
 
     c_calc   = centroid_calculation(chan_map.plotp)
     max_sel  = select_module(chan_map.get_minimodule) if conf.getboolean('filter', 'sel_max_mm') else lambda x: x

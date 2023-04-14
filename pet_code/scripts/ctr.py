@@ -2,7 +2,7 @@
 
 """Monitor time resolution with or without energy calibration
 
-Usage: ctr.py (--map MAPFILE) [--tcal TCAL] [--ecal ECAL] [--elim ELIM] [--sk SKEW] INPUT
+Usage: ctr.py (--map MAPFILE) [--tcal TCAL] [--ecal ECAL] [--eref EREF] [--elim ELIM] [--sk SKEW] INPUT
 
 Arguments:
     INPUT  File to be processed.
@@ -15,6 +15,7 @@ Options:
     --ecal=ECAL  File for the energy channel equalization [default: '']
     --elim=ELIM  Lower and upper limits for slab energy [default: 420,600]
     --sk=SKEW    Name of the file containing skew values per channel.
+    --eref=EREF  Reference value for energy equalization, defaults to mean value of peaks [default: 0]
 """
 
 import os
@@ -51,12 +52,13 @@ def read_skewfile(file_name):
 
 if __name__ == '__main__':
     args       = docopt(__doc__)
-    file_name  = args['INPUT' ]
-    map_file   = args['--map' ]
-    tcal       = args['--tcal']
-    ecal       = args['--ecal']
-    skew_file  = args['--sk'  ]
-    eng_limits = args['--elim']
+    file_name  =       args['INPUT' ]
+    map_file   =       args['--map' ]
+    tcal       =       args['--tcal']
+    ecal       =       args['--ecal']
+    skew_file  =       args['--sk'  ]
+    eng_limits =       args['--elim']
+    eref_val   = float(args['--eref'])
 
     chan_map = ChannelMap(map_file)
 
