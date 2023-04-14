@@ -60,6 +60,8 @@ if __name__ == '__main__':
                 in_parts[0] = os.sep
             out_dir = os.path.join(*in_parts[:-1], out_name)
         out_file = out_dir + in_parts[-1].replace('.ldat', '_NN.txt')
+        if not os.path.isdir(out_dir):
+            os.makedirs(out_dir)
 
         # Need to protect from overwrite? Will add output folder when using docopt/config or both
         sm_map = chan_map.mapping[chan_map.mapping.supermodule == control_sm]
