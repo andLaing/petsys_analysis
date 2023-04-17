@@ -213,7 +213,7 @@ if __name__ == '__main__':
     min_stats = conf.getint('filter', 'min_stats')
     for fn in infiles:
         print(f'Reading file {fn}')
-        if 'plotter' not in dir() or args['-j'] is None:
+        if 'plotter' not in dir() or not args['-j']:
             plotter = ChannelEHistograms(tbins, ebins, ebins)
         for evt in map(cal_sel, reader(fn)):
             sm_mm = tuple(map(lambda i: (chan_map.get_supermodule(i[0][0]),
@@ -221,11 +221,11 @@ if __name__ == '__main__':
                               filter(lambda j: j, evt)                     ))
             plotter.add_all_energies(evt, sm_mm)
 
-        if args['-j'] is None:
+        if not args['-j']:
             output_time_plots  (plotter, cal_name, out_dir, fn, min_stats)
             output_energy_plots(plotter, cal_name, out_dir, fn, map_file, sm_nums)
 
-    if args['-j'] is not None:
+    if args['-j']:
         fn = os.path.join(out_dir, 'combinedstats.ldat')#Review, better to use config variable?
         output_time_plots  (plotter, cal_name, out_dir, fn, min_stats)
         output_energy_plots(plotter, cal_name, out_dir, fn, map_file, sm_nums)
