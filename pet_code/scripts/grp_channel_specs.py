@@ -248,8 +248,11 @@ if __name__ == '__main__':
     infiles  = args['INPUT' ]
 
     if out_file is None:
-        out_file = conf.get('output', 'out_file', fallback='slabSpec')
-    out_dir  = os.path.join(*out_file.split('/')[:-1])
+        out_dir  = conf.get('output',  'out_dir', fallback='generic_cal')
+        out_file = conf.get('output', 'out_file', fallback='slabSpec'   )
+        out_file = os.path.join(out_dir, out_file)
+    else:
+        out_dir  = os.path.join(*out_file.split(os.sep)[:-1])
     if not os.path.isdir(out_dir):
         os.makedirs(out_dir)
     

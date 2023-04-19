@@ -1,5 +1,6 @@
 # Just to sort some values to test in configurations.
 
+import os
 import sys
 import configparser
 
@@ -37,7 +38,6 @@ if __name__ == '__main__':
 
     map_file = config.get('mapping', 'map_file')
     ch_types = ChannelMap(map_file).ch_type
-    # time_ch, eng_ch, *_ = read_ymlmapping(map_file)
 
     timeCh = pd.read_csv(time_name, sep='\t').set_index('ID')['MU']
 
@@ -83,10 +83,13 @@ if __name__ == '__main__':
 
     print('Thresh check: ', time_mu, ", EThresh = ", np.searchsorted(time_EThresh, time_mu), ", T1 = ", np.searchsorted(time_TThresh, time_mu))
 
-    output = config.get('output', 'out_path')
+    output    = config.get('output', 'out_path')
+    out_split = output.split(os.sep)
+    if len(out_split) > 1 and not os.path.isdir(os.path.join(*out_split[:-1])):
+        os.makedirs(os.path.join(*out_split[:-1]))
     with open(output, 'w') as thresh_out:
         thresh_out.write('#portID\tslaveID\tchipID\tchannelID\tvth_t1\tvth_t2\tvth_e\n')
-        for id, typ in ch_types.items():# range(0, id_limit + 1):
+        for id, typ in ch_types.items():
             portID, slaveID, chipID, channelID = get_electronics_nums(id)
             if   typ is ChannelType.TIME  :
             # if   id in time_ch:
@@ -97,7 +100,6 @@ if __name__ == '__main__':
                     vth_t2 = max(0, np.searchsorted(time_T2Thresh, peak_pos) - 1 + time_T2Offset)
                     vth_e  = max(0, np.searchsorted(time_EThresh, peak_pos) - 1 + time_EOffset)
             elif typ is ChannelType.ENERGY:
-            # elif id in  eng_ch:
                 vth_t1, vth_t2, vth_e = eng_T1default, eng_T2default, eng_Edefault
                 peak_pos = engCh.get(id)
                 if peak_pos:
