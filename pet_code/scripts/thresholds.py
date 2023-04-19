@@ -89,7 +89,7 @@ if __name__ == '__main__':
         os.makedirs(os.path.join(*out_split[:-1]))
     with open(output, 'w') as thresh_out:
         thresh_out.write('#portID\tslaveID\tchipID\tchannelID\tvth_t1\tvth_t2\tvth_e\n')
-        for id, typ in ch_types.items():
+        for id, typ in sorted(ch_types.items()):# range(0, id_limit + 1):
             portID, slaveID, chipID, channelID = get_electronics_nums(id)
             if   typ is ChannelType.TIME  :
             # if   id in time_ch:
