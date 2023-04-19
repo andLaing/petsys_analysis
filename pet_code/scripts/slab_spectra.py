@@ -84,7 +84,7 @@ if __name__ == '__main__':
 
     min_peak   = conf.getint('output', 'min_peak_fit', fallback=100)
     bin_edges  = np.arange(*map(float, conf.get('output', 'binning', fallback='9,25,0.2').split(',')))
-    out_base   = os.path.join(out_dir, conf.get('output', 'out_file', fallback=infile.split('/')[-1]))
+    out_base   = os.path.join(out_dir, conf.get('output', 'out_file', fallback=infile.split(os.sep)[-1]))
     slab_plots = ChannelEHistograms(bin_edges, np.arange(1), np.arange(1))
     for evt in map(cal_func, pet_reader(infile)):
         for imp in filter(valid_ch, chain(*evt)):

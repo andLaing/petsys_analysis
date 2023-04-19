@@ -191,11 +191,11 @@ def select_module(mm_map: Callable) -> Callable:
     """
     def val_if_eng(impact: list) -> int:
         return impact[3] if impact[1] is ChannelType.ENERGY else 0
-    
+
     def select(sm_info: list[list]) -> list:
         if not sm_info:
             return sm_info
-        
+
         mm_dict = {}
         for imp in sm_info:
             mm = mm_map(imp[0])
@@ -204,7 +204,7 @@ def select_module(mm_map: Callable) -> Callable:
                 mm_dict[mm][1].append(imp)
             except KeyError:
                 mm_dict[mm] = [val_if_eng(imp), [imp]]
-                
+
         return max(mm_dict.values(), key=lambda x: x[0])[1]
     return select
 
@@ -273,7 +273,7 @@ def time_of_flight(source_pos: np.ndarray) -> Callable:
         the given slab position in mm.
         return flight time in ps
         """
-        distance = np.linalg.norm(np.asarray(slab_pos) - source_pos)        
+        distance = np.linalg.norm(np.asarray(slab_pos) - source_pos)
         return distance / c_mm_per_ps
     return flight_time
 
@@ -333,7 +333,7 @@ def mm_energy_centroids(c_calc : Callable              ,
 #                 except KeyError:
 #                     mod_dicts[i][mm] = {'x': [x], 'y': [y], 'energy': [eng]}
 #     return mod_dicts
-            
+
 
 
 def slab_energy_centroids(events: list[tuple], c_calc: Callable) -> dict:
@@ -355,16 +355,17 @@ def slab_energy_centroids(events: list[tuple], c_calc: Callable) -> dict:
     return slab_dicts
 
 
-def calibrate_energies(type_ids: Callable,
-                       time_cal: str     ,
-                       eng_cal : str     ,
-                       sep     : str='\t'
+def calibrate_energies(type_ids: Callable           ,
+                       time_cal: str                ,
+                       eng_cal : str                ,
+                       sep     : str='\t'           ,
+                       eref    : float | None = None
                        ) -> Callable:
     """
     Equalize the energy for the channels
     given the peak positions in a file (for now)
     for time channels and energy channels.
-    OBSOLETE??
+    eref : Refernce value for energy values
     """
     if not time_cal and not eng_cal:
         # No calibration.
@@ -380,7 +381,10 @@ def calibrate_energies(type_ids: Callable,
         # Need to fix file format to remove space
         # Energy channels calibrated relative to mean. Maybe unstable between calibrations, review.
         ecal    = pd.read_csv(eng_cal, sep=sep).set_index('ID')['MU']
-        mu_mean = np.mean(ecal)
+        if eref:
+            mu_mean = eref
+        else:
+            mu_mean = np.mean(ecal)
         ecal    = ecal.apply(lambda x: mu_mean / x)
     else:
         ecal    = pd.Series(1, index=type_ids(ChannelType.ENERGY))
@@ -428,4 +432,3 @@ def bar_source_dt(bar_xy: np.ndarray, bar_r: float, slab_pos: Callable) -> Calla
         dt    = (2 * med_t  - dir_norm) / c_mm_per_ps
         return dt
     return geom_dt
-

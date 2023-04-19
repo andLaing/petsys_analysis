@@ -65,3 +65,20 @@ def test_fit_gaussian_raises():
 
     with raises(RuntimeError):
         dummy = fit_gaussian(bin_vals, bin_edges)
+
+
+def test_fit_gaussian_peakfinder():
+    amp     = 10000
+    mu      =     3
+    sig     =     2
+    bin_wid =     0.2
+    g_shift =    20
+    bin_vals, bin_edges = np.histogram((np.random.normal(mu          , sig, amp),
+                                        np.random.normal(mu + g_shift, sig, amp)),
+                                       bins=np.arange(-50, 50, bin_wid)          )
+    _, gvals, pars, pcov = fit_gaussian(bin_vals, bin_edges, pk_finder='peak')
+
+    rel_errors = np.sqrt(np.diag(pcov)) / pars
+    assert np.isclose(np.sum(gvals ), amp         , rtol=3 * rel_errors[0])
+    assert np.isclose(       pars[1], mu + g_shift, rtol=3 * rel_errors[1])
+    assert np.isclose(       pars[2], sig         , rtol=3 * rel_errors[2])
