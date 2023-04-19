@@ -9,7 +9,6 @@ import numpy  as np
 
 import matplotlib.pyplot as plt
 
-# from pet_code.src.io   import read_ymlmapping
 from pet_code.src.io   import ChannelMap
 from pet_code.src.util import ChannelType
 from pet_code.src.util import get_electronics_nums
@@ -89,16 +88,15 @@ if __name__ == '__main__':
         os.makedirs(os.path.join(*out_split[:-1]))
     with open(output, 'w') as thresh_out:
         thresh_out.write('#portID\tslaveID\tchipID\tchannelID\tvth_t1\tvth_t2\tvth_e\n')
-        for id, typ in sorted(ch_types.items()):# range(0, id_limit + 1):
+        for id, typ in sorted(ch_types.items()):
             portID, slaveID, chipID, channelID = get_electronics_nums(id)
             if   typ is ChannelType.TIME  :
-            # if   id in time_ch:
                 vth_t1, vth_t2, vth_e = time_T1default, time_T2default, time_Edefault
                 peak_pos = timeCh.get(id)
                 if peak_pos:
-                    vth_t1 = max(0, np.searchsorted(time_TThresh, peak_pos) - 1 + time_TOffset)
+                    vth_t1 = max(0, np.searchsorted(time_TThresh , peak_pos) - 1 + time_TOffset)
                     vth_t2 = max(0, np.searchsorted(time_T2Thresh, peak_pos) - 1 + time_T2Offset)
-                    vth_e  = max(0, np.searchsorted(time_EThresh, peak_pos) - 1 + time_EOffset)
+                    vth_e  = max(0, np.searchsorted(time_EThresh , peak_pos) - 1 + time_EOffset)
             elif typ is ChannelType.ENERGY:
                 vth_t1, vth_t2, vth_e = eng_T1default, eng_T2default, eng_Edefault
                 peak_pos = engCh.get(id)
