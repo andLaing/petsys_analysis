@@ -33,7 +33,7 @@ from pet_code.src.util    import calibrate_energies
 from pet_code.src.util    import select_module
 
 
-def cal_and_sel(cal_func: Callable, sel_func: Callable):
+def cal_and_sel(cal_func: Callable, sel_func: Callable) -> Callable:
     def _cal_and_sel(evt: tuple[list]) -> tuple:
         return tuple(map(sel_func, cal_func(evt)))
     return _cal_and_sel
@@ -61,10 +61,6 @@ def output_time_plots(histos   : ChannelEHistograms,
             sig_vals.append(fit_pars[2])
         except RuntimeError:
             print(f'Fit failed for channel {id}')
-            # if __name__ == '__main__':
-            #     plt.errorbar(histos.edges[htype][:-1], dist, yerr=np.sqrt(dist))
-            #     plt.show()
-            #     plt.clf()
 
     ## Fit distributions
     bins = min(mu_vals) - 2, max(mu_vals) + 2, np.diff(histos.edges[htype][:2])[0]
