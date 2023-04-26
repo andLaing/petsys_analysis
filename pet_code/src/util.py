@@ -404,8 +404,9 @@ def convert_to_kev(kev_file: str     ,
     """
     Return factor for conversion to keV.
     """
-    # Ok like this?
-    kev_factors = pd.read_feather(kev_file).set_index(['supermodule', 'minimodule'])
+    # Ok like this? Probs need to improve file format.
+    # kev_factors = pd.read_feather(kev_file).set_index(['supermodule', 'minimodule'])
+    kev_factors = pd.read_csv(kev_file, sep='\t').set_index(['Supermod', 'Minimod'])['Energy Peak'].map(lambda x: 511.0 / x)
     def _convert(id: int) -> float:
         mods = mod_func(id)
         return kev_factors.loc[mods]
