@@ -4,13 +4,14 @@ import yaml
 import numpy  as np
 import pandas as pd
 
+from ctypes    import c_byte, c_char, c_double, c_float, c_int, c_short, c_ushort, Structure
 from functools import lru_cache
 from itertools import chain, islice, repeat
 from warnings  import warn
 from typing    import Callable, Iterator, TextIO
 
 from . util    import ChannelType
-from . util    import slab_indx, slab_x, slab_y, slab_z
+from . util    import slab_x, slab_y, slab_z
 from . io_util import coinc_evt_loop, singles_evt
 
 
@@ -308,6 +309,12 @@ class ChannelMap:
         # return self.mapping.at[id, 'minimodule']
         return self.minimod[id]
 
+    def get_modules(self, id: int) -> tuple[int, int]:
+        """
+        Get supermodule and minimodule for given id
+        """
+        return tuple(self.mapping.loc[id, ['supermodule', 'minimodule']])
+
     def get_minimodule_channels(self, sm: int, mm: int) -> np.ndarray:
         mask = (self.mapping.supermodule == sm) & (self.mapping.minimodule == mm)
         return self.mapping.index[mask].values
@@ -355,6 +362,53 @@ def write_event_trace(file_buffer: TextIO      ,
         file_buffer.write('\t'.join("{:.6f}".format(round(val, 6)) for val in channels))
         file_buffer.write('\t' + str(mini_mod) + '\n')
     return write_minimod
+
+
+class LMHeader(Structure):
+    _pack_ = 4
+    _fields_ = [
+        ('identifier', c_char * 16),
+        ('rawCounts' , c_double),
+        ('acqTime'   , c_double),
+        ('activity'  , c_double),
+        ('isotope'   , c_char * 16),
+        ('detectorSizeX', c_double),
+        ('detectorSizeY', c_double),
+        ('startTime', c_double),
+        ('measurementTime', c_double),
+        ('moduleNumber', c_int),
+        ('ringNumber', c_int),
+        ('ringDistance', c_double),
+        ('detectorDistance', c_double),
+        ('isotopeHalfLife', c_double),
+        ('weight', c_float),
+        ('maxTemp', c_float),
+        ('percentLoss', c_float),
+        ('detectorPixelSizeX', c_float),
+        ('detectorPixelSizeY', c_float),
+        ('reserved', c_float * 3),
+        ('version', c_byte * 2),
+        ('breast', c_char),
+        ('unused_1', c_char),
+        ('gatePeriod', c_double),
+        ('DOILayer', c_short),
+        ('method', c_short),
+        ('StudyId', c_short),
+        ('detectorPixelsX', c_byte),
+        ('detectorPixelsY', c_byte),
+        ('unused_2', c_char * 4)]
+
+
+class CoincidenceV3(Structure):
+    _fields_ = [('time', c_float),
+                ('energy1', c_ushort),
+                ('energy2', c_ushort),
+                ('amount', c_float),
+                ('xPosition1', c_byte),
+                ('yPosition1', c_byte),
+                ('xPosition2', c_byte),
+                ('yPosition2', c_byte),
+                ('pair', c_ushort)]
 
 
 ## TEMP? Faster in Cython?

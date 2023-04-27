@@ -47,6 +47,7 @@ from pet_code.src.util    import calibrate_energies
 from pet_code.src.util    import time_of_flight
 from pet_code.src.util    import get_absolute_id
 from pet_code.src.util    import get_electronics_nums
+from pet_code.src.util    import read_skewfile
 from pet_code.src.util    import select_energy_range
 from pet_code.src.util    import select_module
 from pet_code.src.util    import shift_to_centres
@@ -301,11 +302,7 @@ if __name__ == '__main__':
     skew_file   = os.path.join(outdir, out_skew)
     elec_cols   = ['#portID', 'slaveID', 'chipID', 'channelID']
     if first_it != 0:
-        # Probably want to update formats?
-        skew_vals       = pd.read_csv(args['--sk'], sep='\t')
-        skew_vals['id'] = skew_vals.apply(lambda r: get_absolute_id(*r[elec_cols]),
-                                          axis=1).astype('int')
-        skew_vals       = skew_vals.set_index('id')['tOffset (ps)']
+        skew_vals = read_skewfile(args['--sk'])
     else:
         ch_map    = ChannelMap(conf.get('mapping', 'map_file'))
         all_ids   = ch_map.mapping.index

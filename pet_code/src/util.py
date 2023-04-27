@@ -398,6 +398,34 @@ def calibrate_energies(type_ids: Callable           ,
     return apply_calibration
 
 
+def convert_to_kev(kev_file: str     ,
+                   mod_func: Callable
+                   ) -> Callable:
+    """
+    Return factor for conversion to keV.
+    """
+    # Ok like this? Probs need to improve file format.
+    # kev_factors = pd.read_feather(kev_file).set_index(['supermodule', 'minimodule'])
+    kev_factors = pd.read_csv(kev_file, sep='\t').set_index(['Supermod', 'Minimod'])['Energy Peak'].map(lambda x: 511.0 / x)
+    def _convert(id: int) -> float:
+        mods = mod_func(id)
+        return kev_factors.loc[mods]
+    return _convert
+
+
+def read_skewfile(skew_file: str) -> pd.Series:
+    """
+    Read PETsys skew file and return a Series
+    with absolute channel as id and the offset
+    value.
+    """
+    elec_cols       = ['#portID', 'slaveID', 'chipID', 'channelID']
+    skew_vals       = pd.read_csv(skew_file, sep='\t')
+    skew_vals['id'] = skew_vals.apply(lambda r: get_absolute_id(*r[elec_cols]),
+                                      axis=1).astype('int')
+    return skew_vals.set_index('id')['tOffset (ps)']
+
+
 def bar_source_dt(bar_xy: np.ndarray, bar_r: float, slab_pos: Callable) -> Callable:
     """
     Define an axially infinite bar of radius bar_r centred on
