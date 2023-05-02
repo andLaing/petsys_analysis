@@ -137,7 +137,7 @@ if __name__ == '__main__':
     pair_name  = conf.get('mapping', 'pairs')
     p_lookup   = pd.read_csv(pair_name     ,
                              sep   = '\t'  ,
-                             names = p_cols).set_index(p_cols[1:])
+                             names = p_cols).set_index(p_cols[1:]).to_dict()['p']
 
     ## Will probably have all this in PETsys but used for now.
     ## Can be left as an option if need be.
@@ -185,13 +185,13 @@ if __name__ == '__main__':
                     pixels    = tuple(map(pixel_vals, local_tpos, map(ecog, mm_info)))
                     skew_corr = skew.get(max_chans[1][0], 0) - skew.get(max_chans[0][0], 0)
                     try:
-                        pair               = p_lookup.loc[sm_nums].p
+                        pair               = p_lookup[sm_nums]
                         e1, e2             = mm_energies
                         (x1, y1), (x2, y2) = pixels
                         dt                 = max_chans[0][2] - max_chans[1][2] + skew_corr
                     except KeyError:
                         try:
-                            pair               = p_lookup.loc[sm_nums[::-1]].p
+                            pair               = p_lookup[sm_nums[::-1]]
                             e1, e2             = mm_energies[::-1]
                             (x1, y1), (x2, y2) = pixels     [::-1]
                             dt                 = max_chans[1][2] - max_chans[0][2] - skew_corr
