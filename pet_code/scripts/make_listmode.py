@@ -65,6 +65,13 @@ def equal_and_select(chan_map : ChannelMap       ,
     return _select
 
 
+def supermod_energy(kev_map: Callable) -> float:
+    def _sm_eng(imp: list):
+        imp_it = filter(lambda x: x[1] is ChannelType.ENERGY, imp)
+        return kev_map(imp[0][0]) * sum(hit[3] for hit in imp_it)
+    return _sm_eng
+
+
 def write_header(bin_out: BinaryIO                 ,
                  cf     : configparser.ConfigParser,
                  xpixels: np.ndarray               ,
@@ -147,7 +154,7 @@ if __name__ == '__main__':
     sel_func = equal_and_select(chan_map, tcal, ecal)
     skew     = pd.Series(0, index=chan_map.mapping.index)#read_skewfile(conf.get('calibration', 'skew'))
     ## This last convertor has to be here.
-    mm_eng   = convert_to_kev(conf.get('calibration', 'kev_convert'), chan_map.get_modules)## Set all to 1 for initial tests
+    mm_eng   = supermod_energy(convert_to_kev(conf.get('calibration', 'kev_convert'), chan_map.get_modules))
     ##
     out_dir  = conf.get('output', 'out_dir')
     if not os.path.isdir(out_dir):
@@ -168,7 +175,7 @@ if __name__ == '__main__':
                 mm_info = sel_func(evt)
 
                 # Get the summed energy deposit for each impact.
-                mm_energies = tuple(map(lambda imp: mm_eng(imp[0][0]) * get_supermodule_eng(imp)[1], mm_info))
+                mm_energies = tuple(map(mm_eng, mm_info))
                 if all(eselect(mm_eng) for mm_eng in mm_energies):
                     # Time channels, just use max for now.
                     max_chans  = tuple(map(select_max_energy, mm_info, [ChannelType.TIME] * 2))
