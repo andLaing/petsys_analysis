@@ -152,7 +152,7 @@ if __name__ == '__main__':
     ecal     = conf.get     ('calibration', 'energy_channels' )
     eref     = conf.getfloat('calibration', 'energy_reference', fallback=None)
     sel_func = equal_and_select(chan_map, tcal, ecal)
-    skew     = pd.Series(0, index=chan_map.mapping.index)#read_skewfile(conf.get('calibration', 'skew'))
+    skew     = {i: 0 for i in chan_map.mapping.index}#pd.Series(0, index=chan_map.mapping.index)#read_skewfile(conf.get('calibration', 'skew')).to_dict()
     ## This last convertor has to be here.
     mm_eng   = supermod_energy(convert_to_kev(conf.get('calibration', 'kev_convert'), chan_map.get_modules))
     ##
