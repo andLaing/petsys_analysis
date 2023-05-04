@@ -36,11 +36,10 @@ def energy_weighted_average(channel_pos: Callable,
     """
     Position from energy channel positions, charge and a power
     """
-    vec_pos = np.vectorize(lambda x: channel_pos(x)[local_indx])
     def _average(sm_info):
         echans    = filter(lambda x: x[1] is ChannelType.ENERGY, sm_info)
-        id_charge = np.asarray(tuple(map(lambda x: (x[0], x[3]), echans)))
-        return np.average(vec_pos(id_charge[:, 0]), weights=id_charge[:, 1]**power)
+        id_charge = np.asarray(tuple(map(lambda x: (channel_pos(x[0])[local_indx], x[3]), echans)))
+        return np.average(id_charge[:, 0], weights=id_charge[:, 1]**power)
     return _average
 
 
