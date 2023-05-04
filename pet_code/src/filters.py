@@ -201,7 +201,6 @@ def filter_max_coin_event(sm_map : Callable    ,
     Filter event to select two SM
     and no negative event.
     """
-
     ch1_filter = filter_impact(min_ch)
     ch2_filter = ch1_filter
     if singles:
@@ -210,5 +209,5 @@ def filter_max_coin_event(sm_map : Callable    ,
 
     def valid_event(sm1: list[list], sm2: list[list]) -> bool:
         return filter_negatives(sm1) and filter_negatives(sm2) and\
-            max_sm_filter(sm1, sm2) and ch1_filter(sm1) and ch2_filter(sm2)
+            ch1_filter(sm1) and ch2_filter(sm2) and max_sm_filter(sm1, sm2)
     return valid_event
