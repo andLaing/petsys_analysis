@@ -35,7 +35,6 @@ from pet_code.src.util    import ChannelType
 from pet_code.src.util    import calibrate_energies
 from pet_code.src.util    import convert_to_kev
 from pet_code.src.util    import energy_weighted_average
-from pet_code.src.util    import get_supermodule_eng
 from pet_code.src.util    import read_skewfile
 from pet_code.src.util    import select_energy_range
 from pet_code.src.util    import select_max_energy
@@ -106,20 +105,20 @@ def write_header(bin_out: BinaryIO                 ,
 
 
 def cog_loop(chan_map  : ChannelMap,
-             evt_reader: Callable,
-             sel_func  : Callable,
-             eselect   : Callable,
-             pixel_vals: Callable,
-             mm_eng    : Callable,
-             skew      : dict,
+             evt_reader: Callable  ,
+             sel_func  : Callable  ,
+             eselect   : Callable  ,
+             pixel_vals: Callable  ,
+             mm_eng    : Callable  ,
+             skew      : dict      ,
              p_lookup  : dict
-             ):
+             ) -> Callable:
     """
     Event by event loop from PETsys to LM.
     """
     ecog     = energy_weighted_average(chan_map.get_plot_position, 1, 2)
     max_slab = select_max_energy(ChannelType.TIME)
-    def _evt_loop(file_name: str, lm_out: BinaryIO):
+    def _evt_loop(file_name: str, lm_out: BinaryIO) -> None:
         coinc        = CoincidenceV3()
         coinc.amount = 1.0
         for mm_info in map(sel_func, evt_reader(file_name)):
