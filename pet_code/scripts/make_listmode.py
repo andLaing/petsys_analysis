@@ -102,6 +102,64 @@ def write_header(bin_out: BinaryIO                 ,
     bin_out.write(header)
 
 
+def cog_loop(chan_map  : ChannelMap,
+             evt_reader: Callable,
+             sel_func  : Callable,
+             eselect   : Callable,
+             pixel_vals: Callable,
+             mm_eng    : Callable,
+             skew      : dict,
+             p_lookup  : dict
+             ):
+    """
+    Event by event loop from PETsys to LM.
+    """
+    ecog = energy_weighted_average(chan_map.get_plot_position, 1, 2)
+    def _evt_loop(file_name: str, lm_out: BinaryIO):
+        coinc        = CoincidenceV3()
+        coinc.amount = 1.0
+        for mm_info in map(sel_func, evt_reader(file_name)):
+            # Get the summed energy deposit for each impact.
+            mm_energies = tuple(map(mm_eng, mm_info))
+            if (all(eselect(mmE) for mmE in mm_energies) and
+                all(max_chans := tuple(map(select_max_energy, mm_info, [ChannelType.TIME] * 2)))):
+
+                sm_nums    = (chan_map.get_supermodule  (max_chans[0][0])   ,
+                              chan_map.get_supermodule  (max_chans[1][0])   )
+                local_tpos = (chan_map.get_plot_position(max_chans[0][0])[0],
+                              chan_map.get_plot_position(max_chans[1][0])[0])
+
+                ## Here we'd like to use the trained network to get the position
+                ## cog for now.
+                pixels    = tuple(map(pixel_vals, local_tpos, map(ecog, mm_info)))
+                skew_corr = skew.get(max_chans[1][0], 0) - skew.get(max_chans[0][0], 0)
+                try:
+                    pair               = p_lookup[sm_nums]
+                    e1, e2             = mm_energies
+                    (x1, y1), (x2, y2) = pixels
+                    dt                 = max_chans[0][2] - max_chans[1][2] + skew_corr
+                except KeyError:
+                    try:
+                        pair               = p_lookup[sm_nums[::-1]]
+                        e1, e2             = mm_energies[::-1]
+                        (x1, y1), (x2, y2) = pixels     [::-1]
+                        dt                 = max_chans[1][2] - max_chans[0][2] - skew_corr
+                    except KeyError:
+                        continue
+                # Coincidence output
+                coinc.pair       =     pair
+                coinc.energy1    = round(e1)
+                coinc.energy2    = round(e2)
+                coinc.xPosition1 =       x1
+                coinc.yPosition1 =       y1
+                coinc.xPosition2 =       x2
+                coinc.yPosition2 =       y2
+                coinc.time       =       dt
+                lm_out.write(coinc)
+                #
+    return _evt_loop
+
+
 if __name__ == '__main__':
     args = docopt(__doc__)
     conf = configparser.ConfigParser()
@@ -160,6 +218,7 @@ if __name__ == '__main__':
     if not os.path.isdir(out_dir):
         os.makedirs(out_dir)
 
+    evt_loop = cog_loop(chan_map, evt_reader, sel_func, eselect, pixel_vals, mm_eng, skew, p_lookup)
     for fn in infiles:
         # Open output file.
         out_file = os.path.join(out_dir, fn.split(os.sep)[-1].replace('.ldat', '_LM.bin'))
@@ -167,51 +226,50 @@ if __name__ == '__main__':
             ## Write header.
             write_header(lm_out, conf, xpixels, ypixels)
             ##
-            coinc        = CoincidenceV3()
-            coinc.amount = 1.0
-            for evt in evt_reader(fn):
-                # Select the minimodules with most energy.
-                # Do we want to filter those with too many?
-                mm_info = sel_func(evt)
+            evt_loop(fn, lm_out)
+            # coinc        = CoincidenceV3()
+            # coinc.amount = 1.0
+            # # for evt in evt_reader(fn):
+            # for mm_info in map(sel_func, evt_reader(fn)):
+            #     # Select the minimodules with most energy.
+            #     # Do we want to filter those with too many?
+            #     # mm_info = sel_func(evt)
 
-                # Get the summed energy deposit for each impact.
-                mm_energies = tuple(map(mm_eng, mm_info))
-                if all(eselect(mm_eng) for mm_eng in mm_energies):
-                    # Time channels, just use max for now.
-                    max_chans  = tuple(map(select_max_energy, mm_info, [ChannelType.TIME] * 2))
-                    ## Probs needs to be reviewed
-                    if not all(max_chans):
-                        continue
-                    sm_nums    = (chan_map.get_supermodule  (max_chans[0][0])   ,
-                                  chan_map.get_supermodule  (max_chans[1][0])   )
-                    local_tpos = (chan_map.get_plot_position(max_chans[0][0])[0],
-                                  chan_map.get_plot_position(max_chans[1][0])[0])
+            #     # Get the summed energy deposit for each impact.
+            #     mm_energies = tuple(map(mm_eng, mm_info))
+            #     if (all(eselect(mm_eng) for mm_eng in mm_energies) and
+            #         all(max_chans := tuple(map(select_max_energy, mm_info, [ChannelType.TIME] * 2)))):
 
-                    ## Here we'd like to use the trained network to get the position
-                    ## cog for now.
-                    pixels    = tuple(map(pixel_vals, local_tpos, map(ecog, mm_info)))
-                    skew_corr = skew.get(max_chans[1][0], 0) - skew.get(max_chans[0][0], 0)
-                    try:
-                        pair               = p_lookup[sm_nums]
-                        e1, e2             = mm_energies
-                        (x1, y1), (x2, y2) = pixels
-                        dt                 = max_chans[0][2] - max_chans[1][2] + skew_corr
-                    except KeyError:
-                        try:
-                            pair               = p_lookup[sm_nums[::-1]]
-                            e1, e2             = mm_energies[::-1]
-                            (x1, y1), (x2, y2) = pixels     [::-1]
-                            dt                 = max_chans[1][2] - max_chans[0][2] - skew_corr
-                        except KeyError:
-                            continue
-                    # Coincidence output
-                    coinc.pair       =     pair
-                    coinc.energy1    = round(e1)
-                    coinc.energy2    = round(e2)
-                    coinc.xPosition1 =       x1
-                    coinc.yPosition1 =       y1
-                    coinc.xPosition2 =       x2
-                    coinc.yPosition2 =       y2
-                    coinc.time       =       dt
-                    lm_out.write(coinc)
-                    #
+            #         sm_nums    = (chan_map.get_supermodule  (max_chans[0][0])   ,
+            #                       chan_map.get_supermodule  (max_chans[1][0])   )
+            #         local_tpos = (chan_map.get_plot_position(max_chans[0][0])[0],
+            #                       chan_map.get_plot_position(max_chans[1][0])[0])
+
+            #         ## Here we'd like to use the trained network to get the position
+            #         ## cog for now.
+            #         pixels    = tuple(map(pixel_vals, local_tpos, map(ecog, mm_info)))
+            #         skew_corr = skew.get(max_chans[1][0], 0) - skew.get(max_chans[0][0], 0)
+            #         try:
+            #             pair               = p_lookup[sm_nums]
+            #             e1, e2             = mm_energies
+            #             (x1, y1), (x2, y2) = pixels
+            #             dt                 = max_chans[0][2] - max_chans[1][2] + skew_corr
+            #         except KeyError:
+            #             try:
+            #                 pair               = p_lookup[sm_nums[::-1]]
+            #                 e1, e2             = mm_energies[::-1]
+            #                 (x1, y1), (x2, y2) = pixels     [::-1]
+            #                 dt                 = max_chans[1][2] - max_chans[0][2] - skew_corr
+            #             except KeyError:
+            #                 continue
+            #         # Coincidence output
+            #         coinc.pair       =     pair
+            #         coinc.energy1    = round(e1)
+            #         coinc.energy2    = round(e2)
+            #         coinc.xPosition1 =       x1
+            #         coinc.yPosition1 =       y1
+            #         coinc.xPosition2 =       x2
+            #         coinc.yPosition2 =       y2
+            #         coinc.time       =       dt
+            #         lm_out.write(coinc)
+            #         #
