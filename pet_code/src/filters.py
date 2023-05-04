@@ -184,9 +184,9 @@ def filter_max_sm(max_sm: int, sm_map: Callable) -> Callable:
         sm_set = set()
         for imp in chain(sm1, sm2):
             sm_set.add(sm_map(imp[0]))
-            if not (v_evt := len(sm_set) <= max_sm):
-                break
-        return v_evt
+            if len(sm_set) > max_sm:
+                return False
+        return True
         # all_ids = np.vstack((sm1, sm2))[:, 0].astype('int')
         # return np.unique(vec_sm_map(all_ids)).shape[0] <= max_sm
     return valid_event
