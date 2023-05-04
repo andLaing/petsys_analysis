@@ -60,7 +60,7 @@ def equal_and_select(chan_map : ChannelMap       ,
                      ) -> Callable:
     cal_func = calibrate_energies(chan_map.get_chantype_ids, time_file, eng_file, eref=eref)
     sel_func = select_module(chan_map.get_minimodule)
-    def _select(evt: tuple[list]) -> tuple[list]:
+    def _select(evt: tuple[list, list]) -> tuple[list, list]:
         return tuple(map(sel_func, cal_func(evt)))
     return _select
 
