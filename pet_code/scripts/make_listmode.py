@@ -163,6 +163,26 @@ def cog_loop(chan_map  : ChannelMap,
     return _evt_loop
 
 
+def nn_loop(chan_map  : ChannelMap,
+            evt_reader: Callable  ,
+            sel_func  : Callable  ,
+            eselect   : Callable  ,
+            pixel_vals: Callable  ,
+            mm_eng    : Callable  ,
+            skew      : dict      ,
+            p_lookup  : dict      ,
+            npred     : int
+            ) -> None:
+    """
+    Loop over events optimising calls to neural network.
+    npred : Number of predictions to send each time.
+    """
+    channel_energies = np.zeros((npred, 8), float        )
+    coincidences     = np.zeros( npred    , CoincidenceV3)
+    # Define predictor?
+    def _evt_loop(file_name: str, lm_out: BinaryIO):
+
+
 if __name__ == '__main__':
     args = docopt(__doc__)
     conf = configparser.ConfigParser()
