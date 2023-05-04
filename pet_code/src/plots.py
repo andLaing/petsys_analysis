@@ -333,6 +333,7 @@ def group_times(filtered_events: list    ,
     if ref_indx not in (0, 1):
         # For calibration setup.
         raise ValueError('Currently only accepts 0 and 1 as ref_indx')
+    max_slab = select_max_energy(ChannelType.TIME)
     reco_dt  = {}
     coinc_sm = 0 if ref_indx == 1 else 1
     min_ch   = [0, 0]
@@ -343,11 +344,11 @@ def group_times(filtered_events: list    ,
         _, e2 = get_supermodule_eng(sm2)
         if peak_select[0][mm1-1](e1) and peak_select[1][mm2-1](e2):
             try:
-                min_ch[0] = select_max_energy(sm1, ChannelType.TIME)
+                min_ch[0] = max_slab(sm1)
             except ValueError:
                 continue
             try:
-                min_ch[1] = select_max_energy(sm2, ChannelType.TIME)
+                min_ch[1] = max_slab(sm2)
             except ValueError:
                 continue
             ## Want to know the two channel numbers and timestamps.
@@ -388,13 +389,14 @@ def group_times_slab(filtered_events: list,
     reco_dt  = {}
     coinc_indx = 0 if ref_indx == 1 else 1
     min_ch   = [0, 0]
+    max_slab = select_max_energy(ChannelType.TIME)
     for sm1, sm2 in filtered_events:
         try:
-            min_ch[0] = select_max_energy(sm1, ChannelType.TIME)
+            min_ch[0] = max_slab(sm1)
         except ValueError:
             continue
         try:
-            min_ch[1] = select_max_energy(sm2, ChannelType.TIME)
+            min_ch[1] = max_slab(sm2)
         except ValueError:
             continue
         if peak_select[0][min_ch[0][0]](min_ch[0][3]) and\
@@ -423,9 +425,10 @@ def group_times_list(filtered_events: list,
     filtered_events.
     """
     coinc_indx = 0 if ref_indx == 1 else 1
+    max_slab   = select_max_energy(ChannelType.TIME)
     def get_times(evt):
         try:
-            chns = list(map(select_max_energy, evt, [ChannelType.TIME] * 2))
+            chns = list(map(max_slab, evt))
         except ValueError:
             return
         if peaks[0][chns[0][0]](chns[0][3]) and peaks[1][chns[1][0]](chns[1][3]):
@@ -457,9 +460,10 @@ def corrected_time_difference(impact_sel: Callable[[   tuple], tuple],
                     Calculates the geometric dt for
                     the two channels.
     """
+    max_slab = select_max_energy(ChannelType.TIME)
     def _correct_dt(evt: tuple[list]) -> tuple[int, int, float]:
         sel_sms = impact_sel(evt)
-        chns    = list(map(select_max_energy, sel_sms, [ChannelType.TIME] * 2))
+        chns    = list(map(max_slab, sel_sms))
         if any(ch is None for ch in chns) or not all(energy_sel(ch[3]) for ch in chns):
             return
         ref_indx   = ref_ch(chns)
@@ -484,8 +488,9 @@ def ctr(eselect: Callable                        ,
     difference for a coincidence event given the
     energy selection (eselect) and skew correction values (skew)
     """
+    max_slab = select_max_energy(ChannelType.TIME)
     def timestamp_difference(evt: tuple[list]) -> float:
-        chns = [chn for sm in evt if (chn := select_max_energy(sm, ChannelType.TIME))]
+        chns = [chn for sm in evt if (chn := max_slab(sm))]
         if len(chns) == 2 and eselect(chns[0][3]) and eselect(chns[1][3]):
             skew_corr = skew.get(chns[1][0], 0.0) - skew.get(chns[0][0], 0.0)
             return chns[0][2] - chns[1][2] + skew_corr
@@ -506,6 +511,8 @@ class ChannelEHistograms:
         self.sum_dist   = {}
         self.underflow  = {}
         self.overflow   = {}
+        self.max_slab   = select_max_energy(ChannelType.TIME)
+        self.max_echan  = select_max_energy(ChannelType.ENERGY)
 
     def add_overflow(self, id: int) -> None:
         try:
@@ -558,14 +565,14 @@ class ChannelEHistograms:
     # Will normally be used with singles but general just in case
     def add_emax_evt(self, evt: tuple[list, list]) -> None:
         # time channels
-        tchn_map = map(select_max_energy, evt, [ChannelType.TIME]*2)
+        tchn_map = map(self.max_slab, evt)
         chns = list(filter(lambda x: x, tchn_map))
         for slab in chns:
             self.fill_time_channel(slab)
 
         # energy channels
         if chns:
-            echn_map = map(select_max_energy, evt, [ChannelType.ENERGY]*2)
+            echn_map = map(self.max_echan, evt)
             for echn in filter(lambda x: x, echn_map):
                 self.fill_energy_channel(echn)
 
