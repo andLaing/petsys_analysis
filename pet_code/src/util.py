@@ -232,22 +232,26 @@ def get_absolute_id(portID   : int,
     return 131072 * portID + 4096 * slaveID + 64 * chipID + channelID
 
 
-def select_max_energy(superm   : list[list]      ,
-                      chan_type: ChannelType=None
-                      ) -> list | None:
+def select_max_energy(chan_type: ChannelType=None) -> Callable:
     """
     Select the channel with highest deposit.
-    superm    : List
-               List of impacts with [id, mm, time, eng]
     chan_type : Optional ChannelType
                 The channel type to be compared.
     """
-    try:
-        if chan_type is None:
-            return max(superm, key=lambda x: x[3])
-        return max(filter(lambda x: x[1] is chan_type, superm), key=lambda y: y[3])
-    except ValueError:
-        return None
+    def _is_type(imp: list) -> bool:
+        return imp[1] is chan_type
+    filt_func = _is_type if chan_type else lambda x: True
+
+    def _select(superm: list[list]) -> list | None:
+        """
+        superm : List
+                 List of impacts with [id, mm, time, eng]
+        """
+        try:
+            return max(filter(filt_func, superm), key=lambda y: y[3])
+        except ValueError:
+            return None
+    return _select
 
 
 def shift_to_centres(bin_low_edge: np.ndarray) -> np.ndarray:
