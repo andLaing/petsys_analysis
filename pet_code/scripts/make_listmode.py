@@ -66,8 +66,11 @@ def equal_and_select(chan_map : ChannelMap       ,
 
 
 def supermod_energy(kev_map: Callable) -> float:
-    def _sm_eng(imp: list):
-        imp_it = filter(lambda x: x[1] is ChannelType.ENERGY, imp)
+    def _is_eng(imp: list) -> bool:
+        return imp[1] is ChannelType.ENERGY
+
+    def _sm_eng(imp: list) -> float:
+        imp_it = filter(_is_eng, imp)
         return kev_map(imp[0][0]) * sum(hit[3] for hit in imp_it)
     return _sm_eng
 
@@ -114,7 +117,8 @@ def cog_loop(chan_map  : ChannelMap,
     """
     Event by event loop from PETsys to LM.
     """
-    ecog = energy_weighted_average(chan_map.get_plot_position, 1, 2)
+    ecog     = energy_weighted_average(chan_map.get_plot_position, 1, 2)
+    max_slab = select_max_energy(ChannelType.TIME)
     def _evt_loop(file_name: str, lm_out: BinaryIO):
         coinc        = CoincidenceV3()
         coinc.amount = 1.0
@@ -122,7 +126,7 @@ def cog_loop(chan_map  : ChannelMap,
             # Get the summed energy deposit for each impact.
             mm_energies = tuple(map(mm_eng, mm_info))
             if (all(eselect(mmE) for mmE in mm_energies) and
-                all(max_chans := tuple(map(select_max_energy, mm_info, [ChannelType.TIME] * 2)))):
+                all(max_chans := tuple(map(max_slab, mm_info)))):
 
                 sm_nums    = (chan_map.get_supermodule  (max_chans[0][0])   ,
                               chan_map.get_supermodule  (max_chans[1][0])   )
@@ -227,49 +231,3 @@ if __name__ == '__main__':
             write_header(lm_out, conf, xpixels, ypixels)
             ##
             evt_loop(fn, lm_out)
-            # coinc        = CoincidenceV3()
-            # coinc.amount = 1.0
-            # # for evt in evt_reader(fn):
-            # for mm_info in map(sel_func, evt_reader(fn)):
-            #     # Select the minimodules with most energy.
-            #     # Do we want to filter those with too many?
-            #     # mm_info = sel_func(evt)
-
-            #     # Get the summed energy deposit for each impact.
-            #     mm_energies = tuple(map(mm_eng, mm_info))
-            #     if (all(eselect(mm_eng) for mm_eng in mm_energies) and
-            #         all(max_chans := tuple(map(select_max_energy, mm_info, [ChannelType.TIME] * 2)))):
-
-            #         sm_nums    = (chan_map.get_supermodule  (max_chans[0][0])   ,
-            #                       chan_map.get_supermodule  (max_chans[1][0])   )
-            #         local_tpos = (chan_map.get_plot_position(max_chans[0][0])[0],
-            #                       chan_map.get_plot_position(max_chans[1][0])[0])
-
-            #         ## Here we'd like to use the trained network to get the position
-            #         ## cog for now.
-            #         pixels    = tuple(map(pixel_vals, local_tpos, map(ecog, mm_info)))
-            #         skew_corr = skew.get(max_chans[1][0], 0) - skew.get(max_chans[0][0], 0)
-            #         try:
-            #             pair               = p_lookup[sm_nums]
-            #             e1, e2             = mm_energies
-            #             (x1, y1), (x2, y2) = pixels
-            #             dt                 = max_chans[0][2] - max_chans[1][2] + skew_corr
-            #         except KeyError:
-            #             try:
-            #                 pair               = p_lookup[sm_nums[::-1]]
-            #                 e1, e2             = mm_energies[::-1]
-            #                 (x1, y1), (x2, y2) = pixels     [::-1]
-            #                 dt                 = max_chans[1][2] - max_chans[0][2] - skew_corr
-            #             except KeyError:
-            #                 continue
-            #         # Coincidence output
-            #         coinc.pair       =     pair
-            #         coinc.energy1    = round(e1)
-            #         coinc.energy2    = round(e2)
-            #         coinc.xPosition1 =       x1
-            #         coinc.yPosition1 =       y1
-            #         coinc.xPosition2 =       x2
-            #         coinc.yPosition2 =       y2
-            #         coinc.time       =       dt
-            #         lm_out.write(coinc)
-            #         #
