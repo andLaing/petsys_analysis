@@ -19,8 +19,9 @@ Required:
 import os
 import configparser
 
-from docopt import docopt
-from typing import BinaryIO, Callable, Tuple
+from docopt    import docopt
+from itertools import islice
+from typing    import BinaryIO, Callable, Tuple
 
 import numpy  as np
 import pandas as pd
@@ -64,10 +65,11 @@ def equal_and_select(chan_map : ChannelMap       ,
     return _select
 
 
-def supermod_energy(kev_map: Callable) -> float:
-    def _is_eng(imp: list) -> bool:
-        return imp[1] is ChannelType.ENERGY
+def _is_eng(imp: list) -> bool:
+    return imp[1] is ChannelType.ENERGY
 
+
+def supermod_energy(kev_map: Callable) -> float:
     def _sm_eng(imp: list) -> float:
         imp_it = filter(_is_eng, imp)
         return kev_map(imp[0][0]) * sum(hit[3] for hit in imp_it)
@@ -168,7 +170,7 @@ def nn_loop(chan_map  : ChannelMap,
             sel_func  : Callable  ,
             eselect   : Callable  ,
             pixel_vals: Callable  ,
-            mm_eng    : Callable  ,
+            kev_conv  : Callable  ,
             skew      : dict      ,
             p_lookup  : dict      ,
             npred     : int
@@ -177,10 +179,70 @@ def nn_loop(chan_map  : ChannelMap,
     Loop over events optimising calls to neural network.
     npred : Number of predictions to send each time.
     """
-    channel_energies = np.zeros((npred, 8), float        )
-    coincidences     = np.zeros( npred    , CoincidenceV3)
+    # Should this be configurable?
+    nchan            = 8
+    ## Will need two entries per coincidence, change structure? Changing it to contain both would simplify calls
+    infer_type       = np.dtype([("slab_idx", np.int32), ("Esignals", np.float32, nchan)])
+    channel_energies = np.zeros(npred     , infer_type   )
+    coincidences     = np.zeros(npred // 2, CoincidenceV3)
+    # There's probably a better way to do this,
+    for c in coincidences:
+        c['amount'] = 1.0
+    # Channel ordering
+    icols    = ['supermodule', 'minimodule', 'local_y']
+    isEng    = chan_map.mapping.type.map(_is_eng)
+    ord_chan = chan_map.mapping[isEng].sort_values(icols).groupby(icols[:-1]).head(nchan).index
+    chan_idx = {id: idx % nchan for idx, id in enumerate(ord_chan)}
+    max_slab = select_max_energy(ChannelType.TIME)
     # Define predictor?
     def _evt_loop(file_name: str, lm_out: BinaryIO):
+        read_evt = evt_reader(file_name)
+        i = 1
+        while i != 0:
+            i = 0
+            for evt in map(sel_func, islice(read_evt, npred // 2)):
+                chids = []
+                for j, sm in enumerate(evt):
+                    chids.append(sm[0][0])
+                    for imp in filter(_is_eng, sm):
+                        channel_energies[2 * i + j]['Esignals'][chan_idx[imp[0]]] = imp[3]
+
+                mm_energies = [kev_conv(chid) * mm['Esignals'].sum()
+                               for chid, mm in zip(chids, channel_energies[2 * i:2 * i + 1])]
+                if (all(eselect(mmE) for mmE in mm_energies) and
+                    all(max_chans := tuple(map(max_slab, evt)))):
+
+                    sm_nums   = (chan_map.get_supermodule(max_chans[0][0]),
+                                 chan_map.get_supermodule(max_chans[1][0]))
+                    skew_corr = skew.get(max_chans[1][0], 0) - skew.get(max_chans[0][0], 0)
+                    try:
+                        coincidences[i][   'pair'] = p_lookup[sm_nums]
+                        coincidences[i]['energy1'] = mm_energies[0]
+                        coincidences[i]['energy2'] = mm_energies[1]
+                        coincidences[i][   'time'] = max_chans[0][2] - max_chans[1][2] + skew_corr
+                    except KeyError:
+                        try:
+                            coincidences[i][   'pair'] = p_lookup[sm_nums]
+                            coincidences[i]['energy1'] = mm_energies[1]
+                            coincidences[i]['energy2'] = mm_energies[0]
+                            coincidences[i][   'time'] = max_chans[1][2] - max_chans[0][2] - skew_corr
+                            channel_energies[[2 * i, 2 * i + 1]] = channel_energies[[2 * i + 1, 2 * i]]
+                        except KeyError:
+                            continue
+                    channel_energies[2 * i    ]['slab_idx'] = max_chans[0][0]
+                    channel_energies[2 * i + 1]['slab_idx'] = max_chans[1][0]
+                    i += 1
+            ## predict here. Fake returned object for now.
+            predicted_xy = np.empty(npred, np.dtype(('X', np.float32), ('Y', np.float32)))
+            for i in range(0, npred // 2):#This way forced by structure.
+                pixels = tuple(map(lambda xy: pixel_vals(*xy), predicted_xy[2 * i:2 * i+2]))
+                coincidences[i]['xPosition1'] = pixels[0][0]
+                coincidences[i]['yPosition1'] = pixels[0][1]
+                coincidences[i]['xPosition2'] = pixels[1][0]
+                coincidences[i]['yPosition2'] = pixels[1][1]
+                lm_out.write(coincidences[i])
+        pass
+    return _evt_loop
 
 
 if __name__ == '__main__':
