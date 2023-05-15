@@ -31,6 +31,7 @@ from pet_code.src.fits     import lorentzian
 from pet_code.src.io       import ChannelMap
 from pet_code.src.io       import read_petsys_filebyfile
 from pet_code.src.plots    import ChannelEHistograms
+from pet_code.src.util     import pd
 from pet_code.src.util     import ChannelType
 from pet_code.src.util     import shift_to_centres
 
@@ -41,7 +42,8 @@ def slab_plots(out_file     : str               ,
                min_stats    : int               ,
                pk_finder    : str = 'max'
                ) -> None:
-    bin_edges = plot_source.edges[ChannelType.TIME]
+    bin_edges  = plot_source.edges[ChannelType.TIME]
+    check_fits = pd.DataFrame(shift_to_centres(bin_edges), columns=['bin_centres'])
     with open(out_file + 'timeSlabPeaks.txt', 'w') as par_out:
         par_out.write('ID\tMU\tMU_ERR\tSIG\tSIG_ERR\n')
         for id, s_vals in plot_source.tdist.items():
@@ -65,17 +67,14 @@ def slab_plots(out_file     : str               ,
                                                   yerr      = bin_errs ,
                                                   min_peak  = min_stats,
                                                   pk_finder = pk_finder)
-                ## hack
-                if fit_pars[1] <= bin_edges[3]:
-                    refit = refit_slab(out_file, id, bin_edges, s_vals, ns_vals, diff_data, bin_errs)
-                    if refit is None:
-                        continue
-                    bcent, min_indx, g_vals, fit_pars, cov = refit
+                if (fit_pars[1] <= bin_edges[ 5] or
+                    fit_pars[1] >= bin_edges[-5] or
+                    np.square((diff_data - g_vals) / bin_errs).sum() / (diff_data.shape[0] - 3) > 5):
+                    raise RuntimeError
             except RuntimeError:
-                refit = refit_slab(out_file, id, bin_edges, s_vals, ns_vals, diff_data, bin_errs)
-                if refit is None:
-                    continue
-                bcent, min_indx, g_vals, fit_pars, cov = refit
+                check_fits[f'ch{id}'    ] = diff_data
+                check_fits[f'ch{id}_err'] = bin_errs
+                continue
             mu_err  = np.sqrt(cov[1, 1])
             sig_err = np.sqrt(cov[2, 2])
             par_out.write(f'{id}\t{round(fit_pars[1], 3)}\t{round(mu_err, 3)}\t{round(fit_pars[2], 3)}\t{round(sig_err, 3)}\n')
@@ -86,6 +85,9 @@ def slab_plots(out_file     : str               ,
             plt.ylabel('source spec - no source spec (au)')
             plt.savefig(out_file + f'BackRest_ch{id}.png')
             plt.clf()
+    print(f'{check_fits.shape[1] - 1} time channels with suspect distributions.')
+    if check_fits.shape[0] > 1:
+        check_fits.to_feather(out_file + 'suspectTimeFits.feather')
 
 
 def refit_slab(out_file : str               ,
@@ -121,8 +123,11 @@ def energy_plots(out_file     : str               ,
                  plot_wosource: ChannelEHistograms,
                  min_peak     : int
                  ) -> None:
-    bin_edges = plot_source.edges[ChannelType.ENERGY]
-    bin_wid   = np.diff(bin_edges[:2])[0]
+    bin_edges  = plot_source.edges[ChannelType.ENERGY]
+    bin_cent   = shift_to_centres(bin_edges)
+    bin_wid    = np.diff(bin_edges[:2])[0]
+    check_fits = pd.DataFrame(bin_cent, columns=['bin_centres'])
+    nbin_fit   = 5
     with open(out_file + 'eChannelPeaks.txt', 'w') as par_out:
         par_out.write('ID\tMU\tMU_ERR\n')
         for id, vals in plot_source.edist.items():
@@ -131,7 +136,6 @@ def energy_plots(out_file     : str               ,
             except KeyError:
                 valsNS = np.zeros_like(vals)
 
-            bin_cent  = shift_to_centres(bin_edges)
             hdiff     = vals - valsNS
             hdiff_err = np.sqrt(vals + valsNS)
             peaks, _  = find_peaks(hdiff, height=min_peak, distance=5)
@@ -143,15 +147,11 @@ def energy_plots(out_file     : str               ,
             else:
                 p_indx = peaks[0]
             ## Try to protect against noise floor
-            nbin_fit = 5
             if p_indx <= 2 * nbin_fit:
                 print(f'Peak near min for channel {id}')
-                plt.errorbar(bin_cent, hdiff, yerr=hdiff_err)
-                plt.show()
-                plt.clf()
-                min_x = input('Do you want to adjust? [n]/peak_pos ')
-                if min_x:
-                    p_indx = np.searchsorted(bin_edges, float(min_x), side='right') - 1
+                check_fits[f'ch{id}'    ] = hdiff
+                check_fits[f'ch{id}_err'] = hdiff_err
+                continue
             plt.errorbar(bin_cent, hdiff, yerr=hdiff_err, label='Difference')
             plt.plot(bin_cent[peaks], hdiff[peaks], 'rv', markersize=15, label="Peak finder")
             mask = (bin_cent > bin_cent[p_indx] - nbin_fit * bin_wid) & (bin_cent < bin_cent[p_indx] + nbin_fit * bin_wid)
@@ -172,6 +172,9 @@ def energy_plots(out_file     : str               ,
             par_out.write(f'{id}\t{round(av_diff, 3)}\t{round(av_err, 3)}\n')
             plt.savefig(out_file + f'Emax_ch{id}.png')
             plt.clf()
+    print(f'{check_fits.shape[1] - 1} energy channels with suspect distributions.')
+    if check_fits.shape[1] > 1:
+        check_fits.to_feather(out_file + 'suspectEnergyFits.feather')
 
 
 def weighted_average(axis     : plt.Axes  ,
