@@ -101,8 +101,8 @@ def sm_floodmaps(setup   : str        = 'tbpet'                 ,
             espec = module_xye[j].sum(axis=(0, 1))
             ax.plot(shift_to_centres(ebins), espec, label=f'Det: {sm_label}\n mM: {j}')
             try:
-                bcent, gvals, pars, _ = fit_gaussian(espec, ebins,
-                                                     cb=6, min_peak=min_peak, pk_finder='peak')
+                bcent, gvals, pars, _, _ = fit_gaussian(espec, ebins,
+                                                        cb=6, min_peak=min_peak, pk_finder='peak')
                 minE, maxE = pars[1] - nsigma * pars[2], pars[1] + nsigma * pars[2]
                 ax.plot(bcent, gvals, label=f'fit mu = {round(pars[1], 3)},  sigma = {round(pars[2], 3)}')
             except RuntimeError:
@@ -200,7 +200,7 @@ def mm_energy_spectra(setup      : str             = 'tbpet' ,
                     photo_peak.append(lambda x: False)
                     continue
                 try:
-                    bcent, gvals, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
+                    bcent, gvals, pars, _, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
                     minE, maxE = pars[1] - nsigma * pars[2], pars[1] + nsigma * pars[2]
                     ax.plot(bcent, gvals, label=f'fit mu = {round(pars[1], 3)},  sigma = {round(pars[2], 3)}')
                 except RuntimeError:
@@ -239,7 +239,7 @@ def mm_energy_spectra(setup      : str             = 'tbpet' ,
                     photo_peak.append(lambda x: False)
                     continue
                 try:
-                    *_, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
+                    *_, pars, _, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
                     minE, maxE = pars[1] - nsigma * pars[2], pars[1] + nsigma * pars[2]
                 except RuntimeError:
                     minE, maxE = 0, 300
@@ -276,7 +276,7 @@ def slab_energy_spectra(slab_xye   : dict                              ,
             bin_vals, bin_edges, _ = plt.hist(xye['energy'], bins=bins[first_bin:])
             plt.xlabel(f'Energy (au) slab {slab}')
             try:
-                bcent, gvals, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
+                bcent, gvals, pars, _, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
                 # Cutre protection
                 if pars[1] <= bins[first_bin]:
                     minE, maxE = -1, 1
@@ -296,7 +296,7 @@ def slab_energy_spectra(slab_xye   : dict                              ,
             first_bin = 0 if max(xye['energy']) < bins[-1] else int(3 / np.diff(bins[:2])[0])
             bin_vals, bin_edges = np.histogram(xye['energy'], bins=bins[first_bin:])
             try:
-                *_, pars, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
+                *_, pars, _, _ = fit_gaussian(bin_vals, bin_edges, cb=6, min_peak=min_peak)
                 # Cutre protection
                 if pars[1] <= bins[first_bin]:
                     minE, maxE = -1, 0

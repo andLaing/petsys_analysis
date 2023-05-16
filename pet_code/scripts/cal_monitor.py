@@ -56,7 +56,7 @@ def output_time_plots(histos   : ChannelEHistograms,
     for id, dist in histos.tdist.items():
         slab_sum += dist
         try:
-            *_, fit_pars, _ = fit_gaussian(dist, histos.edges[htype], min_peak=min_stats, pk_finder='peak')
+            *_, fit_pars, _, _ = fit_gaussian(dist, histos.edges[htype], min_peak=min_stats, pk_finder='peak')
             mu_vals .append(fit_pars[1])
             sig_vals.append(fit_pars[2])
         except RuntimeError:
@@ -80,7 +80,7 @@ def output_time_plots(histos   : ChannelEHistograms,
     plt.savefig(os.path.join(out_dir, file_name.split(os.sep)[-1].replace('.ldat', f'{cal_name}_timeEngSig.png')))
     plt.clf()
 
-    bcent, gvals, pars, _ = fit_gaussian(slab_sum, histos.edges[htype], pk_finder='peak')
+    bcent, gvals, pars, _, _ = fit_gaussian(slab_sum, histos.edges[htype], pk_finder='peak')
     plt.errorbar(bcent, slab_sum, yerr=np.sqrt(slab_sum), label='Energy distribution')
     plt.plot(bcent, gvals, label=f'Fit: mu = {round(pars[1], 3)}, sigma = {round(pars[2], 3)}')
     plt.xlabel('Time channel energy (keV)')
@@ -120,7 +120,7 @@ def output_energy_plots(histos   : ChannelEHistograms,
 
             all_eng += dist
             try:
-                bcent, gvals, pars, _ = fit_gaussian(dist, histos.edges[htype], pk_finder='peak')
+                bcent, gvals, pars, _, _ = fit_gaussian(dist, histos.edges[htype], pk_finder='peak')
             except RuntimeError:
                 continue
             fig_ax[sm][1].flatten()[mm].errorbar(bcent                ,
@@ -159,7 +159,7 @@ def output_energy_plots(histos   : ChannelEHistograms,
     plt.savefig(os.path.join(out_dir, file_name.split(os.sep)[-1].replace('.ldat', f'{cal_name}_mmEngSig.png')))
     plt.clf()
 
-    bcent, gvals, pars, _ = fit_gaussian(all_eng, histos.edges[htype], pk_finder='peak')
+    bcent, gvals, pars, _, _ = fit_gaussian(all_eng, histos.edges[htype], pk_finder='peak')
     plt.errorbar(bcent, all_eng, yerr=np.sqrt(all_eng), label='Energy distribution')
     plt.plot(bcent, gvals, label=f'Fit: mu = {round(pars[1], 3)}, sigma = {round(pars[2], 3)}')
     plt.xlabel('All MM sum energy (keV)')

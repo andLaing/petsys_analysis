@@ -251,7 +251,7 @@ def peak_position(hist_bins: np.ndarray             ,
         if ref_ch in mon_ids:
             output_plot(ref_ch, bin_vals, bin_edges, '_'.join((out_base, f'ch{ref_ch}.png')))
         try:
-            *_, pars, _ = fit_gaussian(bin_vals, bin_edges, min_peak=min_stats)
+            *_, pars, _, _ = fit_gaussian(bin_vals, bin_edges, min_peak=min_stats)
         except RuntimeError:
             print(f'Ref channel {ref_ch} fit fail', flush=True)
             peak_mean, *_ = mean_around_max(bin_vals, shift_to_centres(bin_edges), 6)

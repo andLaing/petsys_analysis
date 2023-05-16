@@ -94,7 +94,7 @@ if __name__ == '__main__':
     for id, hist in slab_plots.tdist.items():
         plt.errorbar(shift_to_centres(bin_edges), hist, yerr=np.sqrt(hist), label='energy histogram')
         try:
-            bcent, gvals, pars, _ = fit_gaussian(hist, bin_edges, min_peak=min_peak)
+            bcent, gvals, pars, _, _ = fit_gaussian(hist, bin_edges, min_peak=min_peak)
             plt.plot(bcent, gvals, label=f'Gaussian fit: mu = {round(pars[1], 2)}, sigma = {round(pars[2], 2)}')
         except RuntimeError:
             max_bin = np.argmax(hist)

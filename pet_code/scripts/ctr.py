@@ -63,7 +63,7 @@ if __name__ == '__main__':
     hist_bins = np.linspace(-10000, 10000, 800, endpoint=False)
     plt.hist(dts_raw, bins=hist_bins, histtype='step', label='Raw times')
     bin_vals, bin_edges, _ = plt.hist(dts_skew, bins=hist_bins, histtype='step', label='skew corrected')
-    bcent, gvals, pars, _  = fit_gaussian(bin_vals, bin_edges)
+    bcent, gvals, pars, _, _  = fit_gaussian(bin_vals, bin_edges)
     plt.plot(bcent, gvals, label=f'fit centroid = {round(pars[1], 3)}, sigma = {round(pars[2], 3)}')
     plt.legend()
     plt.xlabel('timestamp difference (ps)')

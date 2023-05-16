@@ -63,14 +63,14 @@ def slab_plots(out_file     : str               ,
             diff_data = s_vals - ns_vals
             try:
                 (bcent   , g_vals,
-                 fit_pars, cov   ) = fit_gaussian(diff_data            ,
-                                                  bin_edges            ,
-                                                  yerr      = bin_errs ,
-                                                  min_peak  = min_stats,
-                                                  pk_finder = pk_finder)
+                 fit_pars, cov   , chi_ndf) = fit_gaussian(diff_data            ,
+                                                           bin_edges            ,
+                                                           yerr      = bin_errs ,
+                                                           min_peak  = min_stats,
+                                                           pk_finder = pk_finder)
                 if (fit_pars[1] <= bin_edges[ 5] or
                     fit_pars[1] >= bin_edges[-5] or
-                    np.square((diff_data - g_vals) / bin_errs).sum() / (diff_data.shape[0] - 3) > 5):
+                    chi_ndf > 5):
                     raise RuntimeError
             except RuntimeError:
                 check_fits[f'ch{id}'    ] = diff_data
@@ -110,7 +110,7 @@ def refit_slab(out_file : str               ,
         diff_data = source[indx:] - nosource[indx:]
         bin_errs  = np.sqrt(source[indx:] + nosource[indx:])
         try:
-            bcent, g_vals, fit_pars, cov = fit_gaussian(diff_data, bin_edges[indx:], yerr=bin_errs, min_peak=int(min_peak * 0.7))
+            bcent, g_vals, fit_pars, cov, _ = fit_gaussian(diff_data, bin_edges[indx:], yerr=bin_errs, min_peak=int(min_peak * 0.7))
         except RuntimeError:
             fail_plot(out_file, id, bin_edges, source, nosource, np.sqrt(source + nosource))
             return None
