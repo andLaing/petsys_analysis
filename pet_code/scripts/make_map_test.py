@@ -24,7 +24,7 @@ def test_channel_sm_coordinate():
                   (0,  0, ChannelType.ENERGY),
                   (3, 31, ChannelType.TIME  ),
                   (3, 31, ChannelType.ENERGY)]
-    
+
     results = [channel_sm_coordinate(*args) for args in test_chans]
 
     exp_first = (round(mm_edge * 4 - (mm_spacing + slab_width) / 2, 3),
@@ -49,7 +49,7 @@ def channel_types(TEST_DATA_DIR):
 def test_sm_gen(channel_types):
     tchans  = channel_types[  'time_channels']
     echans  = channel_types['energy_channels']
-    feb_map = {0: [0, 0]}
+    feb_map = {0: [0, 0, 0]}
     mm_emap = {0:0, 1:4,  2:8 ,  3:12,  4:1,  5:5,  6:9 ,  7:13,
                8:2, 9:6, 10:10, 11:14, 12:3, 13:7, 14:11, 15:15}
 
@@ -164,7 +164,7 @@ def test_n_rings(channel_types):
     echans  = channel_types['energy_channels']
     ring_r  = channel_types[        'ring_r' ]
     ring_yx = channel_types[        'ring_yx']
-    feb_map = {sm: [sm // 6, 5 - sm % 6] for sm in range(24 * 5)}
+    feb_map = {sm: [0, sm // 6, 5 - sm % 6] for sm in range(24 * 5)}
     z_pos   = [-305.5312 + i * 152.7656 for i in range(5)]
 
     nFEM = 256

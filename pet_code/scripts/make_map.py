@@ -80,7 +80,7 @@ def brain_map(nFEM: int, chan_per_mm: int, tchans: list, echans: list) -> Iterat
 
 def row_gen(nFEM: int, chan_per_mm: int, tchans: list, echans: list) -> Iterator:
     superm_gen = sm_gen(nFEM, chan_per_mm, tchans, echans,
-                        mM_energyMapping, {0: [0, 0], 2: [0, 2]})
+                        mM_energyMapping, {0: [0, 0, 0], 2: [0, 0, 2]})
     for i in (0, 2):
         for j, (id, typ, mm, loc_x, loc_y) in enumerate(superm_gen(i)):
             if typ == 'TIME':
@@ -117,7 +117,7 @@ def sm_centre_pos(SM_r: float, SM_yx: dict) -> Callable:
     """
     Gives polar angle position (and r; fixed)
     for the centres of the SMs.
-    Currently set for ring positions of 
+    Currently set for ring positions of
     center inner face of TBPET supermodules.
     SM_r  : Radius of ring
     SM_yx : YX values of the SM centres.
@@ -145,8 +145,8 @@ def sm_gen(nFEM         : int ,
     sm_to_febport : Dict with [slaveID, FEBport] for each supermodule
     """
     def _sm_gen(sm_no: int) -> Iterator:
-        slaveID, febport = sm_to_febport[sm_no]
-        sm_min_chan      = 4096 * slaveID + nFEM * febport
+        portID, slaveID, febport = sm_to_febport[sm_no]
+        sm_min_chan = 131072 * portID + 4096 * slaveID + nFEM * febport
         for i, (tch, ech) in enumerate(zip(tchans, echans)):
             id = tch + sm_min_chan#sm_no * nFEM
             mm = i // chan_per_mm
