@@ -97,7 +97,7 @@ def output_energy_plots(histos   : ChannelEHistograms,
                         out_dir  : str               ,
                         file_name: str               ,
                         setup    : str               ,
-                        no_super : int
+                        no_super : np.ndarray
                         ) -> None:
     """
     Make the plots for the energy channels.
@@ -109,37 +109,38 @@ def output_energy_plots(histos   : ChannelEHistograms,
 
     mu_vals  = []
     sig_vals = []
-    fig_ax   = {k: plt.subplots(nrows=fig_rows, ncols=fig_cols, figsize=psize)
-                for k in no_super}
     htype    = 'ESUM'
     txt_file = os.path.join(out_dir, file_name.split(os.sep)[-1].replace('.ldat', f'{cal_name}_MMEngPeaks.txt'))
     with open(txt_file, 'w') as peak_out:
         peak_out.write('Supermod\tMinimod\tEnergy Peak\tSigma\n')
-        for id, dist in histos.sum_dist.items():
-            sm, mm = id
+        for sm in no_super:
+            fig_ax = plt.subplots(nrows=fig_rows, ncols=fig_cols, figsize=psize)
+            for mm in range(fig_cols * fig_rows):
+                try:
+                    dist = histos.sum_dist[(sm, mm)]
+                except KeyError:
+                    continue
 
-            all_eng += dist
-            try:
-                bcent, gvals, pars, _, _ = fit_gaussian(dist, histos.edges[htype], pk_finder='peak')
-            except RuntimeError:
-                continue
-            fig_ax[sm][1].flatten()[mm].errorbar(bcent                ,
+                all_eng += dist
+                try:
+                    bcent, gvals, pars, _, _ = fit_gaussian(dist, histos.edges[htype], pk_finder='peak')
+                except RuntimeError:
+                    continue
+                fig_ax[1].flatten()[mm].errorbar(bcent                ,
                                                  dist                 ,
                                                  yerr  = np.sqrt(dist),
                                                  label = 'dataset'    )
-            fig_ax[sm][1].flatten()[mm].plot(bcent, gvals, label=f'Fit: mu = {round(pars[1], 3)}, sigma = {round(pars[2], 3)}')
-            fig_ax[sm][1].flatten()[mm].set_xlabel(f'mM {mm} energy sum (au)')
-            fig_ax[sm][1].flatten()[mm].set_ylabel('AU')
-            fig_ax[sm][1].flatten()[mm].legend()
-            mu_vals .append(pars[1])
-            sig_vals.append(pars[2])
-            peak_out.write(f'{sm}\t{mm}\t{round(pars[1], 3)}\t{round(pars[2], 3)}\n')
-
-    for i, (fig, _) in fig_ax.items():
-        out_name = os.path.join(out_dir, file_name.split(os.sep)[-1].replace('.ldat', f'{cal_name}_MMEngs_sm{i}.png'))
-        fig.savefig(out_name)
-    plt.clf()
-    plt.close('all')
+                fig_ax[1].flatten()[mm].plot(bcent, gvals, label=f'Fit: mu = {round(pars[1], 3)}, sigma = {round(pars[2], 3)}')
+                fig_ax[1].flatten()[mm].set_xlabel(f'mM {mm} energy sum (au)')
+                fig_ax[1].flatten()[mm].set_ylabel('AU')
+                fig_ax[1].flatten()[mm].legend()
+                mu_vals .append(pars[1])
+                sig_vals.append(pars[2])
+                peak_out.write(f'{sm}\t{mm}\t{round(pars[1], 3)}\t{round(pars[2], 3)}\n')
+            out_name = os.path.join(out_dir, file_name.split(os.sep)[-1].replace('.ldat', f'{cal_name}_MMEngs_sm{sm}.png'))
+            fig_ax[0].savefig(out_name)
+            plt.clf()
+            plt.close('all')
 
     ## Fit distributions
     bins = min(mu_vals) - 2, max(mu_vals) + 2, np.diff(histos.edges[htype][:2])[0]
