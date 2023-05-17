@@ -42,7 +42,7 @@ def slab_plots(out_file     : str               ,
                min_stats    : int               ,
                pk_finder    : str       = 'max' ,
                monitor_ids  : dict[int] = {}
-               ) -> None:
+               ) -> int:
     bin_edges  = plot_source.edges[ChannelType.TIME]
     check_fits = pd.DataFrame(shift_to_centres(bin_edges), columns=['bin_centres'])
     with open(out_file + 'timeSlabPeaks.txt', 'w') as par_out:
@@ -90,6 +90,7 @@ def slab_plots(out_file     : str               ,
     print(f'{check_fits.shape[1] - 1} time channels with suspect distributions.')
     if check_fits.shape[0] > 1:
         check_fits.to_feather(out_file + 'suspectTimeFits.feather')
+    return check_fits.shape[1] - 1
 
 
 def refit_slab(out_file : str               ,
@@ -125,7 +126,7 @@ def energy_plots(out_file     : str               ,
                  plot_wosource: ChannelEHistograms,
                  min_peak     : int               ,
                  monitor_ids  : dict[int]={}
-                 ) -> None:
+                 ) -> int:
     bin_edges  = plot_source.edges[ChannelType.ENERGY]
     bin_cent   = shift_to_centres(bin_edges)
     bin_wid    = np.diff(bin_edges[:2])[0]
@@ -179,6 +180,7 @@ def energy_plots(out_file     : str               ,
     print(f'{check_fits.shape[1] - 1} energy channels with suspect distributions.')
     if check_fits.shape[1] > 1:
         check_fits.to_feather(out_file + 'suspectEnergyFits.feather')
+    return check_fits.shape[1] - 1
 
 
 def weighted_average(axis     : plt.Axes  ,
@@ -279,6 +281,6 @@ if __name__ == '__main__':
         monitor_id = {}
 
     # Plotting and fitting.
-    slab_plots  (out_file, plotS, plotNS, min_peak,
-                 pk_finder=pk_finder, monitor_ids=monitor_id)
-    energy_plots(out_file, plotS, plotNS, min_peak)
+    nslab_bad = slab_plots  (out_file, plotS, plotNS, min_peak,
+                             pk_finder=pk_finder, monitor_ids=monitor_id)
+    neng_bad  = energy_plots(out_file, plotS, plotNS, min_peak, monitor_ids=monitor_id)

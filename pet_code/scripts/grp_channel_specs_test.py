@@ -87,8 +87,9 @@ def test_slab_plots(TMP_OUT, gauss_plots):
 
     tmu, tsig, _, _, plot_source, plot_nsource = gauss_plots
 
-    slab_plots(out_file, plot_source, plot_nsource, min_stats=100)
+    bad_fits = slab_plots(out_file, plot_source, plot_nsource, min_stats=100)
 
+    assert bad_fits == 0
     time_fits = out_file + 'timeSlabPeaks.txt'
     assert os.path.isfile(time_fits)
     time_fit_vals = pd.read_csv(time_fits, sep='\t')
@@ -103,8 +104,9 @@ def test_energy_plots(TMP_OUT, gauss_plots):
 
     _, _, Emu, _, plot_source, plot_nsource = gauss_plots
 
-    energy_plots(out_file, plot_source, plot_nsource, 100)
+    bad_fits = energy_plots(out_file, plot_source, plot_nsource, 100)
 
+    assert bad_fits == 0
     eng_fits = out_file + 'eChannelPeaks.txt'
     assert os.path.isfile(eng_fits)
     eng_fit_vals = pd.read_csv(eng_fits, sep='\t')
