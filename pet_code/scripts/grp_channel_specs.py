@@ -18,6 +18,7 @@ import os
 import configparser
 
 from docopt import docopt
+from typing import Callable
 
 import matplotlib.pyplot as plt
 import numpy             as np
@@ -27,6 +28,7 @@ from scipy.signal import find_peaks
 from pet_code.src.filters  import filter_event_by_impacts
 from pet_code.src.fits     import curve_fit_fn
 from pet_code.src.fits     import fit_gaussian
+from pet_code.src.fits     import gaussian
 from pet_code.src.fits     import lorentzian
 from pet_code.src.io       import ChannelMap
 from pet_code.src.io       import read_petsys_filebyfile
@@ -119,6 +121,26 @@ def refit_slab(out_file : str               ,
         fail_plot(out_file, id, bin_edges, source, nosource, yerr)
         return None
     return bcent, indx, g_vals, fit_pars, cov
+
+
+def refit_channel(bin_centres: np.ndarray,
+                  data       : np.ndarray,
+                  errors     : np.ndarray,
+                  fit_func   : Callable  ,
+                  nbin_fit   : int
+                  ) -> tuple[float, float, float, float]:
+    plt.errorbar(bin_centres, data, yerr=errors)
+    plt.title('Decide approx position for mean and close plot.')
+    plt.show()
+    bin_wid    = np.diff(bin_centres)[0]
+    edges      = bin_centres - bin_wid / 2
+    mean_seed  = input('Please indicate a seed position for the centroid ')
+    p_indx     = np.searchsorted(edges, mean_seed, side='right') - 1
+    mask       = ((bin_centres > bin_centres[p_indx] - nbin_fit * bin_wid) &
+                  (bin_centres < bin_centres[p_indx] + nbin_fit * bin_wid))
+    p0         = [data[p_indx], mean_seed, bin_wid * nbin_fit / np.sqrt(12)]
+    pars, pcov = curve_fit_fn(fit_func, bin_centres[mask], data[mask], errors[mask], p0)
+    return pars[1], np.sqrt(pcov[1, 1]), pars[2], np.sqrt(pcov[2, 2])
 
 
 def energy_plots(out_file     : str               ,
@@ -255,6 +277,36 @@ def fail_plot(out_file: str       ,
     plt.clf()
 
 
+def review_distributions(ntime, neng, out_base):
+    """
+    Review and refit flagged distributions.
+    """
+    if ntime:
+        print('Reviewing time channel distributions...')
+        dist_df     = pd.read_feather(out_base + 'suspectTimeFits.feather')
+        bin_centres = dist_df.bin_centres.values
+        with open(out_base + 'timeSlabPeaks.txt', 'a') as tout:
+            for col in dist_df.columns[dist_df.columns.str.contains('_err')]:
+                print(f'time channel {col[2:-4]}')
+                try:
+                    mu, mu_err, sig, sig_err = refit_channel(bin_centres, dist_df[col[:-4]], dist_df[col], gaussian, 8)
+                    tout.write(f'{col[2:-4]}\t{round(mu, 3)}\t{round(mu_err, 3)}\t{round(sig, 3)}\t{round(sig_err, 3)}\n')
+                except RuntimeError:
+                    continue
+    if neng:
+        print('Reviewing energy channel distributions...')
+        dist_df     = pd.read_feather(out_base + 'suspectEnergyFits.feather')
+        bin_centres = dist_df.bin_centres.values
+        with open(out_base + 'eChannelPeaks.txt', 'a') as eout:
+            for col in dist_df.columns[dist_df.columns.str.contains('_err')]:
+                print(f'energy channel {col[2:-4]}')
+                try:
+                    mu, mu_err, *_ = refit_channel(bin_centres, dist_df[col[:-4]], dist_df[col], lorentzian, 5)
+                    eout.write(f'{col[2:-4]}\t{round(mu, 3)}\t{round(mu_err, 3)}\n')
+                except RuntimeError:
+                    continue
+
+
 if __name__ == '__main__':
     args     = docopt(__doc__)
     conf     = configparser.ConfigParser()
@@ -284,3 +336,9 @@ if __name__ == '__main__':
     nslab_bad = slab_plots  (out_file, plotS, plotNS, min_peak,
                              pk_finder=pk_finder, monitor_ids=monitor_id)
     neng_bad  = energy_plots(out_file, plotS, plotNS, min_peak, monitor_ids=monitor_id)
+
+    ## Review suspect distributions?
+    if nslab_bad > 0 or neng_bad > 0:
+        review = input(f'There are {nslab_bad} suspect time channels and {neng_bad} energy channels, review now? y/[n]')
+        if review:
+            review_distributions(nslab_bad, neng_bad, out_file)
