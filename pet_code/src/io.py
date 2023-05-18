@@ -293,27 +293,29 @@ class ChannelMap:
             self.mapping['gain'] = 1.0
         self.ch_type = self.mapping.type.to_dict()
         self.plotp   = self.mapping[['local_x', 'local_y']].to_dict('index')
+        # Should probably integrate these two.
         self.minimod = self.mapping.minimodule.to_dict()
+        self.mods    = self.mapping[['supermodule', 'minimodule']].to_dict('index')
+        self.xyz     = self.mapping[['X', 'Y', 'Z']].to_dict('index')
 
     def get_channel_type(self, id: int) -> ChannelType:
-        return self.mapping.at[id, 'type']
+        return self.ch_type[id]
 
     def get_chantype_ids(self, chan_type: ChannelType) -> np.ndarray:
         sel_channels = self.mapping.type.map(lambda t: t is chan_type)
         return self.mapping.index[sel_channels].values
 
     def get_supermodule(self, id: int) -> int:
-        return self.mapping.at[id, 'supermodule']
+        return self.mods[id]['supermodule']
 
     def get_minimodule(self, id: int) -> int:
-        # return self.mapping.at[id, 'minimodule']
         return self.minimod[id]
 
     def get_modules(self, id: int) -> tuple[int, int]:
         """
         Get supermodule and minimodule for given id
         """
-        return tuple(self.mapping.loc[id, ['supermodule', 'minimodule']])
+        return tuple(self.mods[id].values())
 
     def get_minimodule_channels(self, sm: int, mm: int) -> np.ndarray:
         mask = (self.mapping.supermodule == sm) & (self.mapping.minimodule == mm)
@@ -329,11 +331,11 @@ class ChannelMap:
         """
         Pseudo position for floodmap plotting.
         """
-        return self.mapping.loc[id, ['local_x', 'local_y']].values
+        return np.fromiter(self.plotp[id].values(), float)
 
     @lru_cache
     def get_channel_position(self, id: int) -> np.ndarray:
-        return self.mapping.loc[id, ['X', 'Y', 'Z']].values.astype('float')
+        return np.fromiter(self.xyz[id].values(), float)
 
 
 def write_event_trace(file_buffer: TextIO      ,

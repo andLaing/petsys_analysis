@@ -184,9 +184,9 @@ def filter_max_sm(max_sm: int, sm_map: Callable) -> Callable:
         sm_set = set()
         for imp in chain(sm1, sm2):
             sm_set.add(sm_map(imp[0]))
-            if not (v_evt := len(sm_set) <= max_sm):
-                break
-        return v_evt
+            if len(sm_set) > max_sm:
+                return False
+        return True
         # all_ids = np.vstack((sm1, sm2))[:, 0].astype('int')
         # return np.unique(vec_sm_map(all_ids)).shape[0] <= max_sm
     return valid_event
@@ -198,18 +198,16 @@ def filter_max_coin_event(sm_map : Callable    ,
                           singles: bool = False
                           ) -> Callable:
     """
-    Filter event to select two SM 
+    Filter event to select two SM
     and no negative event.
     """
-    
     ch1_filter = filter_impact(min_ch)
     ch2_filter = ch1_filter
     if singles:
         ch2_filter = lambda x: True
     max_sm_filter = filter_max_sm(max_sm, sm_map)
-    
+
     def valid_event(sm1: list[list], sm2: list[list]) -> bool:
         return filter_negatives(sm1) and filter_negatives(sm2) and\
-            max_sm_filter(sm1, sm2) and ch1_filter(sm1) and ch2_filter(sm2)
-    return valid_event 
-
+            ch1_filter(sm1) and ch2_filter(sm2) and max_sm_filter(sm1, sm2)
+    return valid_event

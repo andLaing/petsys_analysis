@@ -12,14 +12,17 @@ from pet_code.src.util    import select_max_energy
 from pet_code.src.util    import select_module
 
 
+max_slab  = select_max_energy(ChannelType.TIME)
+max_echan = select_max_energy(ChannelType.ENERGY)
+
 def print_info(all_channels, neg_channels, ch_map):
     print(f'{len(neg_channels)} negative channel(s) found for sm {ch_map.get_supermodule(neg_channels[0][0])}')
     total_chan = len(all_channels)
     total_time = sum(x[1] is ChannelType.TIME for x in all_channels)
     nMM        = len(set(ch_map.get_minimodule(x[0]) for x in all_channels))
     neg_MM     = [ch_map.get_minimodule(x[0]) for x in neg_channels]
-    max_time   = select_max_energy(all_channels, ChannelType.TIME  )
-    max_eng    = select_max_energy(all_channels, ChannelType.ENERGY)
+    max_time   = max_slab (all_channels)
+    max_eng    = max_echan(all_channels)
     neg_ids    = [x[0] for x in neg_channels]
     neg_engs   = [x[3] for x in neg_channels]
     time_neg   = sum(x[1] is ChannelType.TIME for x in neg_channels)

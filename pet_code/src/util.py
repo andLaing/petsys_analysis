@@ -36,11 +36,10 @@ def energy_weighted_average(channel_pos: Callable,
     """
     Position from energy channel positions, charge and a power
     """
-    vec_pos = np.vectorize(lambda x: channel_pos(x)[local_indx])
     def _average(sm_info):
         echans    = filter(lambda x: x[1] is ChannelType.ENERGY, sm_info)
-        id_charge = np.asarray(tuple(map(lambda x: (x[0], x[3]), echans)))
-        return np.average(vec_pos(id_charge[:, 0]), weights=id_charge[:, 1]**power)
+        id_charge = np.asarray(tuple(map(lambda x: (channel_pos(x[0])[local_indx], x[3]), echans)))
+        return np.average(id_charge[:, 0], weights=id_charge[:, 1]**power)
     return _average
 
 
@@ -233,22 +232,26 @@ def get_absolute_id(portID   : int,
     return 131072 * portID + 4096 * slaveID + 64 * chipID + channelID
 
 
-def select_max_energy(superm   : list[list]      ,
-                      chan_type: ChannelType=None
-                      ) -> list | None:
+def select_max_energy(chan_type: ChannelType=None) -> Callable:
     """
     Select the channel with highest deposit.
-    superm    : List
-               List of impacts with [id, mm, time, eng]
     chan_type : Optional ChannelType
                 The channel type to be compared.
     """
-    try:
-        if chan_type is None:
-            return max(superm, key=lambda x: x[3])
-        return max(filter(lambda x: x[1] is chan_type, superm), key=lambda y: y[3])
-    except ValueError:
-        return None
+    def _is_type(imp: list) -> bool:
+        return imp[1] is chan_type
+    filt_func = _is_type if chan_type else lambda x: True
+
+    def _select(superm: list[list]) -> list | None:
+        """
+        superm : List
+                 List of impacts with [id, mm, time, eng]
+        """
+        try:
+            return max(filter(filt_func, superm), key=lambda y: y[3])
+        except ValueError:
+            return None
+    return _select
 
 
 def shift_to_centres(bin_low_edge: np.ndarray) -> np.ndarray:
@@ -406,10 +409,11 @@ def convert_to_kev(kev_file: str     ,
     """
     # Ok like this? Probs need to improve file format.
     # kev_factors = pd.read_feather(kev_file).set_index(['supermodule', 'minimodule'])
-    kev_factors = pd.read_csv(kev_file, sep='\t').set_index(['Supermod', 'Minimod'])['Energy Peak'].map(lambda x: 511.0 / x)
+    kev_factors = pd.read_csv(kev_file, sep='\t').set_index(['Supermod', 'Minimod'])['Energy Peak'].map(lambda x: 511.0 / x).to_dict()
     def _convert(id: int) -> float:
         mods = mod_func(id)
-        return kev_factors.loc[mods]
+        return kev_factors[mods]
+        # return kev_factors.loc[mods]
     return _convert
 
 

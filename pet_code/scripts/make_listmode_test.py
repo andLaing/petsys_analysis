@@ -8,10 +8,14 @@ from pytest    import mark
 from .. src.io   import ChannelMap
 from .. src.io   import LMHeader
 from .. src.util import ChannelType
+from .. src.util import convert_to_kev
+
+from .. src.util_test import enum_dummy
 
 from . make_listmode import np
 from . make_listmode import equal_and_select
 from . make_listmode import local_pixel
+from . make_listmode import supermod_energy
 from . make_listmode import write_header
 
 
@@ -94,3 +98,17 @@ def test_write_header(TMP_OUT):
     assert LMHead.moduleNumber  == modNo
     assert LMHead.ringNumber    == rNo
     assert LMHead.ringDistance  == ringD
+
+
+@mark.filterwarnings("ignore:Imported map")
+def test_supermod_energy(TEST_DATA_DIR, DUMMY_SM):
+    map_file = os.path.join(TEST_DATA_DIR, '1ring_map.feather')
+    kev_file = os.path.join(TEST_DATA_DIR, 'mM_calibratedEng_Peak.tsv')
+
+    chan_map = ChannelMap(map_file)
+    kev_conv = convert_to_kev(kev_file, chan_map.get_modules)
+
+    kev_eng = supermod_energy(kev_conv)
+    mm_eng  = kev_eng(enum_dummy(DUMMY_SM))
+
+    assert np.isclose(round(mm_eng, 3), 599.570)
