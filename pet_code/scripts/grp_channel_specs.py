@@ -40,7 +40,8 @@ def slab_plots(out_file     : str               ,
                plot_source  : ChannelEHistograms,
                plot_wosource: ChannelEHistograms,
                min_stats    : int               ,
-               pk_finder    : str = 'max'
+               pk_finder    : str       = 'max' ,
+               monitor_ids  : dict[int] = {}
                ) -> None:
     bin_edges  = plot_source.edges[ChannelType.TIME]
     check_fits = pd.DataFrame(shift_to_centres(bin_edges), columns=['bin_centres'])
@@ -51,12 +52,12 @@ def slab_plots(out_file     : str               ,
             try:
                 ns_vals = plot_wosource.tdist[id]
             except KeyError:
-                plt.errorbar(bin_edges[:-1], s_vals, label='Source')
-                plt.legend()
-                plt.xlabel(f'Energy time channel {id}')
-                plt.ylabel('au')
-                plt.savefig(out_file + f'NoSourceZero_ch{id}.png')
-                plt.clf()
+                # plt.errorbar(bin_edges[:-1], s_vals, label='Source')
+                # plt.legend()
+                # plt.xlabel(f'Energy time channel {id}')
+                # plt.ylabel('au')
+                # plt.savefig(out_file + f'NoSourceZero_ch{id}.png')
+                # plt.clf()
                 ns_vals = np.zeros_like(s_vals)
             bin_errs  = np.sqrt(s_vals + ns_vals)
             diff_data = s_vals - ns_vals
@@ -78,13 +79,14 @@ def slab_plots(out_file     : str               ,
             mu_err  = np.sqrt(cov[1, 1])
             sig_err = np.sqrt(cov[2, 2])
             par_out.write(f'{id}\t{round(fit_pars[1], 3)}\t{round(mu_err, 3)}\t{round(fit_pars[2], 3)}\t{round(sig_err, 3)}\n')
-            plt.errorbar(bcent, diff_data[min_indx:], yerr=bin_errs[min_indx:], label='distribution')
-            plt.plot(bcent, g_vals, label=f'Gaussian fit mu = {round(fit_pars[1], 2)}, sigma = {round(fit_pars[2], 2)}')
-            plt.legend()
-            plt.xlabel(f'Energy time channel {id}')
-            plt.ylabel('source spec - no source spec (au)')
-            plt.savefig(out_file + f'BackRest_ch{id}.png')
-            plt.clf()
+            if id in monitor_ids:
+                plt.errorbar(bcent, diff_data[min_indx:], yerr=bin_errs[min_indx:], label='distribution')
+                plt.plot(bcent, g_vals, label=f'Gaussian fit mu = {round(fit_pars[1], 2)}, sigma = {round(fit_pars[2], 2)}')
+                plt.legend()
+                plt.xlabel(f'Energy time channel {id}')
+                plt.ylabel('source spec - no source spec (au)')
+                plt.savefig(out_file + f'BackRest_ch{id}.png')
+                plt.clf()
     print(f'{check_fits.shape[1] - 1} time channels with suspect distributions.')
     if check_fits.shape[0] > 1:
         check_fits.to_feather(out_file + 'suspectTimeFits.feather')
@@ -121,7 +123,8 @@ def refit_slab(out_file : str               ,
 def energy_plots(out_file     : str               ,
                  plot_source  : ChannelEHistograms,
                  plot_wosource: ChannelEHistograms,
-                 min_peak     : int
+                 min_peak     : int               ,
+                 monitor_ids  : dict[int]={}
                  ) -> None:
     bin_edges  = plot_source.edges[ChannelType.ENERGY]
     bin_cent   = shift_to_centres(bin_edges)
@@ -152,26 +155,27 @@ def energy_plots(out_file     : str               ,
                 check_fits[f'ch{id}'    ] = hdiff
                 check_fits[f'ch{id}_err'] = hdiff_err
                 continue
-            plt.errorbar(bin_cent, hdiff, yerr=hdiff_err, label='Difference')
-            plt.plot(bin_cent[peaks], hdiff[peaks], 'rv', markersize=15, label="Peak finder")
             mask = (bin_cent > bin_cent[p_indx] - nbin_fit * bin_wid) & (bin_cent < bin_cent[p_indx] + nbin_fit * bin_wid)
             try:
                 p0            = [hdiff[p_indx], bin_cent[p_indx], 3]
                 fit_pars, cov = curve_fit_fn(lorentzian, bin_cent[mask], hdiff[mask], np.sqrt(hdiff[mask]), p0)
-                plt.plot(bin_cent, lorentzian(bin_cent, *fit_pars), label='Gaussian fit')
                 av_diff = fit_pars[1]
                 av_err  = np.sqrt(cov[1, 1])
                 if av_err > 1.0:
                     av_diff, av_err = weighted_average(plt, bin_cent, hdiff, hdiff_err, mask)
             except RuntimeError:
                 av_diff, av_err = weighted_average(plt, bin_cent, hdiff, hdiff_err, mask)
-            plt.xlabel(f'Energy E channel {id}')
-            plt.ylabel('Frequency per bin (au)')
-            plt.legend()
 
             par_out.write(f'{id}\t{round(av_diff, 3)}\t{round(av_err, 3)}\n')
-            plt.savefig(out_file + f'Emax_ch{id}.png')
-            plt.clf()
+            if id in monitor_ids:
+                plt.errorbar(bin_cent, hdiff, yerr=hdiff_err, label='Difference')
+                plt.plot(bin_cent[peaks], hdiff[peaks], 'rv', markersize=15, label="Peak finder")
+                plt.plot(bin_cent, lorentzian(bin_cent, *fit_pars), label='Gaussian fit')
+                plt.xlabel(f'Energy E channel {id}')
+                plt.ylabel('Frequency per bin (au)')
+                plt.legend()
+                plt.savefig(out_file + f'Emax_ch{id}.png')
+                plt.clf()
     print(f'{check_fits.shape[1] - 1} energy channels with suspect distributions.')
     if check_fits.shape[1] > 1:
         check_fits.to_feather(out_file + 'suspectEnergyFits.feather')
@@ -269,7 +273,12 @@ if __name__ == '__main__':
 
     min_peak  = conf.getint('filter', 'min_stats'  , fallback=300  )
     pk_finder = conf.get   ('filter', 'peak_finder', fallback='max')
+    try:
+        monitor_id = set(map(int, conf.get('output', 'mon_ids').split(',')))
+    except (configparser.NoSectionError, configparser.NoOptionError):
+        monitor_id = {}
 
     # Plotting and fitting.
-    slab_plots  (out_file, plotS, plotNS, min_peak, pk_finder=pk_finder)
+    slab_plots  (out_file, plotS, plotNS, min_peak,
+                 pk_finder=pk_finder, monitor_ids=monitor_id)
     energy_plots(out_file, plotS, plotNS, min_peak)
