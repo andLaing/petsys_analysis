@@ -80,7 +80,8 @@ def fit_gaussian(data     : np.ndarray              ,
     sig0 = np.sqrt(sig0)
 
     pars, pcov = curve_fit(gaussian, x, y, sigma=err, p0=[wsum, mu0, sig0])
-    return bin_centres, gaussian(bin_centres, *pars), pars, pcov
+    chi_ndf    = np.square((y - gaussian(x, *pars)) / err).sum() / (y.shape[0] - 3)
+    return bin_centres, gaussian(bin_centres, *pars), pars, pcov, chi_ndf
 
 
 def curve_fit_fn(fn  : Callable  ,
