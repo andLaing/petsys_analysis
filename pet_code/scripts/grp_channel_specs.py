@@ -54,12 +54,6 @@ def slab_plots(out_file     : str               ,
             try:
                 ns_vals = plot_wosource.tdist[id]
             except KeyError:
-                # plt.errorbar(bin_edges[:-1], s_vals, label='Source')
-                # plt.legend()
-                # plt.xlabel(f'Energy time channel {id}')
-                # plt.ylabel('au')
-                # plt.savefig(out_file + f'NoSourceZero_ch{id}.png')
-                # plt.clf()
                 ns_vals = np.zeros_like(s_vals)
             bin_errs  = np.sqrt(s_vals + ns_vals)
             diff_data = s_vals - ns_vals
@@ -292,6 +286,7 @@ def review_distributions(ntime, neng, out_base):
                     mu, mu_err, sig, sig_err = refit_channel(bin_centres, dist_df[col[:-4]], dist_df[col], gaussian, 8)
                     tout.write(f'{col[2:-4]}\t{round(mu, 3)}\t{round(mu_err, 3)}\t{round(sig, 3)}\t{round(sig_err, 3)}\n')
                 except RuntimeError:
+                    print(f'Fit fail time channel {col[2:-4]}.')
                     continue
     if neng:
         print('Reviewing energy channel distributions...')
@@ -304,6 +299,7 @@ def review_distributions(ntime, neng, out_base):
                     mu, mu_err, *_ = refit_channel(bin_centres, dist_df[col[:-4]], dist_df[col], lorentzian, 5)
                     eout.write(f'{col[2:-4]}\t{round(mu, 3)}\t{round(mu_err, 3)}\n')
                 except RuntimeError:
+                    print(f'Fit fail energy channel {col[2:-4]}.')
                     continue
 
 
@@ -319,7 +315,10 @@ if __name__ == '__main__':
         out_file = conf.get('output', 'out_file', fallback='slabSpec'   )
         out_file = os.path.join(out_dir, out_file)
     else:
-        out_dir  = os.path.join(*out_file.split(os.sep)[:-1])
+        try:
+            out_dir  = os.path.join(*out_file.split(os.sep)[:-1])
+        except TypeError:
+            out_dir = '.'
     if not os.path.isdir(out_dir):
         os.makedirs(out_dir)
 
