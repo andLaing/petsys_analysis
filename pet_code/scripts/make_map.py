@@ -62,36 +62,11 @@ def echan_y(sm: int, row: int) -> float:
 
 
 def brain_map(nFEM: int, chan_per_mm: int, tchans: list, echans: list) -> Iterator:
-    chan_per_sec = 4 * chan_per_mm
-    chan_per_col = 8 * chan_per_mm
-    geom         = BrainGeom()
-    for i in (0, 3):
-        for j, (tch, ech) in enumerate(zip(tchans, echans)):
-            id    = tch + i * nFEM
-            mm    = j // chan_per_mm
-            ## Will need to add corrections for spacing.
-            half  =  j // chan_per_col
-            if half == 1:
-                tindx    = 15 - j % chan_per_mm
-                half_sec = (j - chan_per_col) // chan_per_sec
-                eindx    = 31 - j %  chan_per_sec if half_sec == 0 else 63 - j %  chan_per_sec
-                if half_sec == 0:
-                    row = 3 - j // chan_per_mm +  8
-                else:
-                    row = 7 - j // chan_per_mm + 12
-            else:
-                tindx    = j % chan_per_mm
-                eindx    = j % chan_per_col
-                row      = (j %  chan_per_col) // chan_per_mm
-            loc_x = round(1.6 + 3.2 * tindx, 3)
-            loc_y = round(geom.mm_edge * (0.5 + row), 3)
-            z     = 0 if i == 0 else 10#dummy
-            # Will need i dependent rotation for true global xyz
-            yield id, 'TIME', i if i == 0 else 2, mm, loc_x, loc_y, loc_x, loc_y, z
-            id    = ech + i * nFEM
-            loc_x = round(geom.mm_edge * (0.5 + (j // chan_per_col)), 3)
-            loc_y = round(1.6 + 3.2 * eindx, 3)
-            yield id, 'ENERGY', i if i == 0 else 2, mm, loc_x, loc_y, loc_x, loc_y, z
+    brain_gen = brain_sm_gen(nFEM, chan_per_mm, tchans, echans, {0: [0, 0, 0], 2: [0, 0, 3]})
+    for i in (0, 2):
+        z = 0 if i == 0 else 10#dummy
+        for id, typ, mm, loc_x, loc_y in brain_gen(i):
+            yield id, typ, i, mm, loc_x, loc_y, loc_x, loc_y, z
 
 
 def row_gen(nFEM: int, chan_per_mm: int, tchans: list, echans: list) -> Iterator:
