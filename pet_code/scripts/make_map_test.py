@@ -5,31 +5,32 @@ from pytest import fixture
 
 from .. src.util import ChannelType
 
-from . make_map import channel_sm_coordinate
 from . make_map import np
 from . make_map import pd
 from . make_map import R
+from . make_map import TbpetGeom
+from . make_map import channel_sm_coordinate
+from . make_map import brain_map
 from . make_map import n_rings
 from . make_map import row_gen
 from . make_map import single_ring
 from . make_map import sm_gen
 
-from . make_map import mm_edge, mm_spacing, slab_width
-
 from numpy.testing import assert_allclose
 
 
 def test_channel_sm_coordinate():
-    test_chans = [(0,  0, ChannelType.TIME  ),
-                  (0,  0, ChannelType.ENERGY),
-                  (3, 31, ChannelType.TIME  ),
-                  (3, 31, ChannelType.ENERGY)]
+    geom       = TbpetGeom()
+    test_chans = [(0,  0, ChannelType.TIME  , geom),
+                  (0,  0, ChannelType.ENERGY, geom),
+                  (3, 31, ChannelType.TIME  , geom),
+                  (3, 31, ChannelType.ENERGY, geom)]
 
     results = [channel_sm_coordinate(*args) for args in test_chans]
 
-    exp_first = (round(mm_edge * 4 - (mm_spacing + slab_width) / 2, 3),
-                 round(3.5 * mm_edge, 3))
-    exp_last  = (round((mm_spacing + slab_width) / 2, 3), round(mm_edge / 2, 3))
+    exp_first = (round(geom.mm_edge * 4 - (geom.mm_spacing + geom.slab_width) / 2, 3),
+                 round(3.5 * geom.mm_edge, 3))
+    exp_last  = (round((geom.mm_spacing + geom.slab_width) / 2, 3), round(geom.mm_edge / 2, 3))
     assert_allclose(results[0], exp_first      )
     assert_allclose(results[1], exp_first[::-1])
     assert_allclose(results[2], exp_last       )
@@ -47,13 +48,14 @@ def channel_types(TEST_DATA_DIR):
 
 
 def test_sm_gen(channel_types):
+    geom    = TbpetGeom()
     tchans  = channel_types[  'time_channels']
     echans  = channel_types['energy_channels']
     feb_map = {0: [0, 0, 0]}
-    mm_emap = {0:0, 1:4,  2:8 ,  3:12,  4:1,  5:5,  6:9 ,  7:13,
-               8:2, 9:6, 10:10, 11:14, 12:3, 13:7, 14:11, 15:15}
+    # mm_emap = {0:0, 1:4,  2:8 ,  3:12,  4:1,  5:5,  6:9 ,  7:13,
+    #            8:2, 9:6, 10:10, 11:14, 12:3, 13:7, 14:11, 15:15}
 
-    gen_sm = sm_gen(256, 8, tchans, echans, mm_emap, feb_map)
+    gen_sm = sm_gen(256, 8, tchans, echans, feb_map)
 
     cols  = ['id', 'type', 'minimodule', 'local_x', 'local_y']
     sm_df = pd.DataFrame((ch for ch in gen_sm(0)), columns=cols)
@@ -68,8 +70,8 @@ def test_sm_gen(channel_types):
     for mm in range(0, 16):
         assert sm_df[sm_df.minimodule == mm].shape[0] == 16
     # Probably need a more complete test for this
-    min_pos = (mm_spacing + slab_width) / 2
-    max_pos = 4 * mm_edge
+    min_pos = (geom.mm_spacing + geom.slab_width) / 2
+    max_pos = 4 * geom.mm_edge
     assert all(sm_df.local_x >= min_pos)
     assert all(sm_df.local_x <= max_pos)
     assert all(sm_df.local_y >= min_pos)
@@ -107,6 +109,7 @@ def test_single_ring(channel_types):
 
 
 def test_single_ring_corners(TEST_DATA_DIR, channel_types):
+    geom    = TbpetGeom()
     corners = os.path.join(TEST_DATA_DIR, 'IMAS1R_CORNERS-Table.csv')
     tchans  = channel_types[  'time_channels']
     echans  = channel_types['energy_channels']
@@ -127,7 +130,7 @@ def test_single_ring_corners(TEST_DATA_DIR, channel_types):
     ring_df = single_ring(nFEM, 8, tchans, echans, ring_r, ring_yx, feb_map)
 
     # Compare using the local_x min and max (TIME channels)
-    corn_vec   = np.array([0, (mm_spacing + slab_width) / 2, -mm_edge / 2])
+    corn_vec   = np.array([0, (geom.mm_spacing + geom.slab_width) / 2, -geom.mm_edge / 2])
     cols       = ['X', 'Y', 'Z']
     time_smgrp = ring_df[ring_df.type.str.contains('TIME')].groupby('supermodule')
     min_max    = (pd.concat((time_smgrp.head(1), time_smgrp.tail(1)))
@@ -146,10 +149,9 @@ def test_single_ring_corners(TEST_DATA_DIR, channel_types):
 
 
 def test_row_gen(TEST_DATA_DIR, channel_types):
-    test_map       = os.path.join(TEST_DATA_DIR, 'twoSM_IMAS_map.feather')
-    tchans  = channel_types[  'time_channels']
-    echans  = channel_types['energy_channels']
-    # tchans, echans = channel_types
+    test_map = os.path.join(TEST_DATA_DIR, 'twoSM_IMAS_map.feather')
+    tchans   = channel_types[  'time_channels']
+    echans   = channel_types['energy_channels']
 
     cols = ['id', 'type', 'supermodule', 'minimodule', 'local_x', 'local_y', 'X', 'Y', 'Z']
     twoSM_gen = (row for row in row_gen(256, 8, tchans, echans))
@@ -189,3 +191,19 @@ def test_n_rings(channel_types):
     mean_xyz = five_rings.loc[sm_mask, sm_cols].groupby('supermodule').mean()
     pd.testing.assert_frame_equal(mean_xyz         , pd.DataFrame(exp_cent).T    ,
                                   check_names=False, check_exact=False, atol=1e-4)
+
+
+def test_brain_map(TEST_DATA_DIR):
+    test_map = os.path.join(TEST_DATA_DIR, 'brain_map0.feather')
+    map_yml  = os.path.join(TEST_DATA_DIR, 'SMBrain_mapping.yaml')
+    with open(map_yml) as map_file:
+        ch_map = yaml.safe_load(map_file)
+
+    cols = ['id', 'type', 'supermodule', 'minimodule', 'local_x', 'local_y', 'X', 'Y', 'Z']
+    brain_gen = brain_map(256, 8, ch_map['time_channels'], ch_map['energy_channels'])
+    twoSM_map = pd.DataFrame(brain_gen, columns=cols)
+
+    exp_map = pd.read_feather(test_map)
+    print('la: ', exp_map.iloc[256:].supermodule)
+    print('lu: ', twoSM_map.iloc[256:].supermodule)
+    pd.testing.assert_frame_equal(twoSM_map, exp_map)
