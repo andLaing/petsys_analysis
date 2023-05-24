@@ -138,7 +138,7 @@ def brain_sm_gen(nFEM         : int ,
             id   = tch + sm_min_chan
             mm   = i // chan_per_mm
             ## Will need to add corrections for spacing.
-            half =  i // chan_per_col
+            half = i // chan_per_col
             if half == 1:
                 tindx    = 15 - i % chan_per_mm
                 half_sec = (i - chan_per_col) // chan_per_sec
@@ -148,9 +148,9 @@ def brain_sm_gen(nFEM         : int ,
                 else:
                     row = 7 - i // chan_per_mm + 12
             else:
-                tindx    = i % chan_per_mm
-                eindx    = i % chan_per_col
-                row      = (i %  chan_per_col) // chan_per_mm
+                tindx    =  i % chan_per_mm
+                eindx    =  i % chan_per_col
+                row      = (i % chan_per_col) // chan_per_mm
             loc_x = round(1.6 + 3.2 * tindx, 3)
             loc_y = round(geom.mm_edge * (0.5 + row), 3)
             # Will need i dependent rotation for true global xyz
@@ -194,9 +194,10 @@ def sm_gen(nFEM         : int ,
     return _sm_gen
 
 
-def local_translation(df         : pd.DataFrame,
-                      sm_r       : float       ,
-                      sm_half_len: float
+def local_translation(df       : pd.DataFrame,
+                      sm_r     : float       ,
+                      sm_half_x: float       ,
+                      sm_half_y: float
                       ) -> np.ndarray:
     """
     Translate local coordinates to coordinates
@@ -205,8 +206,8 @@ def local_translation(df         : pd.DataFrame,
     Assumes y coordinate needs to be inverted.
     """
     coords = np.vstack((np.full(df.shape[0], sm_r),
-                         df.local_x - sm_half_len ,
-                        -df.local_y + sm_half_len ))
+                         df.local_x - sm_half_x   ,
+                        -df.local_y + sm_half_y   ))
     return coords.T
 
 
@@ -223,12 +224,12 @@ def single_ring(nFEM       : int                                ,
     sm_angle    = sm_centre_pos(ring_r, ring_yx)
     if isinstance(sm_geom, TbpetGeom):
         superm_gen = sm_gen(nFEM, chan_per_mm, tchans, echans, sm_feb)
-        SM_half_len = sm_geom.sm_edge_y / 2
     else:
         superm_gen = brain_sm_gen(nFEM, chan_per_mm,
                                   tchans, echans, sm_feb)
-        SM_half_len = sm_geom.sm_edge_y / 2 #need to know what axes used since not symmetric
-    coords      = ['X', 'Y', 'Z']
+    SM_half_x = sm_geom.sm_edge_x / 2
+    SM_half_y = sm_geom.sm_edge_y / 2
+    coords    = ['X', 'Y', 'Z']
     def ring_gen() -> Iterator:
         local_cols = ['id', 'type', 'minimodule', 'local_x', 'local_y']
         for sm in range(first_sm, first_sm + sm_geom.sm_per_ring):
@@ -238,7 +239,7 @@ def single_ring(nFEM       : int                                ,
 
             sm_r, sm_ang     = sm_angle(sm % sm_geom.sm_per_ring)
             ## Translate to XYZ relative to SM centre at X = R, Y = Z = 0.
-            sm_local[coords] = local_translation(sm_local, sm_r, SM_half_len)
+            sm_local[coords] = local_translation(sm_local, sm_r, SM_half_x, SM_half_y)
             ## Rotate to supermodule angular position.
             sm_rot           = R.from_euler('z', sm_ang)
             sm_local[coords] = sm_local[coords].apply(sm_rot.apply, axis=1,
@@ -316,8 +317,7 @@ if __name__ == '__main__':
                          channel_map[        'ring_r' ],
                          channel_map[        'ring_yx'],
                          channel_map[     'sm_feb_map'],
-                         sm_per_ring = 20              ,
-                         sm_geom     = BrainGeom()     )
+                         sm_geom=BrainGeom()           )
     else:
         print('Geometry not recognised')
         exit()
