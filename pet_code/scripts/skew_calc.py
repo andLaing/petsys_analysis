@@ -45,7 +45,6 @@ from pet_code.src.util    import ChannelType
 from pet_code.src.util    import bar_source_dt
 from pet_code.src.util    import calibrate_energies
 from pet_code.src.util    import time_of_flight
-from pet_code.src.util    import get_absolute_id
 from pet_code.src.util    import get_electronics_nums
 from pet_code.src.util    import read_skewfile
 from pet_code.src.util    import select_energy_range
@@ -248,13 +247,19 @@ def peak_position(hist_bins: np.ndarray             ,
         skew_corr = skew.loc[delta_t.coinc_ch].values - ref_skew
 
         bin_vals, bin_edges = np.histogram(delta_t.corr_dt.values + skew_corr, bins=hist_bins)
-        if ref_ch in mon_ids:
-            output_plot(ref_ch, bin_vals, bin_edges, '_'.join((out_base, f'ch{ref_ch}.png')))
         try:
-            *_, pars, _, _ = fit_gaussian(bin_vals, bin_edges, min_peak=min_stats)
+            _, gvals, pars, *_ = fit_gaussian(bin_vals, bin_edges, min_peak=min_stats)
+            if ref_ch in mon_ids:
+                output_plot(ref_ch, bin_vals, bin_edges,
+                            '_'.join((out_base, f'ch{ref_ch}.png')),
+                            gvals, pars)
         except RuntimeError:
             print(f'Ref channel {ref_ch} fit fail', flush=True)
             peak_mean, *_ = mean_around_max(bin_vals, shift_to_centres(bin_edges), 6)
+            if ref_ch in mon_ids:
+                output_plot(ref_ch, bin_vals, bin_edges,
+                            '_'.join((out_base, f'ch{ref_ch}.png')),
+                            np.empty(0), peak_mean)
             return peak_mean if peak_mean else 0
         return pars[1]
     return calculate_bias
@@ -263,16 +268,24 @@ def peak_position(hist_bins: np.ndarray             ,
 def output_plot(id         : int       ,
                 dt_data    : np.ndarray,
                 dt_binedges: np.ndarray,
-                plot_file  : str
+                plot_file  : str       ,
+                fit_vals   : np.ndarray,
+                fit_pars   : np.ndarray
                 ) -> None:
     """
     Plots and saves a corrected dt distribution.
     """
-    plt.errorbar(shift_to_centres(dt_binedges), dt_data, yerr=np.sqrt(dt_data))
+    plt.errorbar(shift_to_centres(dt_binedges), dt_data,
+                 yerr=np.sqrt(dt_data), label='distribution')
     plt.xlabel(f'$dt_r$ - $dt_t$ for slab {id} (ps)')
     plt.ylabel('Bin content (AU)')
+    if fit_vals.size != 0:
+        plt.plot(shift_to_centres(dt_binedges), fit_vals,
+                 label=f'Fit: cent={fit_pars[1]}, sig={fit_pars[2]}')
+    plt.legend()
     plt.savefig(plot_file)
     plt.clf()
+    plt.close()
 
 
 if __name__ == '__main__':
