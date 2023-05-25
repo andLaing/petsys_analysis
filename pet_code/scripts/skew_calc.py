@@ -36,6 +36,7 @@ import matplotlib.pyplot as plt
 from multiprocessing import cpu_count, get_context
 
 from pet_code.src.filters import filter_impacts_channel_list
+from pet_code.src.filters import filter_max_sm
 from pet_code.src.fits    import fit_gaussian
 from pet_code.src.fits    import mean_around_max
 from pet_code.src.io      import ChannelMap
@@ -152,11 +153,16 @@ def process_raw_data(file_list: list[str]                ,
     elimits  = map(float, config.get('filter', 'elimits').split(','))
     eselect  = select_energy_range(*elimits)
 
-    setup    = config.get('mapping', 'setup', fallback='pointSource')
-    minch    = config.getint('filter', 'min_channels')
-    evt_filt = partial(filter_impacts_channel_list   ,
-                       min_ch = minch                ,
-                       mm_map = ch_map.get_minimodule)
+    setup    = config.get       ('mapping', 'setup'       , fallback='pointSource')
+    minch    = config.getint    ('filter' , 'min_channels')
+    if config.getboolean('filter' , 'two_sm'      , fallback=True):
+        sm_filt = filter_max_sm(2, ch_map.get_supermodule)
+    else:
+        sm_filt = lambda x, y: True
+    evt_filt = partial(filter_impacts_channel_list    ,
+                       min_ch  = minch                ,
+                       mm_map  = ch_map.get_minimodule,
+                       sm_filt = sm_filt              )
     if   setup == 'pointSource':
         ## For backwards compatibility.
         with open(config.get('mapping', 'source_pos')) as s_yml:

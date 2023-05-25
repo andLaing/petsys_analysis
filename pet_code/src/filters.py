@@ -108,21 +108,23 @@ def filter_module_list(smMm_to_id: Callable         ,
     return filter_channel_list(valid_ids)
 
 
-def filter_impacts_channel_list(valid_channels: list | np.ndarray,
-                                min_ch        : int              ,
-                                mm_map        : Callable
+def filter_impacts_channel_list(valid_channels: list | np.ndarray         ,
+                                min_ch        : int                       ,
+                                mm_map        : Callable                  ,
+                                sm_filt       : Callable=lambda x, y: True
                                 ) -> Callable:
     """
     Filter events by valid channels
     and that there's only one minimodule
     with information.
     Only for COINC mode!
+    two_sm: allow only 2 SM in the coincidence? Default False
     """
     sel_chans = filter_channel_list(valid_channels)
     ch_filter = filter_impact(min_ch)
     def valid_event(sm1: list[list], sm2: list[list]) -> bool:
         return sel_chans(sm1, sm2) and filter_one_minimod(sm1, sm2, mm_map)\
-                and ch_filter(sm1) and ch_filter(sm2)
+                and ch_filter(sm1) and ch_filter(sm2) and sm_filt(sm1, sm2)
     return valid_event
 
 
