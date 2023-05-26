@@ -2,10 +2,10 @@
 
 """Checks the channels that give data in a file and compares to expectation
 
-Usage: raw_channels.py (--map MAPFILE) INPUT
+Usage: python raw_channels.py (--map MAPFILE) INPUT
 
 Arguments:
-    INPUT  Input file name
+    INPUT  Input file name (PETsys .ldat format)
 
 Required:
     --map=MAPFILE  Name of the map file

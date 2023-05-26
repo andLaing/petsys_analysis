@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
 
-"""Generate energy spectra for all channels that appear in a petsys group mode file
+"""Reads a group of files with and without (names should contain 'woSource')
+sources present, generates energy histograms for each channel when it is the
+maximum of its type in an event (group), takes the difference of the spectra
+with and without source and fits the most prominant peak. The peak values
+are then saved to disc as a txt file that can be used to relatively equalize
+between channels.
 
-Usage: channel_specs.py [--out OUTFILE] (--conf CFILE) INPUT ...
+
+Usage: python channel_specs.py [--out OUTFILE] (--conf CFILE) INPUT ...
 
 Arguments:
     INPUT  Input file name or list of names

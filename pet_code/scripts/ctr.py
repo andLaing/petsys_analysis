@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
-"""Monitor time resolution with or without energy calibration
+"""Monitor time resolution with or without energy calibration.
+Will plot the dt distribution for a given file with and without
+the application of the skew parameters provided.
 
-Usage: ctr.py (--map MAPFILE) [--tcal TCAL] [--ecal ECAL] [--eref EREF] [--elim ELIM] [--sk SKEW] INPUT
+Usage: python ctr.py (--map MAPFILE) [--tcal TCAL] [--ecal ECAL] [--eref EREF] [--elim ELIM] [--sk SKEW] INPUT
 
 Arguments:
     INPUT  File to be processed.

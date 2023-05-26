@@ -1,3 +1,18 @@
+"""
+Simple script to check the channels which have
+appear as successfully calibrated channels in
+the output of grp_channel_specs.py.
+That is: Data was found for that channel and
+the fitter managed to get a peak position for
+the 511 keV peak (or other chosen peak).
+Run with:
+python path/to/script/checks_channels.py <map file> <time channel file> <energy channel file>
+where:
+    map file: The path and name of the .feather file containing the map for the setup.
+    time channel file: The txt file containing the peak positions for time channels.
+    energy channel file: The txt file containing the peak positions for energy channels.
+"""
+
 import sys
 
 import pandas as pd

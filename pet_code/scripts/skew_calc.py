@@ -1,8 +1,19 @@
 #!/usr/bin/env python3
 
-"""Calculate the skew for each channel in a two super module set-up
+"""Calculate the skew for each time channel in a setup.
+Reads a group of .ldat PETsys files, selects good coincidences
+and calculates the timestamp difference corrected for that expected
+from the system geometry. These values along with the reference channel
+(the channel closest to the source), the coincidence channel to a .feather
+file for each input file. These files are then used to calculate skew
+parameters for each reference channel by iterating over the distributions
+per reference channel and calculating a correction based on the peak positon
+and a relaxation factor set in the configuration file. If the first stage is
+complete, more iterations or a repeat of the iterations using, for example,
+a different relaxation factor can be performed without repeating the .ldat
+read and selection step.
 
-Usage: skew_calc.py (--conf CONFFILE) [-n NCORE] [--it NITER] [--firstit FITER] [--sk SKEW] [-r] INFILES ...
+Usage: python skew_calc.py (--conf CONFFILE) [-n NCORE] [--it NITER] [--firstit FITER] [--sk SKEW] [-r] INFILES ...
 
 Arguments:
     INFILES File(s) to be processed.

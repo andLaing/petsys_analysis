@@ -2,14 +2,14 @@
 
 """Make a dataframe with mapping info for TBPET type SM and save
 
-Usage: make_map.py [-f NFEM] [-g GEOM] [-o OUT] MAPYAML
+Usage: python make_map.py [-f NFEM] [-g GEOM] [-o OUT] MAPYAML
 
 Arguments:
     MAPYAML  File name with time and energy channel info.
 
 Options:
     -f=NFEM  Number of channels per Supermodule [default: 256]
-    -g=GEOM  Geometry: 2SM, 1ring, nring [default: 1ring]
+    -g=GEOM  Geometry: 2SM, 1ring, nring, brain, brainring [default: 1ring]
     -o=OUT   Path for output file [default: 1ring_map]
 """
 

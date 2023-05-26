@@ -1,3 +1,12 @@
+"""
+Simple script to check the number of negative
+channels in a file.
+Run as: python negatives.py <file name> <map file>
+where:
+file name: The name of the PETsys .ldat file to be studied
+map file: The .feather file containing the channel map for the setup.
+"""
+
 import sys
 
 from collections import Counter
