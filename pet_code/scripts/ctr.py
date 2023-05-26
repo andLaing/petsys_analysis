@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
-"""Monitor time resolution with or without energy calibration
+"""Monitor time resolution with or without energy calibration.
+Will plot the dt distribution for a given file with and without
+the application of the skew parameters provided.
 
-Usage: ctr.py (--map MAPFILE) [--tcal TCAL] [--ecal ECAL] [--eref EREF] [--elim ELIM] [--sk SKEW] INPUT
+Usage: python ctr.py (--map MAPFILE) [--tcal TCAL] [--ecal ECAL] [--eref EREF] [--elim ELIM] [--sk SKEW] INPUT
 
 Arguments:
     INPUT  File to be processed.
@@ -63,7 +65,7 @@ if __name__ == '__main__':
     hist_bins = np.linspace(-10000, 10000, 800, endpoint=False)
     plt.hist(dts_raw, bins=hist_bins, histtype='step', label='Raw times')
     bin_vals, bin_edges, _ = plt.hist(dts_skew, bins=hist_bins, histtype='step', label='skew corrected')
-    bcent, gvals, pars, _  = fit_gaussian(bin_vals, bin_edges)
+    bcent, gvals, pars, _, _  = fit_gaussian(bin_vals, bin_edges)
     plt.plot(bcent, gvals, label=f'fit centroid = {round(pars[1], 3)}, sigma = {round(pars[2], 3)}')
     plt.legend()
     plt.xlabel('timestamp difference (ps)')

@@ -1,8 +1,19 @@
 #!/usr/bin/env python3
 
-"""Calculate the skew for each channel in a two super module set-up
+"""Calculate the skew for each time channel in a setup.
+Reads a group of .ldat PETsys files, selects good coincidences
+and calculates the timestamp difference corrected for that expected
+from the system geometry. These values along with the reference channel
+(the channel closest to the source), the coincidence channel to a .feather
+file for each input file. These files are then used to calculate skew
+parameters for each reference channel by iterating over the distributions
+per reference channel and calculating a correction based on the peak positon
+and a relaxation factor set in the configuration file. If the first stage is
+complete, more iterations or a repeat of the iterations using, for example,
+a different relaxation factor can be performed without repeating the .ldat
+read and selection step.
 
-Usage: skew_calc.py (--conf CONFFILE) [-n NCORE] [--it NITER] [--firstit FITER] [--sk SKEW] [-r] INFILES ...
+Usage: python skew_calc.py (--conf CONFFILE) [-n NCORE] [--it NITER] [--firstit FITER] [--sk SKEW] [-r] INFILES ...
 
 Arguments:
     INFILES File(s) to be processed.
@@ -36,6 +47,7 @@ import matplotlib.pyplot as plt
 from multiprocessing import cpu_count, get_context
 
 from pet_code.src.filters import filter_impacts_channel_list
+from pet_code.src.filters import filter_max_sm
 from pet_code.src.fits    import fit_gaussian
 from pet_code.src.fits    import mean_around_max
 from pet_code.src.io      import ChannelMap
@@ -45,7 +57,6 @@ from pet_code.src.util    import ChannelType
 from pet_code.src.util    import bar_source_dt
 from pet_code.src.util    import calibrate_energies
 from pet_code.src.util    import time_of_flight
-from pet_code.src.util    import get_absolute_id
 from pet_code.src.util    import get_electronics_nums
 from pet_code.src.util    import read_skewfile
 from pet_code.src.util    import select_energy_range
@@ -153,11 +164,16 @@ def process_raw_data(file_list: list[str]                ,
     elimits  = map(float, config.get('filter', 'elimits').split(','))
     eselect  = select_energy_range(*elimits)
 
-    setup    = config.get('mapping', 'setup', fallback='pointSource')
-    minch    = config.getint('filter', 'min_channels')
-    evt_filt = partial(filter_impacts_channel_list   ,
-                       min_ch = minch                ,
-                       mm_map = ch_map.get_minimodule)
+    setup    = config.get       ('mapping', 'setup'       , fallback='pointSource')
+    minch    = config.getint    ('filter' , 'min_channels')
+    if config.getboolean('filter' , 'two_sm'      , fallback=True):
+        sm_filt = filter_max_sm(2, ch_map.get_supermodule)
+    else:
+        sm_filt = lambda x, y: True
+    evt_filt = partial(filter_impacts_channel_list    ,
+                       min_ch  = minch                ,
+                       mm_map  = ch_map.get_minimodule,
+                       sm_filt = sm_filt              )
     if   setup == 'pointSource':
         ## For backwards compatibility.
         with open(config.get('mapping', 'source_pos')) as s_yml:
@@ -248,13 +264,19 @@ def peak_position(hist_bins: np.ndarray             ,
         skew_corr = skew.loc[delta_t.coinc_ch].values - ref_skew
 
         bin_vals, bin_edges = np.histogram(delta_t.corr_dt.values + skew_corr, bins=hist_bins)
-        if ref_ch in mon_ids:
-            output_plot(ref_ch, bin_vals, bin_edges, '_'.join((out_base, f'ch{ref_ch}.png')))
         try:
-            *_, pars, _ = fit_gaussian(bin_vals, bin_edges, min_peak=min_stats)
+            _, gvals, pars, *_ = fit_gaussian(bin_vals, bin_edges, min_peak=min_stats)
+            if ref_ch in mon_ids:
+                output_plot(ref_ch, bin_vals, bin_edges,
+                            '_'.join((out_base, f'ch{ref_ch}.png')),
+                            gvals, pars)
         except RuntimeError:
             print(f'Ref channel {ref_ch} fit fail', flush=True)
             peak_mean, *_ = mean_around_max(bin_vals, shift_to_centres(bin_edges), 6)
+            if ref_ch in mon_ids:
+                output_plot(ref_ch, bin_vals, bin_edges,
+                            '_'.join((out_base, f'ch{ref_ch}.png')),
+                            np.empty(0), peak_mean)
             return peak_mean if peak_mean else 0
         return pars[1]
     return calculate_bias
@@ -263,16 +285,24 @@ def peak_position(hist_bins: np.ndarray             ,
 def output_plot(id         : int       ,
                 dt_data    : np.ndarray,
                 dt_binedges: np.ndarray,
-                plot_file  : str
+                plot_file  : str       ,
+                fit_vals   : np.ndarray,
+                fit_pars   : np.ndarray
                 ) -> None:
     """
     Plots and saves a corrected dt distribution.
     """
-    plt.errorbar(shift_to_centres(dt_binedges), dt_data, yerr=np.sqrt(dt_data))
+    plt.errorbar(shift_to_centres(dt_binedges), dt_data,
+                 yerr=np.sqrt(dt_data), label='distribution')
     plt.xlabel(f'$dt_r$ - $dt_t$ for slab {id} (ps)')
     plt.ylabel('Bin content (AU)')
+    if fit_vals.size != 0:
+        plt.plot(shift_to_centres(dt_binedges), fit_vals,
+                 label=f'Fit: cent={fit_pars[1]}, sig={fit_pars[2]}')
+    plt.legend()
     plt.savefig(plot_file)
     plt.clf()
+    plt.close()
 
 
 if __name__ == '__main__':

@@ -1,4 +1,14 @@
 # Just to sort some values to test in configurations.
+"""
+Calculate relative threshold values for PETsys
+based on the relative positions of the Peak
+in a calibration of the system (uses the.txt output of grp_channel_specs).
+Run as: python thresholds.py <config file name>
+where:
+config file name: The name of a configuration file containing default
+                  threshold values and the names of the peak position
+                  files.
+"""
 
 import os
 import sys
