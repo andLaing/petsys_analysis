@@ -8,7 +8,7 @@ are then saved to disc as a txt file that can be used to relatively equalize
 between channels.
 
 
-Usage: python channel_specs.py [--out OUTFILE] (--conf CFILE) INPUT ...
+Usage: channel_specs.py [--out OUTFILE] (--conf CFILE) INPUT ...
 
 Arguments:
     INPUT  Input file name or list of names

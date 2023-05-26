@@ -7,7 +7,7 @@ selects coincidences according to number of channels
 and total energy, reconstructs impact positions and
 writes to the listmode binary.
 
-Usage: python make_listmode.py (--conf CONFFILE) INPUT ...
+Usage: make_listmode.py (--conf CONFFILE) INPUT ...
 
 Arguments:
     INPUT  File(s) to be analysed

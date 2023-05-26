@@ -4,7 +4,7 @@
 Will plot the dt distribution for a given file with and without
 the application of the skew parameters provided.
 
-Usage: python ctr.py (--map MAPFILE) [--tcal TCAL] [--ecal ECAL] [--eref EREF] [--elim ELIM] [--sk SKEW] INPUT
+Usage: ctr.py (--map MAPFILE) [--tcal TCAL] [--ecal ECAL] [--eref EREF] [--elim ELIM] [--sk SKEW] INPUT
 
 Arguments:
     INPUT  File to be processed.

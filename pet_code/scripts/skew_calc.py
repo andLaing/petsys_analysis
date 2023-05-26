@@ -13,7 +13,7 @@ complete, more iterations or a repeat of the iterations using, for example,
 a different relaxation factor can be performed without repeating the .ldat
 read and selection step.
 
-Usage: python skew_calc.py (--conf CONFFILE) [-n NCORE] [--it NITER] [--firstit FITER] [--sk SKEW] [-r] INFILES ...
+Usage: skew_calc.py (--conf CONFFILE) [-n NCORE] [--it NITER] [--firstit FITER] [--sk SKEW] [-r] INFILES ...
 
 Arguments:
     INFILES File(s) to be processed.

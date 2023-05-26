@@ -5,7 +5,7 @@ for each super module in the given setup.
 Config file should contain at least he name of the map
 file as [mapping] map_file = name.
 
-Usage: python flood_maps.py (--conf CONFFILE) INFILES ...
+Usage: flood_maps.py (--conf CONFFILE) INFILES ...
 
 Arguments:
     INFILES  File name(s) to be analysed
