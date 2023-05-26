@@ -55,7 +55,8 @@ def slab_plots(out_file     : str               ,
                ) -> int:
     bin_edges  = plot_source.edges[ChannelType.TIME]
     check_fits = pd.DataFrame(shift_to_centres(bin_edges), columns=['bin_centres'])
-    with open(out_file + 'timeSlabPeaks.txt', 'w') as par_out:
+    peak_out   = out_file + 'timeSlabPeaks.txt'
+    with open(peak_out, 'w') as par_out:
         par_out.write('ID\tMU\tMU_ERR\tSIG\tSIG_ERR\n')
         for id, s_vals in plot_source.tdist.items():
             min_indx = 0
@@ -94,7 +95,7 @@ def slab_plots(out_file     : str               ,
     print(f'{check_fits.shape[1] - 1} time channels with suspect distributions.')
     if check_fits.shape[0] > 1:
         check_fits.to_feather(out_file + 'suspectTimeFits.feather')
-    return check_fits.shape[1] - 1
+    return check_fits.shape[1] - 1, peak_out
 
 
 def refit_slab(out_file : str               ,
@@ -156,7 +157,8 @@ def energy_plots(out_file     : str               ,
     bin_wid    = np.diff(bin_edges[:2])[0]
     check_fits = pd.DataFrame(bin_cent, columns=['bin_centres'])
     nbin_fit   = 5
-    with open(out_file + 'eChannelPeaks.txt', 'w') as par_out:
+    peak_out   = out_file + 'eChannelPeaks.txt'
+    with open(peak_out, 'w') as par_out:
         par_out.write('ID\tMU\tMU_ERR\n')
         for id, vals in plot_source.edist.items():
             try:
@@ -204,7 +206,7 @@ def energy_plots(out_file     : str               ,
     print(f'{check_fits.shape[1] - 1} energy channels with suspect distributions.')
     if check_fits.shape[1] > 1:
         check_fits.to_feather(out_file + 'suspectEnergyFits.feather')
-    return check_fits.shape[1] - 1
+    return check_fits.shape[1] - 1, peak_out
 
 
 def weighted_average(axis     : plt.Axes  ,
@@ -279,7 +281,7 @@ def fail_plot(out_file: str       ,
     plt.clf()
 
 
-def review_distributions(ntime, neng, out_base):
+def review_distributions(ntime: int, neng: int, out_base: str) -> None:
     """
     Review and refit flagged distributions.
     """
@@ -371,9 +373,9 @@ if __name__ == '__main__':
         monitor_id = {}
 
     # Plotting and fitting.
-    nslab_bad = slab_plots  (out_file, plotS, plotNS, min_peak,
-                             pk_finder=pk_finder, monitor_ids=monitor_id)
-    neng_bad  = energy_plots(out_file, plotS, plotNS, min_peak, monitor_ids=monitor_id)
+    nslab_bad, tname = slab_plots  (out_file, plotS, plotNS, min_peak,
+                                    pk_finder=pk_finder, monitor_ids=monitor_id)
+    neng_bad, ename  = energy_plots(out_file, plotS, plotNS, min_peak, monitor_ids=monitor_id)
 
     ## Review suspect distributions?
     if nslab_bad > 0 or neng_bad > 0:
