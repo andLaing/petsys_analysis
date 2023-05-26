@@ -2,7 +2,7 @@
 
 """Make a dataframe with mapping info for TBPET type SM and save
 
-Usage: python make_map.py [-f NFEM] [-g GEOM] [-o OUT] MAPYAML
+Usage: make_map.py [-f NFEM] [-g GEOM] [-o OUT] MAPYAML
 
 Arguments:
     MAPYAML  File name with time and energy channel info.
