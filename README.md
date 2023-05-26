@@ -19,8 +19,9 @@ The code has the following minimum requirements:
  - pyarrow 8.0.0
 
  A script for environment set-up using `miniconda` is provided for Unix systems:
- `make_condaENV.sh` which checks if conda installed in the `$HOME` folder. Running with `conda` already
- activated will also create or update the environment. If no miniconda is found the user will be prompted
+ `source make_condaENV.sh` will check if conda installed in the `$HOME` folder and
+ install the environment. Running with `conda` already activated will also create or
+ update the environment. If no miniconda is found the user will be prompted
  to either indicate a miniconda/anaconda installation or to allow the script to download and install
  miniconda.
 
