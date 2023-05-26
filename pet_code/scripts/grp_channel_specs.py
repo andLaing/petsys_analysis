@@ -8,7 +8,7 @@ are then saved to disc as a txt file that can be used to relatively equalize
 between channels.
 
 
-Usage: channel_specs.py [--out OUTFILE] (--conf CFILE) INPUT ...
+Usage: grp_channel_specs.py [--out OUTFILE] [--petsys PSFILE] (--conf CFILE) INPUT ...
 
 Arguments:
     INPUT  Input file name or list of names
@@ -18,6 +18,7 @@ Required:
 
 Options:
     --out=OUTFILE  Name base for output image files.
+    --petsys=PSFILE  Name of the PETsys format output, if not provided not output.
 """
 
 import os
@@ -41,6 +42,7 @@ from pet_code.src.io       import read_petsys_filebyfile
 from pet_code.src.plots    import ChannelEHistograms
 from pet_code.src.util     import pd
 from pet_code.src.util     import ChannelType
+from pet_code.src.util     import get_electronics_nums
 from pet_code.src.util     import shift_to_centres
 
 
@@ -53,7 +55,8 @@ def slab_plots(out_file     : str               ,
                ) -> int:
     bin_edges  = plot_source.edges[ChannelType.TIME]
     check_fits = pd.DataFrame(shift_to_centres(bin_edges), columns=['bin_centres'])
-    with open(out_file + 'timeSlabPeaks.txt', 'w') as par_out:
+    peak_out   = out_file + 'timeSlabPeaks.txt'
+    with open(peak_out, 'w') as par_out:
         par_out.write('ID\tMU\tMU_ERR\tSIG\tSIG_ERR\n')
         for id, s_vals in plot_source.tdist.items():
             min_indx = 0
@@ -92,7 +95,7 @@ def slab_plots(out_file     : str               ,
     print(f'{check_fits.shape[1] - 1} time channels with suspect distributions.')
     if check_fits.shape[0] > 1:
         check_fits.to_feather(out_file + 'suspectTimeFits.feather')
-    return check_fits.shape[1] - 1
+    return check_fits.shape[1] - 1, peak_out
 
 
 def refit_slab(out_file : str               ,
@@ -154,7 +157,8 @@ def energy_plots(out_file     : str               ,
     bin_wid    = np.diff(bin_edges[:2])[0]
     check_fits = pd.DataFrame(bin_cent, columns=['bin_centres'])
     nbin_fit   = 5
-    with open(out_file + 'eChannelPeaks.txt', 'w') as par_out:
+    peak_out   = out_file + 'eChannelPeaks.txt'
+    with open(peak_out, 'w') as par_out:
         par_out.write('ID\tMU\tMU_ERR\n')
         for id, vals in plot_source.edist.items():
             try:
@@ -202,7 +206,7 @@ def energy_plots(out_file     : str               ,
     print(f'{check_fits.shape[1] - 1} energy channels with suspect distributions.')
     if check_fits.shape[1] > 1:
         check_fits.to_feather(out_file + 'suspectEnergyFits.feather')
-    return check_fits.shape[1] - 1
+    return check_fits.shape[1] - 1, peak_out
 
 
 def weighted_average(axis     : plt.Axes  ,
@@ -277,7 +281,7 @@ def fail_plot(out_file: str       ,
     plt.clf()
 
 
-def review_distributions(ntime, neng, out_base):
+def review_distributions(ntime: int, neng: int, out_base: str) -> None:
     """
     Review and refit flagged distributions.
     """
@@ -309,6 +313,37 @@ def review_distributions(ntime, neng, out_base):
                     continue
 
 
+def petsys_file(map_file: str  ,
+                tchans  : str  ,
+                echans  : str  ,
+                eref    : float,
+                out_name: str
+                ) -> None:
+    """
+    create a file with the format expected by PETsys
+    for energy correction.
+    No linearisation at the moment.
+    """
+    all_ids               = pd.read_feather(map_file).id.sort_values()
+    cal_fact              = pd.concat((pd.read_csv(tchans, sep='\t').set_index('ID').MU.map(lambda x: 511.0 / x),
+                                       pd.read_csv(echans, sep='\t').set_index('ID').MU.map(lambda x:  eref / x))).sort_index()
+    cal_fact.index.name   = 'id'
+    out_cols              = ['#portID', 'slaveID', 'chipID', 'channelID',
+                             'tacID', 'p0', 'p1', 'p2', 'p3']
+    ch_gain               = pd.DataFrame([[1.0, 1.0, 1.0]]       ,
+                                         columns = out_cols[5:-1],
+                                         index   = all_ids       ).reset_index()
+    ch_gain[out_cols[:4]] = np.row_stack(ch_gain.id.map(np.vectorize(get_electronics_nums)))
+    ch_gain = pd.merge(ch_gain                        ,
+                       cal_fact.round(3).reset_index(),
+                       on  = 'id'                     ,
+                       how = 'left'                   ).rename(columns={'MU': out_cols[-1]}).fillna(1.0)
+
+    ch_gain               = ch_gain.loc[ch_gain.index.repeat(4)].reset_index(drop=True)
+    ch_gain[out_cols[4 ]] = np.tile(np.arange(4), ch_gain.shape[0] // 4)
+    ch_gain[out_cols    ].to_csv(out_name, sep='\t', index=False)
+
+
 if __name__ == '__main__':
     args     = docopt(__doc__)
     conf     = configparser.ConfigParser()
@@ -338,12 +373,18 @@ if __name__ == '__main__':
         monitor_id = {}
 
     # Plotting and fitting.
-    nslab_bad = slab_plots  (out_file, plotS, plotNS, min_peak,
-                             pk_finder=pk_finder, monitor_ids=monitor_id)
-    neng_bad  = energy_plots(out_file, plotS, plotNS, min_peak, monitor_ids=monitor_id)
+    nslab_bad, tname = slab_plots  (out_file, plotS, plotNS, min_peak,
+                                    pk_finder=pk_finder, monitor_ids=monitor_id)
+    neng_bad, ename  = energy_plots(out_file, plotS, plotNS, min_peak, monitor_ids=monitor_id)
 
     ## Review suspect distributions?
     if nslab_bad > 0 or neng_bad > 0:
         review = input(f'There are {nslab_bad} suspect time channels and {neng_bad} energy channels, review now? y/[n]')
         if review:
             review_distributions(nslab_bad, neng_bad, out_file)
+
+    if args['--petsys']:
+        map_file = conf.get     ('mapping',        'map_file')
+        eref     = conf.getfloat('petsys', 'energy_reference', fallback=10        )
+        pet_out  = conf.get     ('petsys',       'petsys_out', fallback='ecal.tsv')
+        petsys_file(map_file, tname, ename, eref, pet_out)

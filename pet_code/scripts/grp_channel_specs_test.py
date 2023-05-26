@@ -5,11 +5,13 @@ from pytest import fixture, mark
 
 from .. src.plots import ChannelEHistograms
 from .. src.util  import ChannelType
+from .. src.util  import get_absolute_id
 from .. src.util  import pd
 
 from . grp_channel_specs import channel_plots
 from . grp_channel_specs import np
 from . grp_channel_specs import energy_plots
+from . grp_channel_specs import petsys_file
 from . grp_channel_specs import slab_plots
 
 
@@ -87,7 +89,7 @@ def test_slab_plots(TMP_OUT, gauss_plots):
 
     tmu, tsig, _, _, plot_source, plot_nsource = gauss_plots
 
-    bad_fits = slab_plots(out_file, plot_source, plot_nsource, min_stats=100)
+    bad_fits, _ = slab_plots(out_file, plot_source, plot_nsource, min_stats=100)
 
     assert bad_fits == 0
     time_fits = out_file + 'timeSlabPeaks.txt'
@@ -104,7 +106,7 @@ def test_energy_plots(TMP_OUT, gauss_plots):
 
     _, _, Emu, _, plot_source, plot_nsource = gauss_plots
 
-    bad_fits = energy_plots(out_file, plot_source, plot_nsource, 100)
+    bad_fits, _ = energy_plots(out_file, plot_source, plot_nsource, 100)
 
     assert bad_fits == 0
     eng_fits = out_file + 'eChannelPeaks.txt'
@@ -113,3 +115,33 @@ def test_energy_plots(TMP_OUT, gauss_plots):
     assert eng_fit_vals.shape == (5, 3)
     assert eng_fit_vals.columns.isin(['ID', 'MU', 'MU_ERR']).all()
     np.testing.assert_allclose(eng_fit_vals.MU, Emu, rtol=0.1)
+
+
+def test_petsys_file(TMP_OUT, TEST_DATA_DIR):
+    map_file = os.path.join(TEST_DATA_DIR, 'twoSM_IMAS_map.feather')
+    tchans   = os.path.join(TMP_OUT      ,    'fake_tPeaks.txt'    )
+    echans   = os.path.join(TMP_OUT      ,    'fake_ePeaks.txt'    )
+    eref     = 10
+    out_name = os.path.join(TMP_OUT      ,    'test_petsys.tsv'    )
+
+    map_type = pd.read_feather(map_file)[['id', 'type']]
+    with open(tchans, 'w') as tpeak, open(echans, 'w') as epeak:
+        tpeak.write('ID\tMU\tMU_ERR\tSIG\tSIG_ERR\n')
+        epeak.write('ID\tMU\tMU_ERR\n')
+        for _, id_typ in map_type.iterrows():
+            if id_typ.type == 'TIME':
+                tpeak.write(f'{id_typ.id}\t10\t1\t2\t0.5\n')
+            else:
+                epeak.write(f'{id_typ.id}\t10\t1\n')
+    petsys_file(map_file, tchans, echans, eref, out_name)
+
+    assert os.path.isfile(out_name)
+    petsys_df = pd.read_csv(out_name, sep='\t')
+    cols = ['#portID', 'slaveID', 'chipID', 'channelID', 'tacID', 'p0', 'p1', 'p2', 'p3']
+    assert petsys_df.columns.isin(cols).all()
+    assert petsys_df.shape == (map_type.shape[0] * 4, len(cols))
+    petsys_df['id'] = petsys_df[cols[:4]].apply(lambda r: get_absolute_id(*r), axis=1)
+    petsys_df.drop_duplicates('id', inplace=True)
+    assert np.count_nonzero(petsys_df.isna()) == 0
+    np.testing.assert_allclose(petsys_df[petsys_df.id.isin(map_type[map_type.type ==   'TIME'].id)].p3, 511 / 10)
+    np.testing.assert_allclose(petsys_df[petsys_df.id.isin(map_type[map_type.type == 'ENERGY'].id)].p3,      1.0)
