@@ -8,7 +8,7 @@ are then saved to disc as a txt file that can be used to relatively equalize
 between channels.
 
 
-Usage: channel_specs.py [--out OUTFILE] (--conf CFILE) INPUT ...
+Usage: grp_channel_specs.py [--out OUTFILE] [--petsys PSFILE] (--conf CFILE) INPUT ...
 
 Arguments:
     INPUT  Input file name or list of names
@@ -18,6 +18,7 @@ Required:
 
 Options:
     --out=OUTFILE  Name base for output image files.
+    --petsys=PSFILE  Name of the PETsys format output, if not provided not output.
 """
 
 import os
@@ -41,6 +42,7 @@ from pet_code.src.io       import read_petsys_filebyfile
 from pet_code.src.plots    import ChannelEHistograms
 from pet_code.src.util     import pd
 from pet_code.src.util     import ChannelType
+from pet_code.src.util     import get_electronics_nums
 from pet_code.src.util     import shift_to_centres
 
 
@@ -307,6 +309,37 @@ def review_distributions(ntime, neng, out_base):
                 except RuntimeError:
                     print(f'Fit fail energy channel {col[2:-4]}.')
                     continue
+
+
+def petsys_file(map_file: str  ,
+                tchans  : str  ,
+                echans  : str  ,
+                eref    : float,
+                out_name: str
+                ) -> None:
+    """
+    create a file with the format expected by PETsys
+    for energy correction.
+    No linearisation at the moment.
+    """
+    all_ids               = pd.read_feather(map_file).id.sort_values()
+    cal_fact              = pd.concat((pd.read_csv(tchans, sep='\t').set_index('ID').MU.map(lambda x: 511.0 / x),
+                                       pd.read_csv(echans, sep='\t').set_index('ID').MU.map(lambda x:  eref / x))).sort_index()
+    cal_fact.index.name   = 'id'
+    out_cols              = ['#portID', 'slaveID', 'chipID', 'channelID',
+                             'tacID', 'p0', 'p1', 'p2', 'p3']
+    ch_gain               = pd.DataFrame([[1.0, 1.0, 1.0]]       ,
+                                         columns = out_cols[5:-1],
+                                         index   = all_ids       ).reset_index()
+    ch_gain[out_cols[:4]] = np.row_stack(ch_gain.id.map(np.vectorize(get_electronics_nums)))
+    ch_gain = pd.merge(ch_gain                        ,
+                       cal_fact.round(3).reset_index(),
+                       on  = 'id'                     ,
+                       how = 'left'                   ).rename(columns={'MU': out_cols[-1]}).fillna(1.0)
+
+    ch_gain               = ch_gain.loc[ch_gain.index.repeat(4)].reset_index(drop=True)
+    ch_gain[out_cols[4 ]] = np.tile(np.arange(4), ch_gain.shape[0] // 4)
+    ch_gain[out_cols    ].to_csv(out_name, sep='\t', index=False)
 
 
 if __name__ == '__main__':
