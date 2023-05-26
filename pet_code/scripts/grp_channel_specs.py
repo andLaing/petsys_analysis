@@ -380,3 +380,9 @@ if __name__ == '__main__':
         review = input(f'There are {nslab_bad} suspect time channels and {neng_bad} energy channels, review now? y/[n]')
         if review:
             review_distributions(nslab_bad, neng_bad, out_file)
+
+    if args['--petsys']:
+        map_file = conf.get     ('mapping',        'map_file')
+        eref     = conf.getfloat('petsys', 'energy_reference', fallback=10        )
+        pet_out  = conf.get     ('petsys',       'petsys_out', fallback='ecal.tsv')
+        petsys_file(map_file, tname, ename, eref, pet_out)
