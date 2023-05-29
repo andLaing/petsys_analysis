@@ -190,7 +190,7 @@ def nn_loop(chan_map  : ChannelMap,
         c['amount'] = 1.0
     # Channel ordering
     icols    = ['supermodule', 'minimodule', 'local_y']
-    isEng    = chan_map.mapping.type.map(_is_eng)
+    isEng    = chan_map.mapping.type.map(lambda x: x is ChannelType.ENERGY)
     ord_chan = chan_map.mapping[isEng].sort_values(icols).groupby(icols[:-1]).head(nchan).index
     chan_idx = {id: idx % nchan for idx, id in enumerate(ord_chan)}
     max_slab = select_max_energy(ChannelType.TIME)
