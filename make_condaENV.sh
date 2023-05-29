@@ -29,6 +29,7 @@ dependencies:
 - configparser = 5.0.2
 - cython       = 0.29.32
 - pyarrow      = 8.0.0
+- tensorflow   = 2.11
 EOF
 
     if conda env list | grep ${CONDA_ENV_NAME};
