@@ -72,10 +72,12 @@ def test_sm_gen(channel_types):
     # Probably need a more complete test for this
     min_pos = (geom.mm_spacing + geom.slab_width) / 2
     max_pos = 4 * geom.mm_edge
-    assert all(sm_df.local_x >= min_pos)
-    assert all(sm_df.local_x <= max_pos)
-    assert all(sm_df.local_y >= min_pos)
-    assert all(sm_df.local_y <= max_pos)
+    assert all(sm_df.local_idx >=       0)
+    assert all(sm_df.local_idx <        8)
+    assert all(sm_df.local_x   >= min_pos)
+    assert all(sm_df.local_x   <= max_pos)
+    assert all(sm_df.local_y   >= min_pos)
+    assert all(sm_df.local_y   <= max_pos)
 
 
 def test_single_ring(channel_types):
@@ -94,6 +96,8 @@ def test_single_ring(channel_types):
     assert all(hasattr(ring_df, col) for col in cols)
 
     # Approx centre of SM with means
+    assert all(ring_df.local_idx >= 0)
+    assert all(ring_df.local_idx <  8)
     xyz        = ['X', 'Y', 'Z']
     yx_df      = pd.DataFrame(ring_yx, index=['Y', 'X']).T
     sm_centres = ring_df.groupby('supermodule')[xyz].mean()
@@ -178,6 +182,8 @@ def test_n_rings(channel_types):
     assert all(hasattr(five_rings, col) for col in cols)
     assert five_rings.supermodule.unique().shape == (       n_sm * len(z_pos),)
     assert five_rings.id         .unique().shape == (nFEM * n_sm * len(z_pos),)
+    assert all(five_rings.local_idx >= 0)
+    assert all(five_rings.local_idx <  8)
 
     # Check some randomly chosen SMs
     exp_cent = {  0: {'X':  406.4924, 'Y':  -53.5157, 'Z': -305.5312},
