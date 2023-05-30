@@ -39,9 +39,13 @@ from pet_code.src.util    import shift_to_centres
 from pet_code.scripts.cal_monitor import cal_and_sel
 
 
+def is_eng(x):
+    return x[1] is ChannelType.ENERGY
+
+
 def cog_doi(sm_info: list[list]) -> float:
-    esum = sum(x[3] for x in filter(lambda y: y[1] is ChannelType.ENERGY, sm_info))
-    return esum / max(sm_info, key=lambda x: x[3])[3]
+    esum = sum(x[3] for x in filter(is_eng, sm_info))
+    return esum / max(filter(is_eng, sm_info), key=lambda x: x[3])[3]
 
 
 def position_histograms(ybins    : np.ndarray,
