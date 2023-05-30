@@ -257,10 +257,9 @@ def test_write_event_trace(TEST_DATA_DIR, TMP_OUT, DUMMY_SM):
     map_file = os.path.join(TEST_DATA_DIR, 'twoSM_IMAS_map.feather')
     chan_map = ChannelMap(map_file)
 
-    sm_map = chan_map.mapping[chan_map.mapping.supermodule == 2]
     tmp_out = os.path.join(TMP_OUT, 'first_test.txt')
     with open(tmp_out, 'w') as out_buf:
-        writer = write_event_trace(out_buf, sm_map, chan_map.get_minimodule)
+        writer = write_event_trace(out_buf, chan_map.get_minimodule_index, chan_map.get_minimodule)
         writer(DUMMY_SM)
 
     with open(tmp_out) as txt_test:
