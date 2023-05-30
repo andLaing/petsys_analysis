@@ -20,6 +20,8 @@ import configparser
 from docopt import docopt
 from typing import Callable
 
+import matplotlib.pyplot as plt
+
 from pet_code.src.filters import filter_event_by_impacts
 from pet_code.src.io      import ChannelMap
 from pet_code.src.io      import read_petsys_filebyfile
@@ -28,6 +30,7 @@ from pet_code.src.util    import pd
 from pet_code.src.util    import ChannelType
 from pet_code.src.util    import calibrate_energies
 from pet_code.src.util    import energy_weighted_average
+from pet_code.src.util    import get_supermodule_eng
 from pet_code.src.util    import select_energy_range
 from pet_code.src.util    import select_max_energy
 from pet_code.src.util    import select_module
@@ -51,6 +54,7 @@ def position_histograms(ybins    : np.ndarray,
                         ) -> Callable:
     max_slab = select_max_energy(ChannelType.TIME)
     erange   = select_energy_range(*emin_max)
+    ebins    = np.arange(0, 300, 10)
     # Channel ordering
     icols    = ['supermodule', 'minimodule', 'local_y']
     isTime   = chan_map.mapping.type.map(lambda x: x is ChannelType.TIME)
@@ -60,12 +64,18 @@ def position_histograms(ybins    : np.ndarray,
     mm_nums  = chan_map.mapping.minimodule .unique()
     def _plotter(evt: tuple[list, list]) -> None:
         for sm_info in evt:
-            if erange(sum(imp[3] for imp in sm_info)):
+            _plotter.all_count += 1
+            _, eng = get_supermodule_eng(sm_info)
+            # if eng < ebins[-1] and (bn_idx := np.searchsorted(ebins, eng, side='right') - 1) >= 0:
+            #     _plotter.all_spec[bn_idx] += 1
+            if erange(eng):
+                _plotter.ecount += 1
                 try:
                     Y = yrec(sm_info)
                 except IndexError:
                     continue
                 if (mx_tchn := max_slab(sm_info)):
+                    _plotter.sl_count += 1
                     slab_id = mx_tchn[0]
                     Y      -= chan_map.mapping.at[slab_id, 'local_y']
                     if Y < ybins[-1] and (bn_idx := np.searchsorted(ybins, Y, side='right') - 1) >= 0:
@@ -81,6 +91,10 @@ def position_histograms(ybins    : np.ndarray,
     # _plotter.dspecs = {(sm, mm): np.zero((dbins.shape[0] - 1, ch_per_mm), np.uint) for mm in mm_nums for sm in sm_nums}
     _plotter.yspecs = {(sm, mm): np.zeros(ybins.shape[0] - 1, np.uint) for mm in mm_nums for sm in sm_nums}
     _plotter.dspecs = {(sm, mm): np.zeros(dbins.shape[0] - 1, np.uint) for mm in mm_nums for sm in sm_nums}
+    _plotter.all_count = 0
+    _plotter.ecount    = 0
+    _plotter.sl_count  = 0
+    # _plotter.all_spec  = np.zeros(ebins.shape[0] - 1, np.uint)
     return _plotter
 
 
@@ -132,3 +146,7 @@ if __name__ == '__main__':
         ddf[f'{sm}_{mm}'] = hist#.sum(axis=1)
     out_file = os.path.join(out_dir, f'DOIspecs_{rec_type}.tsv')
     ddf.to_csv(out_file, sep='\t', index=False)
+
+    print(f'All {plotter.all_count}, eng {plotter.ecount}, slabs {plotter.sl_count}')
+    # plt.plot(shift_to_centres(np.arange(0, 300, 10)), plotter.all_spec)
+    # plt.show()
