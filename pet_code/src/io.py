@@ -93,6 +93,29 @@ def _read_petsys_file(file_name: str       ,
     Read all events from a single petsys
     file yielding those meeting sm_filter
     conditions.
+    PETsys ldat input line structure:
+    'Groups' (singles):
+        (number of lines in event            ,
+         index of line in event              ,
+         timestamp of line in ps             ,
+         Energy seen by this id in this event,
+         Absolute channel id                 )
+    Coincidences:
+        (number of lines in event first 'side',
+         index of id in first side of event   ,
+         timestamp of this detection          ,
+         Energy detected by the id            ,
+         Absolute channel id of first side    ,
+         ...repetition for second 'side'...   )
+    Yielded structure:
+        tuple[list[list], list[list]]
+        where each list[list] represents one side of the coincidence
+        and each list has the structure:
+            [absolute id (int)              ,
+             channel type (Enum TIME/ENERGY),
+             timestamp in ps (int)          ,
+             Energy (counts)                ]
+
     """
     # line_struct = '<BBqfi'         if singles else '<BBqfiBBqfi'
     line_struct = 'B, B, i8, f4, i' if singles else 'B, B, i8, f4, i, B, B, i8, f4, i'
