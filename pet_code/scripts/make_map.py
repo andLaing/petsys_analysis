@@ -72,7 +72,7 @@ def brain_map(nFEM: int, chan_per_mm: int, tchans: list, echans: list) -> Iterat
 def row_gen(nFEM: int, chan_per_mm: int, tchans: list, echans: list) -> Iterator:
     superm_gen = sm_gen(nFEM, chan_per_mm, tchans, echans, {0: [0, 0, 0], 2: [0, 0, 2]})
     for i in (0, 2):
-        for j, (id, typ, mm, loc_x, loc_y) in enumerate(superm_gen(i)):
+        for j, (id, typ, mm, loc_idx, loc_x, loc_y) in enumerate(superm_gen(i)):
             if typ == 'TIME':
                 ind = j // 2
                 x = slab_x(ind // 32)
@@ -82,10 +82,11 @@ def row_gen(nFEM: int, chan_per_mm: int, tchans: list, echans: list) -> Iterator
                 x = echan_x(ind % 32)
                 y = echan_y(i, ind // 32)
             z  = slab_z(i)
-            yield id, typ, i, mm, loc_x, loc_y, x, y, z
+            yield id, typ, i, mm, loc_idx, loc_x, loc_y, x, y, z
 
 
-def channel_sm_coordinate(mm_rowcol: int        ,
+def channel_sm_coordinate(ch_per_mm: int        ,
+                          mm_rowcol: int        ,
                           ch_indx  : int        ,
                           chtype   : ChannelType,
                           geom     : TbpetGeom
@@ -96,12 +97,13 @@ def channel_sm_coordinate(mm_rowcol: int        ,
     """
     mm_shift     = geom.mm_spacing * ((31 - ch_indx) // 8)
     ch_start     = (geom.slab_width + geom.mm_spacing) / 2
-    local_fine   = round(ch_start + mm_shift + geom.slab_width * (31 - ch_indx), 3)
+    row_idx      = (31 - ch_indx)
+    local_fine   = round(ch_start + mm_shift + geom.slab_width * row_idx, 3)
     local_coarse = round(geom.mm_edge * (3.5 - mm_rowcol), 3)
     if chtype is ChannelType.TIME:
         # local y course, local_x fine
-        return local_fine, local_coarse
-    return local_coarse, local_fine
+        return row_idx % ch_per_mm, local_fine, local_coarse
+    return row_idx % ch_per_mm, local_coarse, local_fine
 
 
 def sm_centre_pos(SM_r: float, SM_yx: dict) -> Callable:
@@ -185,12 +187,12 @@ def sm_gen(nFEM         : int ,
         for i, (tch, ech) in enumerate(zip(tchans, echans)):
             id = tch + sm_min_chan#sm_no * nFEM
             mm = i // chan_per_mm
-            loc_x, loc_y = channel_sm_coordinate(i // 32, i % 32, ChannelType.TIME, geom)
-            yield id, 'TIME', mm, loc_x, loc_y
+            loc_idx, loc_x, loc_y = channel_sm_coordinate(chan_per_mm, i // 32, i % 32, ChannelType.TIME, geom)
+            yield id, 'TIME', mm, loc_idx, loc_x, loc_y
             id = ech + sm_min_chan#sm_no * nFEM
             mm = geom.mM_energyMapping[mm]
-            loc_x, loc_y = channel_sm_coordinate(i // 32, i % 32, ChannelType.ENERGY, geom)
-            yield id, 'ENERGY', mm, loc_x, loc_y
+            loc_idx, loc_x, loc_y = channel_sm_coordinate(chan_per_mm, i // 32, i % 32, ChannelType.ENERGY, geom)
+            yield id, 'ENERGY', mm, loc_idx, loc_x, loc_y
     return _sm_gen
 
 
@@ -231,7 +233,7 @@ def single_ring(nFEM       : int                                ,
     SM_half_y = sm_geom.sm_edge_y / 2
     coords    = ['X', 'Y', 'Z']
     def ring_gen() -> Iterator:
-        local_cols = ['id', 'type', 'minimodule', 'local_x', 'local_y']
+        local_cols = ['id', 'type', 'minimodule', 'local_idx', 'local_x', 'local_y']
         for sm in range(first_sm, first_sm + sm_geom.sm_per_ring):
             sm_local                = pd.DataFrame((ch for ch in superm_gen(sm)),
                                                     columns = local_cols        )
@@ -288,7 +290,7 @@ if __name__ == '__main__':
 
     if   geom == '2SM'  :
         df = pd.DataFrame(row_gen(nFEM, 8, channel_map['time_channels'], channel_map['energy_channels']),
-                          columns=['id', 'type', 'supermodule', 'minimodule', 'local_x', 'local_y', 'X', 'Y', 'Z'])
+                          columns=['id', 'type', 'supermodule', 'minimodule', 'local_idx', 'local_x', 'local_y', 'X', 'Y', 'Z'])
     elif geom == '1ring':
         df = single_ring(nFEM                          ,
                          8                             ,

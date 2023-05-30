@@ -21,20 +21,20 @@ from numpy.testing import assert_allclose
 
 def test_channel_sm_coordinate():
     geom       = TbpetGeom()
-    test_chans = [(0,  0, ChannelType.TIME  , geom),
-                  (0,  0, ChannelType.ENERGY, geom),
-                  (3, 31, ChannelType.TIME  , geom),
-                  (3, 31, ChannelType.ENERGY, geom)]
+    test_chans = [(8, 0,  0, ChannelType.TIME  , geom),
+                  (8, 0,  0, ChannelType.ENERGY, geom),
+                  (8, 3, 31, ChannelType.TIME  , geom),
+                  (8, 3, 31, ChannelType.ENERGY, geom)]
 
     results = [channel_sm_coordinate(*args) for args in test_chans]
 
     exp_first = (round(geom.mm_edge * 4 - (geom.mm_spacing + geom.slab_width) / 2, 3),
                  round(3.5 * geom.mm_edge, 3))
     exp_last  = (round((geom.mm_spacing + geom.slab_width) / 2, 3), round(geom.mm_edge / 2, 3))
-    assert_allclose(results[0], exp_first      )
-    assert_allclose(results[1], exp_first[::-1])
-    assert_allclose(results[2], exp_last       )
-    assert_allclose(results[3], exp_last [::-1])
+    assert_allclose(results[0], (7, *exp_first)      )
+    assert_allclose(results[1], (7, *exp_first[::-1]))
+    assert_allclose(results[2], (0, *exp_last       ))
+    assert_allclose(results[3], (0, *exp_last [::-1]))
 
 
 @fixture(scope = 'module')
@@ -57,14 +57,14 @@ def test_sm_gen(channel_types):
 
     gen_sm = sm_gen(256, 8, tchans, echans, feb_map)
 
-    cols  = ['id', 'type', 'minimodule', 'local_x', 'local_y']
+    cols  = ['id', 'type', 'minimodule', 'local_idx', 'local_x', 'local_y']
     sm_df = pd.DataFrame((ch for ch in gen_sm(0)), columns=cols)
 
-    assert sm_df.shape == (256, 5)
+    assert sm_df.shape == (256, len(cols))
     time_chans = sm_df.type.str.contains('TIME')
     eng_chans  = sm_df.type.str.contains('ENERGY')
-    assert sm_df[time_chans].shape == (128, 5)
-    assert sm_df[ eng_chans].shape == (128, 5)
+    assert sm_df[time_chans].shape == (128, len(cols))
+    assert sm_df[ eng_chans].shape == (128, len(cols))
     assert set(tchans).issubset(sm_df.id)
     assert set(echans).issubset(sm_df.id)
     for mm in range(0, 16):
@@ -89,7 +89,7 @@ def test_single_ring(channel_types):
     ring_df = single_ring(nFEM, 8, tchans, echans, ring_r, ring_yx, feb_map)
 
     cols = ['id', 'type', 'supermodule', 'minimodule',
-            'local_x', 'local_y', 'X', 'Y', 'Z']
+            'local_idx', 'local_x', 'local_y', 'X', 'Y', 'Z']
     assert ring_df.shape == (nFEM * 24, len(cols))
     assert all(hasattr(ring_df, col) for col in cols)
 
@@ -141,7 +141,6 @@ def test_single_ring_corners(TEST_DATA_DIR, channel_types):
         sm_corner = exp_corners[exp_corners.Module == sm]
         indx_min  = sm_corner.LocalX.idxmin()
         indx_max  = sm_corner.LocalX.idxmax()
-        print('SM: ', sm, ', ', indx_min, ', ', indx_max)
         lmax_corner = sm_info.iloc[0][cols].astype('float').values + to_corner
         lmin_corner = sm_info.iloc[1][cols].astype('float').values - to_corner
         assert_allclose(lmin_corner, sm_corner.loc[indx_min][exp_xyz], rtol=5e-4)
@@ -153,7 +152,7 @@ def test_row_gen(TEST_DATA_DIR, channel_types):
     tchans   = channel_types[  'time_channels']
     echans   = channel_types['energy_channels']
 
-    cols = ['id', 'type', 'supermodule', 'minimodule', 'local_x', 'local_y', 'X', 'Y', 'Z']
+    cols = ['id', 'type', 'supermodule', 'minimodule', 'local_idx', 'local_x', 'local_y', 'X', 'Y', 'Z']
     twoSM_gen = (row for row in row_gen(256, 8, tchans, echans))
     twoSM_map = pd.DataFrame(twoSM_gen, columns=cols)
 
@@ -174,7 +173,7 @@ def test_n_rings(channel_types):
     five_rings = n_rings(z_pos, nFEM, 8, tchans, echans, ring_r, ring_yx, feb_map)
 
     cols = ['id', 'type', 'supermodule', 'minimodule',
-            'local_x', 'local_y', 'X', 'Y', 'Z']
+            'local_idx', 'local_x', 'local_y', 'X', 'Y', 'Z']
     assert five_rings.shape == (nFEM * n_sm * len(z_pos), len(cols))
     assert all(hasattr(five_rings, col) for col in cols)
     assert five_rings.supermodule.unique().shape == (       n_sm * len(z_pos),)
