@@ -19,6 +19,7 @@ import configparser
 
 from docopt    import docopt
 from functools import partial
+from itertools import islice
 from typing    import Callable
 
 from pet_code.src.filters import filter_event_by_impacts
@@ -125,6 +126,7 @@ if __name__ == '__main__':
     pet_reader = read_petsys_filebyfile(chan_map.ch_type, evt_select)
     end_sec    = time.time()
 
+    max_evt   = conf.getint('output', 'max_events', fallback=None)
     xbins     = np.linspace(*map(int, conf.get('output', 'xbinning', fallback='0,104,500').split(',')))
     ybins     = np.linspace(*map(int, conf.get('output', 'ybinning', fallback='0,104,500').split(',')))
     ebins     = np.linspace(*map(int, conf.get('output', 'ebinning', fallback='0,300,200').split(',')))
@@ -145,7 +147,7 @@ if __name__ == '__main__':
     for fn in infiles:
         print(f'Reading file {fn}')
         binner, plotter = xyE_binning(chan_map, xbins, ybins, ebins, cal_func, max_sel, c_calc)
-        _               = tuple(map(binner, pet_reader(fn)))
+        _               = tuple(map(binner, islice(pet_reader(fn), max_evt)))
         end_sec         = time.time()
         print(f'Time enlapsed reading: {end_sec - start_sec} s')
 
