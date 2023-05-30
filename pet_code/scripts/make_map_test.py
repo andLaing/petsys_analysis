@@ -198,11 +198,9 @@ def test_brain_map(TEST_DATA_DIR):
     with open(map_yml) as map_file:
         ch_map = yaml.safe_load(map_file)
 
-    cols = ['id', 'type', 'supermodule', 'minimodule', 'local_x', 'local_y', 'X', 'Y', 'Z']
+    cols = ['id', 'type', 'supermodule', 'minimodule', 'local_idx', 'local_x', 'local_y', 'X', 'Y', 'Z']
     brain_gen = brain_map(256, 8, ch_map['time_channels'], ch_map['energy_channels'])
     twoSM_map = pd.DataFrame(brain_gen, columns=cols)
 
     exp_map = pd.read_feather(test_map)
-    print('la: ', exp_map.iloc[256:].supermodule)
-    print('lu: ', twoSM_map.iloc[256:].supermodule)
     pd.testing.assert_frame_equal(twoSM_map, exp_map)

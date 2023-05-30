@@ -65,8 +65,8 @@ def brain_map(nFEM: int, chan_per_mm: int, tchans: list, echans: list) -> Iterat
     brain_gen = brain_sm_gen(nFEM, chan_per_mm, tchans, echans, {0: [0, 0, 0], 2: [0, 0, 3]})
     for i in (0, 2):
         z = 0 if i == 0 else 10#dummy
-        for id, typ, mm, loc_x, loc_y in brain_gen(i):
-            yield id, typ, i, mm, loc_x, loc_y, loc_x, loc_y, z
+        for id, typ, mm, loc_idx, loc_x, loc_y in brain_gen(i):
+            yield id, typ, i, mm, loc_idx, loc_x, loc_y, loc_x, loc_y, z
 
 
 def row_gen(nFEM: int, chan_per_mm: int, tchans: list, echans: list) -> Iterator:
@@ -156,11 +156,11 @@ def brain_sm_gen(nFEM         : int ,
             loc_x = round(1.6 + 3.2 * tindx, 3)
             loc_y = round(geom.mm_edge * (0.5 + row), 3)
             # Will need i dependent rotation for true global xyz
-            yield id, 'TIME', mm, loc_x, loc_y
+            yield id, 'TIME', mm, tindx % chan_per_mm, loc_x, loc_y
             id    = ech + sm_min_chan
             loc_x = round(geom.mm_edge * (0.5 + (i // chan_per_col)), 3)
             loc_y = round(1.6 + 3.2 * eindx, 3)
-            yield id, 'ENERGY', mm, loc_x, loc_y
+            yield id, 'ENERGY', mm, eindx % chan_per_mm, loc_x, loc_y
     return _sm_gen
 
 
@@ -288,9 +288,10 @@ if __name__ == '__main__':
     with open(args['MAPYAML']) as map_buffer:
         channel_map = yaml.safe_load(map_buffer)
 
+    map_cols = ['id', 'type', 'supermodule', 'minimodule', 'local_idx', 'local_x', 'local_y', 'X', 'Y', 'Z']
     if   geom == '2SM'  :
         df = pd.DataFrame(row_gen(nFEM, 8, channel_map['time_channels'], channel_map['energy_channels']),
-                          columns=['id', 'type', 'supermodule', 'minimodule', 'local_idx', 'local_x', 'local_y', 'X', 'Y', 'Z'])
+                          columns=map_cols)
     elif geom == '1ring':
         df = single_ring(nFEM                          ,
                          8                             ,
@@ -310,7 +311,7 @@ if __name__ == '__main__':
                      channel_map[     'sm_feb_map'])
     elif geom == 'brain':
         df = pd.DataFrame(brain_map(nFEM, 8, channel_map['time_channels'], channel_map['energy_channels']),
-                          columns=['id', 'type', 'supermodule', 'minimodule', 'local_x', 'local_y', 'X', 'Y', 'Z'])
+                          columns=map_cols)
     elif geom == 'brainring':
         df = single_ring(nFEM                          ,
                          8                             ,
