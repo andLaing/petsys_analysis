@@ -320,6 +320,7 @@ class ChannelMap:
         self.minimod = self.mapping.minimodule.to_dict()
         self.mods    = self.mapping[['supermodule', 'minimodule']].to_dict('index')
         self.xyz     = self.mapping[['X', 'Y', 'Z']].to_dict('index')
+        self.mm_idx  = self.mapping.local_idx.to_dict()
 
     def get_channel_type(self, id: int) -> ChannelType:
         return self.ch_type[id]
@@ -356,13 +357,17 @@ class ChannelMap:
         """
         return np.fromiter(self.plotp[id].values(), float)
 
+    def get_minimodule_index(self, id: int) -> int:
+        return self.mm_idx[id]
+
     @lru_cache
     def get_channel_position(self, id: int) -> np.ndarray:
         return np.fromiter(self.xyz[id].values(), float)
 
 
-def write_event_trace(file_buffer: TextIO      ,
-                      sm_map     : pd.DataFrame,
+def write_event_trace(file_buffer: TextIO  ,
+                      #sm_map     : pd.DataFrame,
+                      idx_lookup : Callable,
                       mm_lookup  : Callable
                       ) -> Callable:
     """
@@ -371,18 +376,20 @@ def write_event_trace(file_buffer: TextIO      ,
     8 * time channels 8 * energy channels, module number
     """
     nchan  = 8
-    isTIME = sm_map.type.map(lambda x: x is ChannelType.TIME)
-    ## Time as X hardwire? OK? 8 chans of type per minimodule hardwire? OK?
-    cols = ['supermodule', 'minimodule']
-    chan_ord = (sm_map[ isTIME].sort_values(cols + ['local_x']).groupby(cols).head(nchan).index,
-                sm_map[~isTIME].sort_values(cols + ['local_y']).groupby(cols).head(nchan).index)
-    chan_idx = {id: idx % nchan + i * nchan for i  , chtype in enumerate(chan_ord)
-                                            for idx, id     in enumerate(chtype)  }
+    # isTIME = sm_map.type.map(lambda x: x is ChannelType.TIME)
+    # ## Time as X hardwire? OK? 8 chans of type per minimodule hardwire? OK?
+    # cols = ['supermodule', 'minimodule']
+    # chan_ord = (sm_map[ isTIME].sort_values(cols + ['local_x']).groupby(cols).head(nchan).index,
+    #             sm_map[~isTIME].sort_values(cols + ['local_y']).groupby(cols).head(nchan).index)
+    # chan_idx = {id: idx % nchan + i * nchan for i  , chtype in enumerate(chan_ord)
+    #                                         for idx, id     in enumerate(chtype)  }
     def write_minimod(mm_trace: list[list]) -> None:
         channels = np.zeros(16)
         mini_mod = mm_lookup(mm_trace[0][0])
         for imp in mm_trace:
-            indx           = chan_idx[imp[0]]
+            # indx           = chan_idx[imp[0]]
+            idx_corr       = 0 if imp[1] is ChannelType.TIME else nchan
+            indx           = idx_lookup(imp[0]) + idx_corr
             channels[indx] = imp[3]
         file_buffer.write('\t'.join("{:.6f}".format(round(val, 6)) for val in channels))
         file_buffer.write('\t' + str(mini_mod) + '\n')
