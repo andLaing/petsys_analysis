@@ -366,7 +366,6 @@ class ChannelMap:
 
 
 def write_event_trace(file_buffer: TextIO  ,
-                      #sm_map     : pd.DataFrame,
                       idx_lookup : Callable,
                       mm_lookup  : Callable
                       ) -> Callable:
@@ -376,13 +375,6 @@ def write_event_trace(file_buffer: TextIO  ,
     8 * time channels 8 * energy channels, module number
     """
     nchan  = 8
-    # isTIME = sm_map.type.map(lambda x: x is ChannelType.TIME)
-    # ## Time as X hardwire? OK? 8 chans of type per minimodule hardwire? OK?
-    # cols = ['supermodule', 'minimodule']
-    # chan_ord = (sm_map[ isTIME].sort_values(cols + ['local_x']).groupby(cols).head(nchan).index,
-    #             sm_map[~isTIME].sort_values(cols + ['local_y']).groupby(cols).head(nchan).index)
-    # chan_idx = {id: idx % nchan + i * nchan for i  , chtype in enumerate(chan_ord)
-    #                                         for idx, id     in enumerate(chtype)  }
     def write_minimod(mm_trace: list[list]) -> None:
         channels = np.zeros(16)
         mini_mod = mm_lookup(mm_trace[0][0])

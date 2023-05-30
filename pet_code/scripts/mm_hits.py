@@ -63,11 +63,8 @@ if __name__ == '__main__':
         if not os.path.isdir(out_dir):
             os.makedirs(out_dir)
 
-        # Need to protect from overwrite? Will add output folder when using docopt/config or both
-        # sm_map = chan_map.mapping[chan_map.mapping.supermodule == control_sm]
         mod_select = select_module(chan_map.get_minimodule)
         with open(out_file, 'w') as tout:
-            # writer = write_event_trace(tout, sm_map, chan_map.get_minimodule)
             writer = write_event_trace(tout, chan_map.get_minimodule_index, chan_map.get_minimodule)
             reader = read_petsys_filebyfile(chan_map.ch_type, evt_filter)
             for evt in reader(fn):
