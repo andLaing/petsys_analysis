@@ -193,10 +193,10 @@ def nn_loop(chan_map  : ChannelMap,
     for c in coincidences:
         c['amount'] = 1.0
     # Channel ordering
-    icols    = ['supermodule', 'minimodule', 'local_y']
-    isEng    = chan_map.mapping.type.map(lambda x: x is ChannelType.ENERGY)
-    ord_chan = chan_map.mapping[isEng].sort_values(icols).groupby(icols[:-1]).head(nchan).index
-    chan_idx = {id: idx % nchan for idx, id in enumerate(ord_chan)}
+    # icols    = ['supermodule', 'minimodule', 'local_y']
+    # isEng    = chan_map.mapping.type.map(lambda x: x is ChannelType.ENERGY)
+    # ord_chan = chan_map.mapping[isEng].sort_values(icols).groupby(icols[:-1]).head(nchan).index
+    # chan_idx = {id: idx % nchan for idx, id in enumerate(ord_chan)}
     max_slab = select_max_energy(ChannelType.TIME)
     # Define predictor?
     positions = neural_net_pcalc(system, nn_yfile, nn_doifile, chan_map.get_plot_position)
@@ -210,7 +210,7 @@ def nn_loop(chan_map  : ChannelMap,
                 for j, sm in enumerate(evt):
                     chids.append(sm[0][0])
                     for imp in filter(_is_eng, sm):
-                        channel_energies[2 * i + j]['Esignals'][chan_idx[imp[0]]] = imp[3]
+                        channel_energies[2 * i + j]['Esignals'][chan_map.get_minimodule_index(imp[0])] = imp[3]
 
                 mm_energies = [kev_conv(chid) * mm['Esignals'].sum()
                                for chid, mm in zip(chids, channel_energies[2 * i:2 * i + 1])]
@@ -240,7 +240,7 @@ def nn_loop(chan_map  : ChannelMap,
                     i += 1
             ## predict here. Fake returned object for now.
             # predicted_xy = np.empty(npred, np.dtype(('X', np.float32), ('Y', np.float32)))
-            # Ignoring doi for now.
+            # Ignoring doi for now. the first argument should be slab ids
             predicted_xy, _ = positions(channel_energies['slab_idx'], channel_energies)
             for i in range(0, npred // 2):#This way forced by structure.
                 pixels = tuple(map(lambda xy: pixel_vals(*xy), predicted_xy[2 * i:2 * i+2]))
