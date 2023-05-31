@@ -161,7 +161,6 @@ class SlabNN:
 def neural_net_pcalc(system   : str     ,
                      y_file   : str     ,
                      doi_file : str     ,
-                    #  mm_indx  : Callable,
                      local_pos: Callable
                      ) -> Callable:
     """
@@ -171,9 +170,6 @@ def neural_net_pcalc(system   : str     ,
     """
     NN = SlabNN(SlabSystem(system))
     NN.build_combined(y_file, doi_file, print_model=False)
-    ## Dummies for event by event for now.
-    # categories = np.zeros(1, np.int32)
-    #slab_max = select_max_energy(ChannelType.TIME)
     def _xy_local(slab_id: int, y_mm: np.float32) -> tuple[float, float]:
         local_x, slab_y = local_pos(slab_id)
         local_y         = y_mm + slab_y
@@ -184,15 +180,7 @@ def neural_net_pcalc(system   : str     ,
                  ) -> tuple[np.ndarray, np.ndarray]:
         # Cats all 0 for now.
         categories = np.zeros_like(evts['slab_idx'])
-        #energies = np.zeros((1, 8), np.float32)
-        # for imp in filter(lambda x: x[1] is ChannelType.ENERGY, sm_info):
-        #     energies[0][mm_indx(imp[0])] = imp[3]
         mm_y, doi = NN.predict([categories, evts['Esignals'], categories, evts['Esignals']])
-        # print(f'DOI is {doi}, types {type(mm_y)}')
         local_pos = np.asarray(tuple(map(_xy_local, slab_ids, mm_y)))
         return local_pos, doi
-        # max_slab = slab_max(sm_info)[0]
-        # local_x, slab_y = local_pos(max_slab)
-        # local_y         = mm_y[0] + slab_y
-        # return local_x, local_y, doi[0]
     return _predict
