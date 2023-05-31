@@ -48,14 +48,17 @@ def _get_bin(bin_edges, val):
         return indx
 
 
-def bunch_predictions(bunch_size: int     ,
-                      y_file    : str     ,
-                      doi_file  : str     ,
-                      mm_indx   : Callable,
-                      local_pos : Callable
+def bunch_predictions(system    : str      ,
+                      bunch_size: int      ,
+                      y_file    : str      ,
+                      doi_file  : str      ,
+                      mm_indx   : Callable ,
+                      local_pos : Callable ,
+                      loc_trans : bool=True
                       ) -> tuple[Callable, Callable]:
     slab_max         = select_max_energy(ChannelType.TIME)
-    positions        = neural_net_pcalc("IMAS-1ring", y_file, doi_file, local_pos)
+    positions        = neural_net_pcalc(system, y_file, doi_file,
+                                        local_pos, loc_trans=loc_trans)
     infer_type       = np.dtype([("slab_idx", np.int32), ("Esignals", np.float32, 8)])
     channel_energies = np.zeros(bunch_size, infer_type)
     def _bunch(sm_info: tuple[list, list], count: int) -> None:
@@ -185,11 +188,13 @@ if __name__ == '__main__':
     cal_func = calibrate_energies(chan_map.get_chantype_ids, time_cal, eng_cal, eref=eref)
 
     # c_calc   = centroid_calculation(chan_map.plotp)
-    nn_yfile   = conf.get('network',   'y_file')
-    nn_dfile   = conf.get('network', 'doi_file')
-    batch_size = conf.getint('network', 'batch_size', fallback=  1000)
+    nn_yfile   = conf.get   ('network',      'y_file')
+    nn_dfile   = conf.get   ('network',    'doi_file')
+    batch_size = conf.getint('network',  'batch_size', fallback=1000)
+    system_nm  = conf.get   ('network', 'system_name', fallback='IMAS-1ring')
     # c_calc   = neural_net_pcalc(nn_yfile, nn_dfile, chan_map.get_minimodule_index, chan_map.get_plot_position)
-    b_func, pr_func = bunch_predictions(batch_size, nn_yfile, nn_dfile, chan_map.get_minimodule_index, chan_map.get_plot_position)
+    b_func, pr_func = bunch_predictions(system_nm, batch_size, nn_yfile, nn_dfile,
+                                        chan_map.get_minimodule_index, chan_map.get_plot_position)
     max_sel  = select_module(chan_map.get_minimodule) if conf.getboolean('filter', 'sel_max_mm') else lambda x: x
     out_dir  = conf.get('output', 'out_dir')
     if not os.path.isdir(out_dir):
