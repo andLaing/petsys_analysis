@@ -63,8 +63,8 @@ def neural_net_pcalc(y_file: str, doi_file: str, mm_indx: Callable, local_pos: C
         # print(f'DOI is {doi}, types {type(mm_y)}')
         max_slab = slab_max(sm_info)[0]
         local_x, slab_y = local_pos(max_slab)
-        local_y         = mm_y + slab_y
-        return local_x, local_y, doi
+        local_y         = mm_y[0] + slab_y
+        return local_x, local_y, doi[0]
     return _predict
 
 
