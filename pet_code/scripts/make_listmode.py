@@ -32,6 +32,7 @@ from pet_code.src.filters import filter_max_coin_event
 from pet_code.src.io      import ChannelMap
 from pet_code.src.io      import CoincidenceV3, LMHeader
 from pet_code.src.io      import read_petsys_filebyfile
+from pet_code.src.slab_nn import neural_net_pcalc
 from pet_code.src.util    import ChannelType
 from pet_code.src.util    import calibrate_energies
 from pet_code.src.util    import convert_to_kev
@@ -173,7 +174,10 @@ def nn_loop(chan_map  : ChannelMap,
             kev_conv  : Callable  ,
             skew      : dict      ,
             p_lookup  : dict      ,
-            npred     : int
+            npred     : int       ,
+            nn_yfile  : str       ,
+            nn_doifile: str       ,
+            system    : str='IMAS',
             ) -> None:
     """
     Loop over events optimising calls to neural network.
@@ -195,6 +199,7 @@ def nn_loop(chan_map  : ChannelMap,
     chan_idx = {id: idx % nchan for idx, id in enumerate(ord_chan)}
     max_slab = select_max_energy(ChannelType.TIME)
     # Define predictor?
+    positions = neural_net_pcalc(system, nn_yfile, nn_doifile, chan_map.get_plot_position)
     def _evt_loop(file_name: str, lm_out: BinaryIO):
         read_evt = evt_reader(file_name)
         i = 1
@@ -229,11 +234,14 @@ def nn_loop(chan_map  : ChannelMap,
                             channel_energies[[2 * i, 2 * i + 1]] = channel_energies[[2 * i + 1, 2 * i]]
                         except KeyError:
                             continue
+                    ## this should really make use of the category dict (for now all set to zero inside predictor wrapper)
                     channel_energies[2 * i    ]['slab_idx'] = max_chans[0][0]
                     channel_energies[2 * i + 1]['slab_idx'] = max_chans[1][0]
                     i += 1
             ## predict here. Fake returned object for now.
-            predicted_xy = np.empty(npred, np.dtype(('X', np.float32), ('Y', np.float32)))
+            # predicted_xy = np.empty(npred, np.dtype(('X', np.float32), ('Y', np.float32)))
+            # Ignoring doi for now.
+            predicted_xy, _ = positions(channel_energies['slab_idx'], channel_energies)
             for i in range(0, npred // 2):#This way forced by structure.
                 pixels = tuple(map(lambda xy: pixel_vals(*xy), predicted_xy[2 * i:2 * i+2]))
                 coincidences[i]['xPosition1'] = pixels[0][0]
@@ -241,7 +249,6 @@ def nn_loop(chan_map  : ChannelMap,
                 coincidences[i]['xPosition2'] = pixels[1][0]
                 coincidences[i]['yPosition2'] = pixels[1][1]
                 lm_out.write(coincidences[i])
-        pass
     return _evt_loop
 
 
@@ -303,7 +310,15 @@ if __name__ == '__main__':
     if not os.path.isdir(out_dir):
         os.makedirs(out_dir)
 
-    evt_loop = cog_loop(chan_map, evt_reader, sel_func, eselect, pixel_vals, mm_eng, skew, p_lookup)
+    rec_type = conf.get('output', 'reco_type', fallback='cog')
+    if 'NN' in rec_type:
+        batch_size = conf.getint('network', 'batch_size', fallback=  1000)
+        nn_yfile   = conf.get   ('network',     'y_file')
+        nn_dfile   = conf.get   ('network',   'doi_file')
+        system_nm  = conf.get   ('network',     'system', fallback='IMAS')
+        evt_loop   = nn_loop(chan_map, evt_reader, sel_func, eselect, pixel_vals, mm_eng, skew, p_lookup, batch_size, nn_yfile, nn_dfile, system_nm)
+    else:
+        evt_loop = cog_loop(chan_map, evt_reader, sel_func, eselect, pixel_vals, mm_eng, skew, p_lookup)
     for fn in infiles:
         # Open output file.
         out_file = os.path.join(out_dir, fn.split(os.sep)[-1].replace('.ldat', '_LM.bin'))
