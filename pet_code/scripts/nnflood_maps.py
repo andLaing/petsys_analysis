@@ -30,6 +30,7 @@ from pet_code.src.io      import ChannelMap
 from pet_code.src.io      import read_petsys_filebyfile
 from pet_code.src.slab_nn import SlabNN
 from pet_code.src.slab_nn import SlabSystem
+from pet_code.src.slab_nn import neural_net_pcalc
 from pet_code.src.plots   import sm_floodmaps
 from pet_code.src.util    import ChannelType
 from pet_code.src.util    import np
@@ -47,58 +48,103 @@ def _get_bin(bin_edges, val):
         return indx
 
 
-def neural_net_pcalc(y_file: str, doi_file: str, mm_indx: Callable, local_pos: Callable) -> Callable:
-    """
-    """
-    NN = SlabNN(SlabSystem("IMAS-1ring"))
-    NN.build_combined(y_file, doi_file, print_model=False)
-    ## Dummies for event by event for now.
-    categories = np.zeros(1, np.int32)
-    slab_max = select_max_energy(ChannelType.TIME)
-    def _predict(sm_info: list[list]) -> tuple[float, float]:
-        energies = np.zeros((1, 8), np.float32)
+def bunch_predictions(bunch_size: int     ,
+                      y_file    : str     ,
+                      doi_file  : str     ,
+                      mm_indx   : Callable,
+                      local_pos : Callable
+                      ) -> tuple[Callable, Callable]:
+    slab_max         = select_max_energy(ChannelType.TIME)
+    positions        = neural_net_pcalc("IMAS-1ring", y_file, doi_file, local_pos)
+    infer_type       = np.dtype([("slab_idx", np.int32), ("Esignals", np.float32, 8)])
+    channel_energies = np.zeros(bunch_size, infer_type)
+    def _bunch(sm_info: tuple[list, list], count: int) -> None:
+        slab_id = slab_max(sm_info)[0]
+        channel_energies[count]['slab_idx'] = slab_id
         for imp in filter(lambda x: x[1] is ChannelType.ENERGY, sm_info):
-            energies[0][mm_indx(imp[0])] = imp[3]
-        mm_y, doi = NN.predict([categories, energies,categories, energies])
-        # print(f'DOI is {doi}, types {type(mm_y)}')
-        max_slab = slab_max(sm_info)[0]
-        local_x, slab_y = local_pos(max_slab)
-        local_y         = mm_y[0] + slab_y
-        return local_x, local_y, doi[0]
-    return _predict
+            channel_energies[count]['Esignals'][mm_indx(imp[0])] = imp[3]
+
+    def _predict() -> tuple[np.ndarray, np.ndarray]:
+        print('About to predict')
+        xy_pos, doi = positions(channel_energies['slab_idx'], channel_energies)
+        channel_energies.fill(0)
+        return xy_pos, doi
+    return _bunch, _predict
+
+# def neural_net_pcalc(y_file: str, doi_file: str, mm_indx: Callable, local_pos: Callable) -> Callable:
+#     """
+#     """
+#     NN = SlabNN(SlabSystem("IMAS-1ring"))
+#     NN.build_combined(y_file, doi_file, print_model=False)
+#     ## Dummies for event by event for now.
+#     categories = np.zeros(1, np.int32)
+#     slab_max = select_max_energy(ChannelType.TIME)
+#     def _predict(sm_info: list[list]) -> tuple[float, float]:
+#         energies = np.zeros((1, 8), np.float32)
+#         for imp in filter(lambda x: x[1] is ChannelType.ENERGY, sm_info):
+#             energies[0][mm_indx(imp[0])] = imp[3]
+#         mm_y, doi = NN.predict([categories, energies,categories, energies])
+#         # print(f'DOI is {doi}, types {type(mm_y)}')
+#         max_slab = slab_max(sm_info)[0]
+#         local_x, slab_y = local_pos(max_slab)
+#         local_y         = mm_y[0] + slab_y
+#         return local_x, local_y, doi[0]
+#     return _predict
 
 
-def xyE_binning(chan_map: ChannelMap,
-                xbins   : np.ndarray,
-                ybins   : np.ndarray,
-                ebins   : np.ndarray,
-                cal_func: Callable  ,
-                sel_func: Callable  ,
-                c_calc  : Callable
+def xyE_binning(chan_map  : ChannelMap,
+                xbins     : np.ndarray,
+                ybins     : np.ndarray,
+                ebins     : np.ndarray,
+                cal_func  : Callable  ,
+                sel_func  : Callable  ,
+                bunch_func: Callable  ,
+                bunch_size: int       ,
+                pred_func : Callable
                 ) -> tuple[Callable, Callable]:
     h_shape  = (xbins.size - 1, ybins.size - 1, ebins.size - 1)
-    sm_specs = {sm: {mm: np.zeros(h_shape, np.uint) for mm in range(16)}
-                for sm in chan_map.mapping.supermodule.unique()     }
     def fill_bin(evt: tuple[list, list]) -> None:
         cal_evt = cal_func(evt)
         for sm_info in filter(lambda x: x, map(sel_func, cal_evt)):
-            sm      = chan_map.get_supermodule(sm_info[0][0])
-            mm      = chan_map.get_minimodule (sm_info[0][0])
+            sm     = chan_map.get_supermodule(sm_info[0][0])
+            mm     = chan_map.get_minimodule (sm_info[0][0])
+            _, eng = get_supermodule_eng(sm_info)
+            fill_bin.sm_mm_e[fill_bin.count][0] = sm
+            fill_bin.sm_mm_e[fill_bin.count][1] = mm
+            fill_bin.sm_mm_e[fill_bin.count][2] = eng
             try:
-                x, y, _ = c_calc(sm_info)
+                bunch_func(sm_info, fill_bin.count)
             except TypeError:
                 continue
-            _, eng  = get_supermodule_eng(sm_info)
-            xb      = _get_bin(xbins,   x)
-            yb      = _get_bin(ybins,   y)
-            eb      = _get_bin(ebins, eng)
-            if all((xb, yb, eb)):
-                sm_specs[sm][mm][xb, yb, eb] += 1
+            fill_bin.count += 1
+            if fill_bin.count >= bunch_size:
+                xy_pos, _ = pred_func()
+                for xy, mod_vals in zip(xy_pos, fill_bin.sm_mm_e):
+                    xb = _get_bin(xbins,       xy[0])
+                    yb = _get_bin(ybins,       xy[1])
+                    eb = _get_bin(ebins, mod_vals[2])
+                    if all((xb, yb, eb)):
+                        fill_bin.sm_specs[int(mod_vals[0])][int(mod_vals[1])][xb, yb, eb] += 1
+                fill_bin.count = 0
+                fill_bin.sm_mm_e.fill(0)
+    fill_bin.count = 0
+    fill_bin.sm_specs = {sm: {mm: np.zeros(h_shape, np.uint) for mm in range(16)}
+                         for sm in chan_map.mapping.supermodule.unique()     }
+    fill_bin.sm_mm_e  = np.empty((bunch_size, 3), np.float32)
+            # try:
+            #     x, y, _ = c_calc(sm_info)
+            # except TypeError:
+            #     continue
+            # xb      = _get_bin(xbins,   x)
+            # yb      = _get_bin(ybins,   y)
+            # eb      = _get_bin(ebins, eng)
+            # if all((xb, yb, eb)):
+            #     sm_specs[sm][mm][xb, yb, eb] += 1
 
     def make_plots(plotter: Callable) -> None:
-        for sm in list(sm_specs.keys()):
-            plotter(sm, sm_specs[sm])
-            del sm_specs[sm]
+        for sm in list(fill_bin.sm_specs.keys()):
+            plotter(sm, fill_bin.sm_specs[sm])
+            del fill_bin.sm_specs[sm]
     return fill_bin, make_plots
 
 
@@ -139,9 +185,11 @@ if __name__ == '__main__':
     cal_func = calibrate_energies(chan_map.get_chantype_ids, time_cal, eng_cal, eref=eref)
 
     # c_calc   = centroid_calculation(chan_map.plotp)
-    nn_yfile = conf.get('network',   'y_file')
-    nn_dfile = conf.get('network', 'doi_file')
-    c_calc   = neural_net_pcalc(nn_yfile, nn_dfile, chan_map.get_minimodule_index, chan_map.get_plot_position)
+    nn_yfile   = conf.get('network',   'y_file')
+    nn_dfile   = conf.get('network', 'doi_file')
+    batch_size = conf.getint('network', 'batch_size', fallback=  1000)
+    # c_calc   = neural_net_pcalc(nn_yfile, nn_dfile, chan_map.get_minimodule_index, chan_map.get_plot_position)
+    b_func, pr_func = bunch_predictions(batch_size, nn_yfile, nn_dfile, chan_map.get_minimodule_index, chan_map.get_plot_position)
     max_sel  = select_module(chan_map.get_minimodule) if conf.getboolean('filter', 'sel_max_mm') else lambda x: x
     out_dir  = conf.get('output', 'out_dir')
     if not os.path.isdir(out_dir):
@@ -176,8 +224,18 @@ if __name__ == '__main__':
     start_sec  = end_sec
     for fn in infiles:
         print(f'Reading file {fn}')
-        binner, plotter = xyE_binning(chan_map, xbins, ybins, ebins, cal_func, max_sel, c_calc)
+        binner, plotter = xyE_binning(chan_map, xbins, ybins, ebins, cal_func, max_sel, b_func, batch_size, pr_func)
         _               = tuple(map(binner, islice(pet_reader(fn), max_evt)))
+        if binner.count != 0:
+            print('doing a last prediction')
+            xy_pos, _ = pr_func()
+            for i in range(binner.count):
+            # for xy, mod_vals in zip(xy_pos, binner.sm_mm_e):
+                xb = _get_bin(xbins,         xy_pos[i][0])
+                yb = _get_bin(ybins,         xy_pos[i][1])
+                eb = _get_bin(ebins, binner.sm_mm_e[i][2])
+                if all((xb, yb, eb)):
+                    binner.sm_specs[int(binner.sm_mm_e[i][0])][int(binner.sm_mm_e[i][1])][xb, yb, eb] += 1
         end_sec         = time.time()
         print(f'Time enlapsed reading: {end_sec - start_sec} s')
 

@@ -136,8 +136,8 @@ class SlabNN:
             return
 
         # Predict output values
-        # predictions = self.model.predict(dataset, batch_size=batch, verbose=verbosity)
-        predictions = self.model(dataset, training=False)
+        predictions = self.model.predict(dataset, batch_size=batch, verbose=verbosity)
+        # predictions = self.model(dataset, training=False)
 
         # Option B
         if (self.model.name == "Combined"):
