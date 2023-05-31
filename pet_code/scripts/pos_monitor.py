@@ -25,6 +25,7 @@ import matplotlib.pyplot as plt
 from pet_code.src.filters import filter_event_by_impacts
 from pet_code.src.io      import ChannelMap
 from pet_code.src.io      import read_petsys_filebyfile
+# from pet_code.src.slab_nn import neural_net_pcalc
 from pet_code.src.util    import np
 from pet_code.src.util    import pd
 from pet_code.src.util    import ChannelType
@@ -37,7 +38,7 @@ from pet_code.src.util    import select_module
 from pet_code.src.util    import shift_to_centres
 
 from pet_code.scripts.cal_monitor  import cal_and_sel
-from pet_code.scripts.nnflood_maps import neural_net_pcalc
+from pet_code.scripts.nnflood_maps import bunch_predictions
 
 
 def is_eng(x):
@@ -48,12 +49,17 @@ def cog_doi(sm_info: list[list]) -> float:
     esum = sum(x[3] for x in filter(is_eng, sm_info))
     return esum / max(filter(is_eng, sm_info), key=lambda x: x[3])[3]
 
-def red_wrap(y_file: str, doi_file: str, mm_indx: Callable, local_pos: Callable) -> Callable:
-    nn_pos = neural_net_pcalc(nn_yfile, nn_dfile, chan_map.get_minimodule_index, chan_map.get_plot_position)
-    def _rec(sm_info: list[list]) -> tuple[float, float]:
-        _, y, doi = nn_pos(sm_info)
-        return y, doi
-    return _rec
+# def red_wrap(batch_size: int, y_file: str, doi_file: str, mm_indx: Callable, local_pos: Callable) -> Callable:
+#     b_func, pr_func = bunch_predictions(batch_size, y_file, doi_file, mm_indx, local_pos)
+#     def _do_stuff(typ: str, sm_info: list | None=None, ):
+#         if 'save' in typ:
+#             b_func()
+#     nn_predict = neural_net_pcalc("IMAS-1ring", y_file, doi_file, local_pos)
+#     nn_pos = neural_net_pcalc(y_file, doi_file, mm_indx, local_pos)
+#     def _rec(sm_info: list[list]) -> tuple[float, float]:
+#         _, y, doi = nn_pos(sm_info)
+#         return y, doi
+#     return _rec
 
 def cog_wrap(chan_map: ChannelMap, local_indx: int, power: int) -> Callable:
     yrec     = energy_weighted_average(chan_map.get_plot_position, local_indx, power)
@@ -69,10 +75,9 @@ def cog_wrap(chan_map: ChannelMap, local_indx: int, power: int) -> Callable:
     return _rec
 
 
-def position_histograms(ybins    : np.ndarray,
+def position_histograms(batch_size: int      ,
+                        ybins    : np.ndarray,
                         dbins    : np.ndarray,
-                        # yrec     : Callable  ,
-                        # drec     : Callable  ,
                         pos_rec  : Callable  ,
                         ch_per_mm: int       ,
                         emin_max : tuple     ,
@@ -80,7 +85,6 @@ def position_histograms(ybins    : np.ndarray,
                         ) -> Callable:
     max_slab = select_max_energy(ChannelType.TIME)
     erange   = select_energy_range(*emin_max)
-    # ebins    = np.arange(0, 300, 10)
     # Channel ordering
     icols    = ['supermodule', 'minimodule', 'local_y']
     isTime   = chan_map.mapping.type.map(lambda x: x is ChannelType.TIME)
@@ -92,37 +96,36 @@ def position_histograms(ybins    : np.ndarray,
         for sm_info in evt:
             _plotter.all_count += 1
             _, eng = get_supermodule_eng(sm_info)
-            # if eng < ebins[-1] and (bn_idx := np.searchsorted(ebins, eng, side='right') - 1) >= 0:
-            #     _plotter.all_spec[bn_idx] += 1
             if erange(eng):
                 _plotter.ecount += 1
                 try:
-                    # Y = yrec(sm_info)
-                    Y, DOI = pos_rec(sm_info)
-                except IndexError:
+                    pos_rec[0](sm_info, _plotter.sl_count)
+                except TypeError:
                     continue
-                # if (mx_tchn := max_slab(sm_info)):
+                slab_id = max_slab(sm_info)[0]
+                sm, mm  = chan_map.get_modules(slab_id)
+                _plotter.sm_mm[_plotter.sl_count, 0] = sm
+                _plotter.sm_mm[_plotter.sl_count, 1] = mm
+                # try:
+                #     Y, DOI = pos_rec(sm_info)
+                # except IndexError:
+                #     continue
                 _plotter.sl_count += 1
-                    # slab_id = mx_tchn[0]
-                    # Y      -= chan_map.mapping.at[slab_id, 'local_y']
-                if Y < ybins[-1] and (bn_idx := np.searchsorted(ybins, Y, side='right') - 1) >= 0:
-                    # slab_idx = chan_idx[slab_id]
-                    slab_id = max_slab(sm_info)[0]
-                    sm_mm   = chan_map.get_modules(slab_id)
-                    # _plotter.yspecs[sm_mm][bn_idx, slab_idx] += 1
-                    plotter.yspecs[sm_mm][bn_idx] += 1
-                    # DOI = drec(sm_info)
-                    if DOI < dbins[-1] and (bn_idx := np.searchsorted(dbins, DOI, side='right') - 1) >= 0:
-                        # _plotter.dspecs[sm_mm][bn_idx, slab_idx] += 1
-                        _plotter.dspecs[sm_mm][bn_idx] += 1
-    # _plotter.yspecs = {(sm, mm): np.zero((ybins.shape[0] - 1, ch_per_mm), np.uint) for mm in mm_nums for sm in sm_nums}
-    # _plotter.dspecs = {(sm, mm): np.zero((dbins.shape[0] - 1, ch_per_mm), np.uint) for mm in mm_nums for sm in sm_nums}
+                if _plotter.sl_count >= batch_size:
+                    XY, DOI = pos_rec[1]()
+                    for xy, doi, mod_vals in zip(XY, DOI, _plotter.sm_mm):
+                        if xy[1] < ybins[-1] and (bn_idx := np.searchsorted(ybins, xy[1], side='right') - 1) >= 0:
+                            _plotter.yspecs[tuple(mod_vals)][bn_idx] += 1
+                            if doi < dbins[-1] and (bn_idx := np.searchsorted(dbins, doi, side='right') - 1) >= 0:
+                                _plotter.dspecs[tuple(mod_vals)][bn_idx] += 1
+                    _plotter.sl_count = 0
+                    _plotter.sm_mm.fill(0)
     _plotter.yspecs = {(sm, mm): np.zeros(ybins.shape[0] - 1, np.uint) for mm in mm_nums for sm in sm_nums}
     _plotter.dspecs = {(sm, mm): np.zeros(dbins.shape[0] - 1, np.uint) for mm in mm_nums for sm in sm_nums}
+    _plotter.sm_mm  = np.zeros((batch_size, 2), np.uint)
     _plotter.all_count = 0
     _plotter.ecount    = 0
     _plotter.sl_count  = 0
-    # _plotter.all_spec  = np.zeros(ebins.shape[0] - 1, np.uint)
     return _plotter
 
 
@@ -159,17 +162,27 @@ if __name__ == '__main__':
     if 'NN' in rec_type:
         nn_yfile = conf.get('network',   'y_file')
         nn_dfile = conf.get('network', 'doi_file')
-        pos_rec  = red_wrap(nn_yfile, nn_dfile, chan_map.get_minimodule_index, chan_map.get_plot_position)
+        batch_size = conf.getint('network', 'batch_size', fallback=  1000)
+        # pos_rec  = red_wrap(nn_yfile, nn_dfile, chan_map.get_minimodule_index, chan_map.get_plot_position)
+        pos_rec  = bunch_predictions(batch_size, nn_yfile, nn_dfile, chan_map.get_minimodule_index, chan_map.get_plot_position, loc_trans=False)
     else:
         # yrec = energy_weighted_average(chan_map.get_plot_position, 1, 2)
         # drec = cog_doi
         pos_rec = cog_wrap(chan_map, 1, 2)
     # plotter = position_histograms(ybins, dbins, yrec, drec, 8, emin_max, chan_map)
-    plotter = position_histograms(ybins, dbins, pos_rec, 8, emin_max, chan_map)
+    plotter = position_histograms(batch_size, ybins, dbins, pos_rec, 8, emin_max, chan_map)
     for fn in infiles:
         print(f'Reading {fn}')
         for evt in map(cal_sel, reader(fn)):
             plotter(evt)
+    if plotter.sl_count != 0:
+        print('doing a last prediction')
+        xy_pos, DOI = pos_rec[1]()
+        for i in range(plotter.sl_count):
+            if xy_pos[i][1] < ybins[-1] and (bn_idx := np.searchsorted(ybins, xy_pos[i][1], side='right') - 1) >= 0:
+                plotter.yspecs[tuple(plotter.sm_mm[i])][bn_idx] += 1
+                if DOI[i] < dbins[-1] and (bn_idx := np.searchsorted(dbins, DOI[i], side='right') - 1) >= 0:
+                    plotter.dspecs[tuple(plotter.sm_mm[i])][bn_idx] += 1
 
     ydf = pd.DataFrame(shift_to_centres(ybins).round(2), columns=['bin_centres'])
     for (sm, mm), hist in plotter.yspecs.items():
@@ -187,6 +200,6 @@ if __name__ == '__main__':
     ddf.drop('index', axis=1).sort_values(['SM', 'MM']).to_csv(out_file, sep='\t', index=False)
     # ddf.to_csv(out_file, sep='\t', index=False)
 
-    print(f'All {plotter.all_count}, eng {plotter.ecount}, slabs {plotter.sl_count}')
+    print(f'All {plotter.all_count}, eng {plotter.ecount}')
     # plt.plot(shift_to_centres(np.arange(0, 300, 10)), plotter.all_spec)
     # plt.show()
