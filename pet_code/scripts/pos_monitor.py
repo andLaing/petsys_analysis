@@ -36,7 +36,8 @@ from pet_code.src.util    import select_max_energy
 from pet_code.src.util    import select_module
 from pet_code.src.util    import shift_to_centres
 
-from pet_code.scripts.cal_monitor import cal_and_sel
+from pet_code.scripts.cal_monitor  import cal_and_sel
+from pet_code.scripts.nnflood_maps import neural_net_pcalc
 
 
 def is_eng(x):
@@ -47,18 +48,39 @@ def cog_doi(sm_info: list[list]) -> float:
     esum = sum(x[3] for x in filter(is_eng, sm_info))
     return esum / max(filter(is_eng, sm_info), key=lambda x: x[3])[3]
 
+def red_wrap(y_file: str, doi_file: str, mm_indx: Callable, local_pos: Callable) -> Callable:
+    nn_pos = neural_net_pcalc(nn_yfile, nn_dfile, chan_map.get_minimodule_index, chan_map.get_plot_position)
+    def _rec(sm_info: list[list]) -> tuple[float, float]:
+        _, y, doi = nn_pos(sm_info)
+        return y, doi
+    return _rec
+
+def cog_wrap(chan_map: ChannelMap, local_indx: int, power: int) -> Callable:
+    yrec     = energy_weighted_average(chan_map.get_plot_position, local_indx, power)
+    drec     = cog_doi
+    max_slab = select_max_energy(ChannelType.TIME)
+    def _rec(sm_info: list[list]) -> tuple[float, float]:
+        y = yrec(sm_info)
+        d = drec(sm_info)
+        if (mx_tchn := max_slab(sm_info)):
+            y -= chan_map.mapping.at[mx_tchn[0], 'local_y']
+            return y, d
+        raise IndexError
+    return _rec
+
 
 def position_histograms(ybins    : np.ndarray,
                         dbins    : np.ndarray,
-                        yrec     : Callable  ,
-                        drec     : Callable  ,
+                        # yrec     : Callable  ,
+                        # drec     : Callable  ,
+                        pos_rec  : Callable  ,
                         ch_per_mm: int       ,
                         emin_max : tuple     ,
                         chan_map : ChannelMap
                         ) -> Callable:
     max_slab = select_max_energy(ChannelType.TIME)
     erange   = select_energy_range(*emin_max)
-    ebins    = np.arange(0, 300, 10)
+    # ebins    = np.arange(0, 300, 10)
     # Channel ordering
     icols    = ['supermodule', 'minimodule', 'local_y']
     isTime   = chan_map.mapping.type.map(lambda x: x is ChannelType.TIME)
@@ -75,22 +97,24 @@ def position_histograms(ybins    : np.ndarray,
             if erange(eng):
                 _plotter.ecount += 1
                 try:
-                    Y = yrec(sm_info)
+                    # Y = yrec(sm_info)
+                    Y, DOI = pos_rec(sm_info)
                 except IndexError:
                     continue
-                if (mx_tchn := max_slab(sm_info)):
-                    _plotter.sl_count += 1
-                    slab_id = mx_tchn[0]
-                    Y      -= chan_map.mapping.at[slab_id, 'local_y']
-                    if Y < ybins[-1] and (bn_idx := np.searchsorted(ybins, Y, side='right') - 1) >= 0:
-                        slab_idx = chan_idx[slab_id]
-                        sm_mm    = chan_map.get_modules(slab_id)
-                        # _plotter.yspecs[sm_mm][bn_idx, slab_idx] += 1
-                        plotter.yspecs[sm_mm][bn_idx] += 1
-                        DOI = drec(sm_info)
-                        if DOI < dbins[-1] and (bn_idx := np.searchsorted(dbins, DOI, side='right') - 1) >= 0:
-                            # _plotter.dspecs[sm_mm][bn_idx, slab_idx] += 1
-                            _plotter.dspecs[sm_mm][bn_idx] += 1
+                # if (mx_tchn := max_slab(sm_info)):
+                _plotter.sl_count += 1
+                    # slab_id = mx_tchn[0]
+                    # Y      -= chan_map.mapping.at[slab_id, 'local_y']
+                if Y < ybins[-1] and (bn_idx := np.searchsorted(ybins, Y, side='right') - 1) >= 0:
+                    # slab_idx = chan_idx[slab_id]
+                    slab_id = max_slab(sm_info)[0]
+                    sm_mm   = chan_map.get_modules(slab_id)
+                    # _plotter.yspecs[sm_mm][bn_idx, slab_idx] += 1
+                    plotter.yspecs[sm_mm][bn_idx] += 1
+                    # DOI = drec(sm_info)
+                    if DOI < dbins[-1] and (bn_idx := np.searchsorted(dbins, DOI, side='right') - 1) >= 0:
+                        # _plotter.dspecs[sm_mm][bn_idx, slab_idx] += 1
+                        _plotter.dspecs[sm_mm][bn_idx] += 1
     # _plotter.yspecs = {(sm, mm): np.zero((ybins.shape[0] - 1, ch_per_mm), np.uint) for mm in mm_nums for sm in sm_nums}
     # _plotter.dspecs = {(sm, mm): np.zero((dbins.shape[0] - 1, ch_per_mm), np.uint) for mm in mm_nums for sm in sm_nums}
     _plotter.yspecs = {(sm, mm): np.zeros(ybins.shape[0] - 1, np.uint) for mm in mm_nums for sm in sm_nums}
@@ -132,9 +156,16 @@ if __name__ == '__main__':
     cal_sel = cal_and_sel(cal_func, select_module(chan_map.get_minimodule))
 
     rec_type = conf.get('output', 'reco_type', fallback='cog')
-    yrec = energy_weighted_average(chan_map.get_plot_position, 1, 2)
-    drec = cog_doi
-    plotter = position_histograms(ybins, dbins, yrec, drec, 8, emin_max, chan_map)
+    if 'NN' in rec_type:
+        nn_yfile = conf.get('network',   'y_file')
+        nn_dfile = conf.get('network', 'doi_file')
+        pos_rec  = red_wrap(nn_yfile, nn_dfile, chan_map.get_minimodule_index, chan_map.get_plot_position)
+    else:
+        # yrec = energy_weighted_average(chan_map.get_plot_position, 1, 2)
+        # drec = cog_doi
+        pos_rec = cog_wrap(chan_map, 1, 2)
+    # plotter = position_histograms(ybins, dbins, yrec, drec, 8, emin_max, chan_map)
+    plotter = position_histograms(ybins, dbins, pos_rec, 8, emin_max, chan_map)
     for fn in infiles:
         print(f'Reading {fn}')
         for evt in map(cal_sel, reader(fn)):
@@ -144,12 +175,17 @@ if __name__ == '__main__':
     for (sm, mm), hist in plotter.yspecs.items():
         ydf[f'{sm}_{mm}'] = hist#.sum(axis=1)
     out_file = os.path.join(out_dir, f'yspecs_{rec_type}.tsv')
-    ydf.to_csv(out_file, sep='\t', index=False)
+    ydf = ydf.T.reset_index()
+    ydf[['SM', 'MM']] = ydf['index'].str.split('_').tolist()
+    ydf.drop('index', axis=1).sort_values(['SM', 'MM']).to_csv(out_file, sep='\t', index=False)
     ddf = pd.DataFrame(shift_to_centres(dbins).round(2), columns=['bin_centres'])
     for (sm, mm), hist in plotter.dspecs.items():
         ddf[f'{sm}_{mm}'] = hist#.sum(axis=1)
     out_file = os.path.join(out_dir, f'DOIspecs_{rec_type}.tsv')
-    ddf.to_csv(out_file, sep='\t', index=False)
+    ddf = ddf.T.reset_index()
+    ddf[['SM', 'MM']] = ddf['index'].str.split('_').tolist()
+    ddf.drop('index', axis=1).sort_values(['SM', 'MM']).to_csv(out_file, sep='\t', index=False)
+    # ddf.to_csv(out_file, sep='\t', index=False)
 
     print(f'All {plotter.all_count}, eng {plotter.ecount}, slabs {plotter.sl_count}')
     # plt.plot(shift_to_centres(np.arange(0, 300, 10)), plotter.all_spec)
