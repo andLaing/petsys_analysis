@@ -57,6 +57,7 @@ def xyE_binning(chan_map: ChannelMap,
                 for sm in chan_map.mapping.supermodule.unique()     }
     def fill_bin(evt: tuple[list, list]) -> None:
         cal_evt = cal_func(evt)
+        fill_bin.evt_count += 1
         for sm_info in filter(lambda x: x, map(sel_func, cal_evt)):
             sm      = chan_map.get_supermodule(sm_info[0][0])
             mm      = chan_map.get_minimodule (sm_info[0][0])
@@ -67,6 +68,7 @@ def xyE_binning(chan_map: ChannelMap,
             eb      = _get_bin(ebins, eng)
             if all((xb, yb, eb)):
                 sm_specs[sm][mm][xb, yb, eb] += 1
+    fill_bin.evt_count = 0
 
     def make_plots(plotter: Callable) -> None:
         for sm in list(sm_specs.keys()):
@@ -149,7 +151,7 @@ if __name__ == '__main__':
         binner, plotter = xyE_binning(chan_map, xbins, ybins, ebins, cal_func, max_sel, c_calc)
         _               = tuple(map(binner, islice(pet_reader(fn), max_evt)))
         end_sec         = time.time()
-        print(f'Time enlapsed reading: {end_sec - start_sec} s')
+        print(f'Time enlapsed reading: {end_sec - start_sec} s, {binner.evt_count} events processed.')
 
         start_sec = end_sec
 
