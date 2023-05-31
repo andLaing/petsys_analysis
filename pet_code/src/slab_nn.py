@@ -158,10 +158,11 @@ class SlabNN:
         self.model = keras.models.load_model(file)
 
 
-def neural_net_pcalc(system   : str     ,
-                     y_file   : str     ,
-                     doi_file : str     ,
-                     local_pos: Callable
+def neural_net_pcalc(system   : str      ,
+                     y_file   : str      ,
+                     doi_file : str      ,
+                     local_pos: Callable ,
+                     loc_trans: bool=True
                      ) -> Callable:
     """
     Defines the desired neural network and
@@ -172,7 +173,7 @@ def neural_net_pcalc(system   : str     ,
     NN.build_combined(y_file, doi_file, print_model=False)
     def _xy_local(slab_id: int, y_mm: np.float32) -> tuple[float, float]:
         local_x, slab_y = local_pos(slab_id)
-        local_y         = y_mm + slab_y
+        local_y         = y_mm + slab_y if loc_trans else y_mm
         return local_x, local_y
 
     def _predict(slab_ids: np.ndarray,
