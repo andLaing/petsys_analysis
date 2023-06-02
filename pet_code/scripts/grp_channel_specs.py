@@ -92,10 +92,10 @@ def slab_plots(out_file     : str               ,
                 plt.ylabel('source spec - no source spec (au)')
                 plt.savefig(out_file + f'BackRest_ch{id}.png')
                 plt.clf()
-    print(f'{check_fits.shape[1] - 1} time channels with suspect distributions.')
+    print(f'{(check_fits.shape[1] - 1) // 2} time channels with suspect distributions.')
     if check_fits.shape[0] > 1:
         check_fits.to_feather(out_file + 'suspectTimeFits.feather')
-    return check_fits.shape[1] - 1, peak_out
+    return (check_fits.shape[1] - 1) // 2, peak_out
 
 
 def refit_slab(out_file : str               ,
@@ -137,7 +137,7 @@ def refit_channel(bin_centres: np.ndarray,
     plt.show()
     bin_wid    = np.diff(bin_centres)[0]
     edges      = bin_centres - bin_wid / 2
-    mean_seed  = input('Please indicate a seed position for the centroid ')
+    mean_seed  = float(input('Please indicate a seed position for the centroid '))
     p_indx     = np.searchsorted(edges, mean_seed, side='right') - 1
     mask       = ((bin_centres > bin_centres[p_indx] - nbin_fit * bin_wid) &
                   (bin_centres < bin_centres[p_indx] + nbin_fit * bin_wid))
@@ -203,10 +203,10 @@ def energy_plots(out_file     : str               ,
                 plt.legend()
                 plt.savefig(out_file + f'Emax_ch{id}.png')
                 plt.clf()
-    print(f'{check_fits.shape[1] - 1} energy channels with suspect distributions.')
+    print(f'{(check_fits.shape[1] - 1) // 2} energy channels with suspect distributions.')
     if check_fits.shape[1] > 1:
         check_fits.to_feather(out_file + 'suspectEnergyFits.feather')
-    return check_fits.shape[1] - 1, peak_out
+    return (check_fits.shape[1] - 1) // 2, peak_out
 
 
 def weighted_average(axis     : plt.Axes  ,
