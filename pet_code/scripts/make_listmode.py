@@ -236,7 +236,7 @@ def nn_loop(chan_map  : ChannelMap,
                     i += 1
             # Ignoring doi for now. the first argument should be slab ids
             predicted_xy, _ = positions(channel_energies['slab_idx'], channel_energies)
-            for j in range(0, npred // 2):#This way forced by structure.
+            for j in range(0, i + 1):#This way forced by structure.
                 pixels = tuple(map(lambda xy: pixel_vals(*xy), predicted_xy[2 * i:2 * i+2]))
                 coincidences[j]['xPosition1'] = pixels[0][0]
                 coincidences[j]['yPosition1'] = pixels[0][1]
