@@ -192,11 +192,6 @@ def nn_loop(chan_map  : ChannelMap,
     # There's probably a better way to do this,
     for c in coincidences:
         c['amount'] = 1.0
-    # Channel ordering
-    # icols    = ['supermodule', 'minimodule', 'local_y']
-    # isEng    = chan_map.mapping.type.map(lambda x: x is ChannelType.ENERGY)
-    # ord_chan = chan_map.mapping[isEng].sort_values(icols).groupby(icols[:-1]).head(nchan).index
-    # chan_idx = {id: idx % nchan for idx, id in enumerate(ord_chan)}
     max_slab = select_max_energy(ChannelType.TIME)
     # Define predictor?
     positions = neural_net_pcalc(system, nn_yfile, nn_doifile, chan_map.get_plot_position)
@@ -235,20 +230,19 @@ def nn_loop(chan_map  : ChannelMap,
                         except KeyError:
                             continue
                     ## this should really make use of the category dict (for now all set to zero inside predictor wrapper)
+                    ## And we need to save the slab id too for the translation to local coords after prediction
                     channel_energies[2 * i    ]['slab_idx'] = max_chans[0][0]
                     channel_energies[2 * i + 1]['slab_idx'] = max_chans[1][0]
                     i += 1
-            ## predict here. Fake returned object for now.
-            # predicted_xy = np.empty(npred, np.dtype(('X', np.float32), ('Y', np.float32)))
             # Ignoring doi for now. the first argument should be slab ids
             predicted_xy, _ = positions(channel_energies['slab_idx'], channel_energies)
-            for i in range(0, npred // 2):#This way forced by structure.
+            for j in range(0, npred // 2):#This way forced by structure.
                 pixels = tuple(map(lambda xy: pixel_vals(*xy), predicted_xy[2 * i:2 * i+2]))
-                coincidences[i]['xPosition1'] = pixels[0][0]
-                coincidences[i]['yPosition1'] = pixels[0][1]
-                coincidences[i]['xPosition2'] = pixels[1][0]
-                coincidences[i]['yPosition2'] = pixels[1][1]
-                lm_out.write(coincidences[i])
+                coincidences[j]['xPosition1'] = pixels[0][0]
+                coincidences[j]['yPosition1'] = pixels[0][1]
+                coincidences[j]['xPosition2'] = pixels[1][0]
+                coincidences[j]['yPosition2'] = pixels[1][1]
+                lm_out.write(coincidences[j])
     return _evt_loop
 
 
