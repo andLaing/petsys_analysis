@@ -105,7 +105,7 @@ def mean_around_max(data: np.ndarray     ,
     x         = bins[first_bin:last_bin]
     y         = data[first_bin:last_bin]
     if sum(y) <= 0:
-        return None, None, None, None
+        return None, None, None, None, None
     if yerr is not None:
         yerr = yerr[first_bin:last_bin]
     else:
